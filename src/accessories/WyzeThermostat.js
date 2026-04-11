@@ -22,8 +22,23 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
     this.thermostatModeSys = "auto";
     this.thermostatWorkingState = "idle";
     this.thermostatTempUnit = "F";
+    this.thermostatHumidity = 50;
+    this.thermostatFanMode = "auto";
 
     this.service = this.getThermostatService();
+
+    // Get/add humidity sensor service
+    this.humidityService = this.getHumidityService();
+    this.humidityService
+      .getCharacteristic(Characteristic.CurrentRelativeHumidity)
+      .onGet(this.handleCurrentRelativeHumidityGet.bind(this));
+
+    // Get/add fan mode switch service
+    this.fanService = this.getFanService();
+    this.fanService
+      .getCharacteristic(Characteristic.On)
+      .onGet(this.handleFanGet.bind(this))
+      .onSet(this.handleFanSet.bind(this));
 
     // GET current heat/cool/off state
     this.service
@@ -186,6 +201,26 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
       .updateValue(value);
   }
 
+  async handleCurrentRelativeHumidityGet() {
+    this.debugLog("handleCurrentRelativeHumidityGet humidity of " + this.display_name + " to " + this.thermostatHumidity);
+    return this.thermostatHumidity;
+  }
+
+  async handleFanGet() {
+    this.debugLog("handleFanGet fan mode of " + this.display_name + " to " + this.thermostatFanMode);
+    return this.thermostatFanMode !== "auto";
+  }
+
+  async handleFanSet(value) {
+    const newFanMode = value ? "on" : "auto";
+    this.debugLog("handleFanSet fan mode of " + this.display_name + " to " + newFanMode);
+    this.setFanMode(newFanMode);
+    this.thermostatFanMode = newFanMode;
+    this.fanService
+      .getCharacteristic(Characteristic.On)
+      .updateValue(value);
+  }
+
   // this is where we do the magic
   async updateCharacteristics(device) {
     this.debugLog("Updating status of " + this.display_name);
@@ -203,6 +238,16 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
     this.debugLog("Cool Setpoint: " + this.thermostatCoolSetpoint);
     this.debugLog("Heat Setpoint: " + this.thermostatHeatSetpoint);
     this.debugLog("Temp Units: " + this.Wyze2HomekitUnits[this.thermostatTempUnit]);
+    this.debugLog("Humidity: " + this.thermostatHumidity);
+    this.debugLog("Fan Mode: " + this.thermostatFanMode);
+
+    // Update HomeKit characteristics
+    this.humidityService
+      .getCharacteristic(Characteristic.CurrentRelativeHumidity)
+      .updateValue(this.thermostatHumidity);
+    this.fanService
+      .getCharacteristic(Characteristic.On)
+      .updateValue(this.thermostatFanMode !== "auto");
   }
 
   getTargetTemperatureForSystemState() {
@@ -239,6 +284,30 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
     return service;
   }
 
+  getHumidityService() {
+    this.debugLog("Retrieving previous humidity service for " + this.display_name);
+    let service = this.homeKitAccessory.getService(Service.HumiditySensor);
+
+    if (!service) {
+      this.debugLog("Adding humidity service for " + this.display_name);
+      service = this.homeKitAccessory.addService(Service.HumiditySensor);
+    }
+
+    return service;
+  }
+
+  getFanService() {
+    this.debugLog("Retrieving previous fan service for " + this.display_name);
+    let service = this.homeKitAccessory.getService(Service.Switch, "fan");
+
+    if (!service) {
+      this.debugLog("Adding fan service for " + this.display_name);
+      service = this.homeKitAccessory.addService(Service.Switch, "fan", "Fan");
+    }
+
+    return service;
+  }
+
   // Wyze API Calls to GET info
   // Thermostat Methods
   async thermostatGetIotProp() {
@@ -269,7 +338,13 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
           case "mode_sys":
             this.thermostatModeSys = properties[prop];
             continue;
-          
+          case "humidity":
+            this.thermostatHumidity = Math.round(properties[prop]);
+            continue;
+          case "fan_mode":
+            this.thermostatFanMode = properties[prop];
+            continue;
+
             // can check for "iot_state" and "time2temp_val" in future if needed
         }
       }

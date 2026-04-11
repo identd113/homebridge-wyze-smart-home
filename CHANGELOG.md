@@ -8,6 +8,12 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 ## Releases
 
+### v0.5.48
+- Fix WyzeHMS offline crash when security hub loses connection
+- Add humidity sensor to Wyze Thermostat with real-time humidity display
+- Add fan mode switch to Wyze Thermostat for control of fan on/auto/circ modes
+- Improve error handling and state synchronization for thermostat accessories
+
 ### v0.5.47
 - Add Wyze Lock Bolt v2 (DX_LB2) support via IoT3 API
 - Add Palm Lock (DX_PVLOC) support via IoT3 API
