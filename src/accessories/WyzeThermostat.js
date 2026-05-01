@@ -22,8 +22,50 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
     this.thermostatModeSys = "auto";
     this.thermostatWorkingState = "idle";
     this.thermostatTempUnit = "F";
+    this.thermostatHumidity = 50;
+    this.thermostatFanMode = "auto";
+    this.thermostatEmheat = false;
+    this.thermostatCurrentScenario = "none";
+    this.thermostatHold = false;
+    this.thermostatKidLock = false;
 
     this.service = this.getThermostatService();
+
+    this.humidityService = this.getOrAddService(Service.HumiditySensor);
+    this.humidityService
+      .getCharacteristic(Characteristic.CurrentRelativeHumidity)
+      .onGet(this.handleCurrentRelativeHumidityGet.bind(this));
+
+    this.fanService = this.getOrAddSwitchService("fan", "Fan");
+    this.fanService
+      .getCharacteristic(Characteristic.On)
+      .onGet(this.handleFanGet.bind(this))
+      .onSet(this.handleFanSet.bind(this));
+
+    // Scenario is read-only — reflects active schedule, snaps back on set
+    this.scenarioService = this.getOrAddSwitchService("scenario", "Scenario");
+    this.scenarioService
+      .getCharacteristic(Characteristic.On)
+      .onGet(this.handleScenarioGet.bind(this))
+      .onSet(this.handleScenarioSet.bind(this));
+
+    this.emheatService = this.getOrAddSwitchService("emheat", "Emergency Heat");
+    this.emheatService
+      .getCharacteristic(Characteristic.On)
+      .onGet(this.handleEmheatGet.bind(this))
+      .onSet(this.handleEmheatSet.bind(this));
+
+    this.holdService = this.getOrAddSwitchService("hold", "Hold");
+    this.holdService
+      .getCharacteristic(Characteristic.On)
+      .onGet(this.handleHoldGet.bind(this))
+      .onSet(this.handleHoldSet.bind(this));
+
+    this.kidLockService = this.getOrAddSwitchService("kidlock", "Keypad Lock");
+    this.kidLockService
+      .getCharacteristic(Characteristic.On)
+      .onGet(this.handleKidLockGet.bind(this))
+      .onSet(this.handleKidLockSet.bind(this));
 
     // GET current heat/cool/off state
     this.service
@@ -186,6 +228,74 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
       .updateValue(value);
   }
 
+  async handleCurrentRelativeHumidityGet() {
+    this.debugLog("handleCurrentRelativeHumidityGet humidity of " + this.display_name + " to " + this.thermostatHumidity);
+    return this.thermostatHumidity;
+  }
+
+  async handleFanGet() {
+    this.debugLog("handleFanGet fan mode of " + this.display_name + " to " + this.thermostatFanMode);
+    return this.thermostatFanMode !== "auto";
+  }
+
+  async handleFanSet(value) {
+    const newFanMode = value ? "on" : "auto";
+    this.debugLog("handleFanSet fan mode of " + this.display_name + " to " + newFanMode);
+    this.setFanMode(newFanMode);
+    this.thermostatFanMode = newFanMode;
+    this.fanService
+      .getCharacteristic(Characteristic.On)
+      .updateValue(value);
+  }
+
+  async handleEmheatGet() {
+    this.debugLog("handleEmheatGet emergency heat of " + this.display_name + " to " + this.thermostatEmheat);
+    return this.thermostatEmheat;
+  }
+
+  async handleEmheatSet(value) {
+    this.debugLog("handleEmheatSet emergency heat of " + this.display_name + " to " + value);
+    await this.plugin.client.thermostatSetIotProp(this.mac, this.product_model, "emheat", value ? 1 : 0);
+    this.thermostatEmheat = value;
+    this.emheatService.getCharacteristic(Characteristic.On).updateValue(value);
+  }
+
+  async handleScenarioGet() {
+    this.debugLog("handleScenarioGet current scenario of " + this.display_name + " to " + this.thermostatCurrentScenario);
+    return this.thermostatCurrentScenario !== "none";
+  }
+
+  async handleScenarioSet(value) {
+    // Scenario is read-only — snap back to reflect actual device state
+    this.scenarioService
+      .getCharacteristic(Characteristic.On)
+      .updateValue(this.thermostatCurrentScenario !== "none");
+  }
+
+  async handleHoldGet() {
+    this.debugLog("handleHoldGet hold of " + this.display_name + " to " + this.thermostatHold);
+    return this.thermostatHold;
+  }
+
+  async handleHoldSet(value) {
+    this.debugLog("handleHoldSet hold of " + this.display_name + " to " + value);
+    await this.plugin.client.thermostatSetIotProp(this.mac, this.product_model, "dev_hold", value ? 1 : 0);
+    this.thermostatHold = value;
+    this.holdService.getCharacteristic(Characteristic.On).updateValue(value);
+  }
+
+  async handleKidLockGet() {
+    this.debugLog("handleKidLockGet keypad lock of " + this.display_name + " to " + this.thermostatKidLock);
+    return this.thermostatKidLock;
+  }
+
+  async handleKidLockSet(value) {
+    this.debugLog("handleKidLockSet keypad lock of " + this.display_name + " to " + value);
+    await this.plugin.client.thermostatSetIotProp(this.mac, this.product_model, "kid_lock", value ? 1 : 0);
+    this.thermostatKidLock = value;
+    this.kidLockService.getCharacteristic(Characteristic.On).updateValue(value);
+  }
+
   // this is where we do the magic
   async updateCharacteristics(device) {
     this.debugLog("Updating status of " + this.display_name);
@@ -203,6 +313,32 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
     this.debugLog("Cool Setpoint: " + this.thermostatCoolSetpoint);
     this.debugLog("Heat Setpoint: " + this.thermostatHeatSetpoint);
     this.debugLog("Temp Units: " + this.Wyze2HomekitUnits[this.thermostatTempUnit]);
+    this.debugLog("Humidity: " + this.thermostatHumidity);
+    this.debugLog("Fan Mode: " + this.thermostatFanMode);
+    this.debugLog("Emergency Heat: " + this.thermostatEmheat);
+    this.debugLog("Current Scenario: " + this.thermostatCurrentScenario);
+    this.debugLog("Hold: " + this.thermostatHold);
+    this.debugLog("Kid Lock: " + this.thermostatKidLock);
+
+    // Update HomeKit characteristics
+    this.humidityService
+      .getCharacteristic(Characteristic.CurrentRelativeHumidity)
+      .updateValue(this.thermostatHumidity);
+    this.fanService
+      .getCharacteristic(Characteristic.On)
+      .updateValue(this.thermostatFanMode !== "auto");
+    this.emheatService
+      .getCharacteristic(Characteristic.On)
+      .updateValue(this.thermostatEmheat);
+    this.scenarioService
+      .getCharacteristic(Characteristic.On)
+      .updateValue(this.thermostatCurrentScenario !== "none");
+    this.holdService
+      .getCharacteristic(Characteristic.On)
+      .updateValue(this.thermostatHold);
+    this.kidLockService
+      .getCharacteristic(Characteristic.On)
+      .updateValue(this.thermostatKidLock);
   }
 
   getTargetTemperatureForSystemState() {
@@ -239,6 +375,16 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
     return service;
   }
 
+  getOrAddService(serviceType) {
+    return this.homeKitAccessory.getService(serviceType) ||
+      this.homeKitAccessory.addService(serviceType);
+  }
+
+  getOrAddSwitchService(subtype, displayName) {
+    return this.homeKitAccessory.getServiceById(Service.Switch, subtype) ||
+      this.homeKitAccessory.addService(Service.Switch, displayName, subtype);
+  }
+
   // Wyze API Calls to GET info
   // Thermostat Methods
   async thermostatGetIotProp() {
@@ -269,7 +415,25 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
           case "mode_sys":
             this.thermostatModeSys = properties[prop];
             continue;
-          
+          case "humidity":
+            this.thermostatHumidity = Math.round(properties[prop]);
+            continue;
+          case "fan_mode":
+            this.thermostatFanMode = properties[prop];
+            continue;
+          case "emheat":
+            this.thermostatEmheat = properties[prop];
+            continue;
+          case "current_scenario":
+            this.thermostatCurrentScenario = properties[prop];
+            continue;
+          case "dev_hold":
+            this.thermostatHold = properties[prop];
+            continue;
+          case "kid_lock":
+            this.thermostatKidLock = properties[prop];
+            continue;
+
             // can check for "iot_state" and "time2temp_val" in future if needed
         }
       }

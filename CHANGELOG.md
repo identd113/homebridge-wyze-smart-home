@@ -8,6 +8,26 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 ## Releases
 
+### v0.5.48
+- Add security fast-poll loop (10s) for locks — lock state changes now reflect in HomeKit within 10 seconds instead of 60
+- Add `lastDevice` caching to `WyzeAccessory` base class to support fast-poll without a full device list refresh
+- Fix `WyzeLock` first-poll spurious full refresh by initializing state vars to `null`
+- Refactor `WyzeLockBoltV2` to delegate IoT3 calls to `wyze-api` client (removes inline axios/crypto code)
+- Add `ChargingState` characteristic to `WyzeLockBoltV2` battery service (`battery::power-source` confirmed as integer: 1=battery, 2=USB)
+- Add firmware revision reporting to `WyzeLockBoltV2` via `device-info::firmware-ver`
+- Add live connectivity detection via `iot-device::iot-state` in `WyzeLockBoltV2` (faster offline detection than `conn_state`)
+- Add humidity sensor service to thermostat (surfaces `humidity` prop as `HumiditySensor`)
+- Add fan mode switch to thermostat (on = continuous fan, off = auto)
+- Add emergency heat switch to thermostat
+- Add hold mode switch to thermostat
+- Add keypad lock switch to thermostat
+- Add read-only current scenario indicator to thermostat (reflects active schedule, snaps back if toggled)
+- Fix thermostat Switch services to use `getServiceById` — prevents all sub-services resolving to the same cached service on restart
+- Fix WyzeHMS crash on offline — `this.getCharacteristic` corrected to `this.securityService.getCharacteristic`
+- Update wyze-api to 1.1.9 — requires `lockBoltV2GetProperties`; if upgrading manually, run `npm install` or reinstall via the Homebridge UI to ensure the nested wyze-api package is updated
+- Remove unused dependencies: `moment`, `inherits`, `md5`, `uuid`; revert `homebridge-config-ui-x` to `^4.56.4`
+- Replace `moment().valueOf()` with `Date.now()` in wyze-api (removes moment dependency entirely)
+
 ### v0.5.47
 - Add Wyze Lock Bolt v2 (DX_LB2) support via IoT3 API
 - Add Palm Lock (DX_PVLOC) support via IoT3 API

@@ -7,6 +7,7 @@ module.exports = class WyzeAccessory {
   constructor(plugin, homeKitAccessory) {
     this.updating = false;
     this.lastTimestamp = null;
+    this.lastDevice = null;
 
     this.plugin = plugin;
     this.homeKitAccessory = homeKitAccessory;
@@ -56,6 +57,7 @@ module.exports = class WyzeAccessory {
         device.firmware_ver
       );
 
+    this.lastDevice = device;
     if (this.shouldUpdateCharacteristics(timestamp)) {
       this.updateCharacteristics(device);
     }
@@ -80,6 +82,6 @@ module.exports = class WyzeAccessory {
   }
 
   sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms * 1000));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 };
