@@ -48,7 +48,7 @@ exports.TemperatureHumidityModels = TemperatureHumidityModels
 const LeakSensorModels = { WS3U: "WS3U" }
 exports.LeakSensorModels = LeakSensorModels
 
-const CommonModels = { "LightSwitch": "LD_SS1", "Palm": "DX_PVLOC" }
+const CommonModels = { "LightSwitch": "LD_SS1" }
 exports.CommonModels = CommonModels
 
 const S1GatewayModels = { 'GW3U': 'GW3U' }

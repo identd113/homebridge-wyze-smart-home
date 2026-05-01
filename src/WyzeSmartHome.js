@@ -3,8 +3,7 @@ const { OutdoorPlugModels, PlugModels, CommonModels, CameraModels, LeakSensorMod
   TemperatureHumidityModels, LockModels, LockBoltV2Models, MotionSensorModels, ContactSensorModels, LightModels,
   LightStripModels, MeshLightModels, ThermostatModels, S1GatewayModels } = require('./enums')
 
-const WyzeAPI = require('wyze-api') // Uncomment for Release
-//const WyzeAPI = require('./wyze-api/src') // Comment for Release
+const WyzeAPI = require('./wyze-api/src')
 const WyzePlug = require('./accessories/WyzePlug')
 const WyzeLight = require('./accessories/WyzeLight')
 const WyzeMeshLight = require('./accessories/WyzeMeshLight')
@@ -23,6 +22,11 @@ const PLUGIN_NAME = 'homebridge-wyze-smart-home'
 const PLATFORM_NAME = 'WyzeSmartHome'
 
 const DEFAULT_REFRESH_INTERVAL = 30000
+const DEFAULT_SECURITY_REFRESH_INTERVAL = 10000
+
+// Accessories that make their own API call in updateCharacteristics and return
+// a boolean indicating whether state changed — safe to fast-poll independently.
+const FAST_POLL_CLASSES = new Set([WyzeLock, WyzeLockBoltV2])
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -36,6 +40,7 @@ module.exports = class WyzeSmartHome {
     this.client = this.getClient()
 
     this.accessories = []
+    this._fastPollStats = new Map()
 
     this.api.on('didFinishLaunching', this.didFinishLaunching.bind(this))
   }
@@ -81,6 +86,7 @@ module.exports = class WyzeSmartHome {
 
   didFinishLaunching() {
     this.runLoop()
+    this.runLockFastPollLoop()
   }
 
   async runLoop() {
@@ -89,13 +95,62 @@ module.exports = class WyzeSmartHome {
     while (true) {
       try {
         await this.refreshDevices()
-      } catch (e) { }
+      } catch (e) {
+        this.log.error(`[Plugin] Refresh failed: ${e}`)
+      }
 
       await delay(interval)
     }
   }
 
+  async runLockFastPollLoop() {
+    const interval = this.config.securityRefreshInterval || DEFAULT_SECURITY_REFRESH_INTERVAL
+    await delay(interval)
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      try {
+        await this.refreshLockDevices()
+      } catch (e) { }
+      await delay(interval)
+    }
+  }
+
+  async refreshLockDevices() {
+    const targets = this.accessories.filter(a => FAST_POLL_CLASSES.has(a.constructor) && a.lastDevice)
+    if (targets.length === 0) return
+
+    let anyChanged = false
+    for (const accessory of targets) {
+      const mac = accessory.mac
+      if (!this._fastPollStats.has(mac)) {
+        this._fastPollStats.set(mac, { name: accessory.display_name, attempts: 0, successes: 0, since: new Date() })
+      }
+      const stats = this._fastPollStats.get(mac)
+      stats.attempts++
+      try {
+        const changed = await accessory.updateCharacteristics(accessory.lastDevice)
+        stats.successes++
+        if (changed) anyChanged = true
+      } catch (e) { }
+    }
+
+    if (anyChanged) {
+      if (this.config.pluginLoggingEnabled)
+        this.log('[LockFastPoll] State change detected, triggering full refresh')
+      await this.refreshDevices()
+    }
+  }
+
   async refreshDevices() {
+    if (this.config.pluginLoggingEnabled) {
+      if (this._fastPollStats.size > 0) {
+        for (const [, stats] of this._fastPollStats) {
+          const sinceStr = stats.since.toLocaleTimeString()
+          this.log(`[LockFastPoll] ${stats.name}: ${stats.successes}/${stats.attempts} polls since ${sinceStr}`)
+        }
+      }
+      this._fastPollStats = new Map()
+    }
     if (this.config.pluginLoggingEnabled) this.log('Refreshing devices...')
 
     try {

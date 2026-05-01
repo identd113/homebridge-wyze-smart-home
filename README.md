@@ -24,10 +24,11 @@ After you have done that if you feel like my work has been valuable to you I wel
 - Outdoor Plug
 - V1 & V2 Contact Sensor (Status / Battery)
 - V1 & V2 Motion Sensor (Status / Battery)
-- Tempeature Sensor (Status / Battery)
+- Temperature Sensor (Status / Battery)
 - Leak Sensor (Status / Battery)
 - Lock (Battery / Door Status / Control)
-- Camera v2, v3, Outdoor Cam, PamCam (on/off, Siren, Floodlight, Garage Door)
+- Lock Bolt v2 / Palm Lock (Battery / Door Status / Control)
+- Camera v2, v3, Outdoor Cam, PanCam (on/off, Siren, Floodlight, Garage Door)
 - Wall Switch
 - HMS
 - Thermostat
@@ -54,7 +55,8 @@ Use the settings UI in Homebridge Config UI X to configure your Wyze account, or
       "garageDoorAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
       "spotLightAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
       "alarmAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
-      "notificationAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"]}
+      "notificationAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
+      "securityRefreshInterval": 10000}
   ]
 }
 ```
@@ -90,6 +92,8 @@ Once you have the API key, you can use it in your script to get the access token
 * **`persistPath`** &ndash; If no `persistPath` is specified, a default value will be used.
 * **`refreshTokenTimerEnabled`** &ndash; If no `refreshTokenTimerEnabled` is specified, a default value will be used.
 * **`lowBatteryPercentage`** &ndash; Defines when to show devices with low battery (e.g., `"lowBatteryPercentage": 30`). Defaults to 30%.
+* **`securityRefreshInterval`** &ndash; How often (in milliseconds) to fast-poll lock devices (Wyze Lock, Lock Bolt v2, Palm Lock) for state changes independently of the main refresh cycle (e.g., `"securityRefreshInterval": 10000`). Defaults to 10 seconds.
+* **`pluginLoggingEnabled`** &ndash; Enables additional plugin-level debug logging, including lock fast-poll summaries. Defaults to false.
 
 ## Other Info
 
