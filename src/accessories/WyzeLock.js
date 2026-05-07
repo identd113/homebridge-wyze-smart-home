@@ -10,6 +10,10 @@ module.exports = class WyzeLock extends WyzeAccessory {
   constructor(plugin, homeKitAccessory) {
     super(plugin, homeKitAccessory);
 
+    this.hardlock = null;
+    this.door_open_status = null;
+    this.lockPower = null;
+
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
         `[Lock] Retrieving previous service for "${this.display_name} (${this.mac})"`
@@ -81,20 +85,24 @@ module.exports = class WyzeLock extends WyzeAccessory {
   }
 
   async updateCharacteristics(device) {
-    if (this.plugin.config.pluginLoggingEnabled)
-      this.plugin.log(
-        `[Lock] Updating status "${this.display_name} (${this.mac}) to noResponse"`
-      );
     if (device.conn_state === 0) {
-      //this.getLockCurrentState().updateValue(noResponse)
+      if (this.plugin.config.pluginLoggingEnabled)
+        this.plugin.log(
+          `[Lock] Updating status "${this.display_name} (${this.mac}) to noResponse"`
+        );
       this.lockService
         .getCharacteristic(Characteristic.LockCurrentState)
         .updateValue(noResponse);
+      return false;
     } else {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
           `[Lock] Updating status of "${this.display_name} (${this.mac})"`
         );
+      const prevHardlock = this.hardlock;
+      const prevDoorStatus = this.door_open_status;
+      const prevPower = this.lockPower;
+
       const propertyList = await this.plugin.client.getLockInfo(
         this.mac,
         this.product_model
@@ -118,7 +126,7 @@ module.exports = class WyzeLock extends WyzeAccessory {
             break;
           case "door_open_status":
             // Door Status
-            this.lockService
+            this.contactService
               .getCharacteristic(Characteristic.ContactSensorState)
               .updateValue(
                 this.plugin.client.getLockDoorState(lockProperties[prop])
@@ -146,6 +154,10 @@ module.exports = class WyzeLock extends WyzeAccessory {
             break;
         }
       }
+
+      return this.hardlock !== prevHardlock ||
+        this.door_open_status !== prevDoorStatus ||
+        this.lockPower !== prevPower;
     }
   }
 
@@ -155,9 +167,9 @@ module.exports = class WyzeLock extends WyzeAccessory {
         `[Lock] Getting Current State "${this.display_name} (${this.mac}) to ${this.hardlock}"`
       );
     if (this.hardlock == 2) {
-      return Characteristic.LockTargetState.UNSECURED;
+      return Characteristic.LockCurrentState.UNSECURED;
     } else {
-      return Characteristic.LockTargetState.SECURED;
+      return Characteristic.LockCurrentState.SECURED;
     }
   }
 
@@ -210,14 +222,11 @@ module.exports = class WyzeLock extends WyzeAccessory {
     await this.plugin.client.controlLock(
       this.mac,
       this.product_model,
-      targetState === Characteristic.LockCurrentState.SECURED
+      targetState === Characteristic.LockTargetState.SECURED
         ? "remoteLock"
         : "remoteUnlock"
     );
 
-    // Takes a few seconds for the lock command to actually update lock state property
-    // Poll every second to see if the lock state has changed to what we expect, or time out after 30 attempts
-    //await this.poll(async () => await this.getLockCurrentState(), currentState => currentState === targetState, 1000, 10)
     this.lockService.setCharacteristic(
       Characteristic.LockCurrentState,
       targetState === Characteristic.LockTargetState.SECURED
@@ -226,22 +235,4 @@ module.exports = class WyzeLock extends WyzeAccessory {
     );
   }
 
-  async poll(fn, validate, interval, maxAttempts) {
-    let attempts = 0;
-
-    const executePoll = async (resolve, reject) => {
-      const result = await fn();
-      attempts++;
-
-      if (validate(result)) {
-        return resolve(result);
-      } else if (maxAttempts && maxAttempts === attempts) {
-        return reject(new Error("Exceeded maximum attempts"));
-      } else {
-        setTimeout(executePoll, interval, resolve, reject);
-      }
-    };
-
-    return new Promise(executePoll);
-  }
 };
