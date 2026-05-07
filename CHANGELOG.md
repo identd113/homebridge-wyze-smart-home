@@ -24,9 +24,8 @@ After you have done that if you feel like my work has been valuable to you I wel
 - Add read-only current scenario indicator to thermostat (reflects active schedule, snaps back if toggled)
 - Fix thermostat Switch services to use `getServiceById` — prevents all sub-services resolving to the same cached service on restart
 - Fix WyzeHMS crash on offline — `this.getCharacteristic` corrected to `this.securityService.getCharacteristic`
-- Update wyze-api to 1.1.9 — requires `lockBoltV2GetProperties`; if upgrading manually, run `npm install` or reinstall via the Homebridge UI to ensure the nested wyze-api package is updated
+- Update wyze-api to 1.1.12 — includes bug fixes, lazy-load camera streaming, and removed moment dependency; if upgrading manually, run `npm install` or reinstall via the Homebridge UI to ensure the package is updated
 - Remove unused dependencies: `moment`, `inherits`, `md5`, `uuid`; revert `homebridge-config-ui-x` to `^4.56.4`
-- Replace `moment().valueOf()` with `Date.now()` in wyze-api (removes moment dependency entirely)
 
 ### v0.5.47
 - Add Wyze Lock Bolt v2 (DX_LB2) support via IoT3 API
