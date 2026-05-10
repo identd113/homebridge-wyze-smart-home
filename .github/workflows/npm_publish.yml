@@ -39,7 +39,7 @@ jobs:
           submodules: recursive
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
       - name: Read package version
         id: read
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
@@ -70,7 +70,7 @@ jobs:
           submodules: recursive
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
           registry-url: https://registry.npmjs.org/
           always-auth: true
       - name: Pin wyze-api dep to submodule version
