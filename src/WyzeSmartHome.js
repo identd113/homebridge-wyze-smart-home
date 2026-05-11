@@ -159,7 +159,7 @@ module.exports = class WyzeSmartHome {
       const devices = objectList.data.device_list
 
       await this.loadDevices(devices, timestamp)
-      this.log(`Refreshed ${this.accessories.length}/${devices.length} devices${fastPollSummary}`)
+      if (this.config.pluginLoggingEnabled) this.log(`Refreshed ${this.accessories.length}/${devices.length} devices${fastPollSummary}`)
     } catch (e) {
       this.log.error(`Error getting devices: ${e}`)
       throw e
@@ -219,34 +219,35 @@ module.exports = class WyzeSmartHome {
   getAccessoryClass(type, model) {
     switch (type) {
       case 'OutdoorPlug':
-        if (Object.values(OutdoorPlugModels).includes(model)) { return WyzePlug }
+        return Object.values(OutdoorPlugModels).includes(model) ? WyzePlug : null
       case 'Plug':
-        if (Object.values(PlugModels).includes(model)) { return WyzePlug }
+        return Object.values(PlugModels).includes(model) ? WyzePlug : null
       case 'Light':
-        if (Object.values(LightModels).includes(model)) { return WyzeLight }
+        return Object.values(LightModels).includes(model) ? WyzeLight : null
       case 'MeshLight':
-        if (Object.values(MeshLightModels).includes(model)) { return WyzeMeshLight }
+        return Object.values(MeshLightModels).includes(model) ? WyzeMeshLight : null
       case 'LightStrip':
-        if (Object.values(LightStripModels).includes(model)) { return WyzeMeshLight }
+        return Object.values(LightStripModels).includes(model) ? WyzeMeshLight : null
       case 'ContactSensor':
-        if (Object.values(ContactSensorModels).includes(model)) { return WyzeContactSensor }
+        return Object.values(ContactSensorModels).includes(model) ? WyzeContactSensor : null
       case 'MotionSensor':
-        if (Object.values(MotionSensorModels).includes(model)) { return WyzeMotionSensor }
+        return Object.values(MotionSensorModels).includes(model) ? WyzeMotionSensor : null
       case 'Lock':
-        if (Object.values(LockModels).includes(model)) { return WyzeLock }
+        return Object.values(LockModels).includes(model) ? WyzeLock : null
       case 'TemperatureHumidity':
-        if (Object.values(TemperatureHumidityModels).includes(model)) { return WyzeTemperatureHumidity }
+        return Object.values(TemperatureHumidityModels).includes(model) ? WyzeTemperatureHumidity : null
       case 'LeakSensor':
-        if (Object.values(LeakSensorModels).includes(model)) { return WyzeLeakSensor }
+        return Object.values(LeakSensorModels).includes(model) ? WyzeLeakSensor : null
       case 'Camera':
-        if (Object.values(CameraModels).includes(model)) { return WyzeCamera }
+        return Object.values(CameraModels).includes(model) ? WyzeCamera : null
       case 'Common':
-        if (Object.values(LockBoltV2Models).includes(model)) { return WyzeLockBoltV2 }
-        if (Object.values(CommonModels).includes(model)) { return WyzeSwitch }
+        if (Object.values(LockBoltV2Models).includes(model)) return WyzeLockBoltV2
+        if (Object.values(CommonModels).includes(model)) return WyzeSwitch
+        return null
       case 'S1Gateway':
-        if (Object.values(S1GatewayModels).includes(model)) { return WyzeHMS }
+        return Object.values(S1GatewayModels).includes(model) ? WyzeHMS : null
       case 'Thermostat':
-        if (Object.values(ThermostatModels).includes(model)) { return WyzeThermostat }
+        return Object.values(ThermostatModels).includes(model) ? WyzeThermostat : null
     }
   }
 
