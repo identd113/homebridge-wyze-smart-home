@@ -59,7 +59,24 @@ module.exports = class WyzeAccessory {
 
     this.lastDevice = device;
     if (this.shouldUpdateCharacteristics(timestamp)) {
-      Promise.resolve(this.updateCharacteristics(device)).catch(() => {});
+      this.lastTimestamp = timestamp;
+      this.updating = true;
+      try {
+        // Promise.resolve wraps both sync-return and async-return uniformly.
+        // The outer try/catch is required: if updateCharacteristics() throws
+        // synchronously, the throw escapes Promise.resolve() before .catch()
+        // is attached, which would turn update() into an unhandled rejection.
+        Promise.resolve(this.updateCharacteristics(device))
+          .catch(e => {
+            if (this.plugin?.log?.error)
+              this.plugin.log.error(`[${this.product_type}] Error updating "${this.display_name}": ${e}`);
+          })
+          .finally(() => { this.updating = false; });
+      } catch (e) {
+        this.updating = false;
+        if (this.plugin?.log?.error)
+          this.plugin.log.error(`[${this.product_type}] Error updating "${this.display_name}": ${e}`);
+      }
     }
   }
   shouldUpdateCharacteristics(timestamp) {

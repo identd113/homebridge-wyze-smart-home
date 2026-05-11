@@ -125,6 +125,7 @@ module.exports = class WyzeHMS extends WyzeAccessory {
     if (this.hmsId == null || this.hmsId == "undefined") {
       const response = await this.plugin.client.getPlanBindingListByUser();
       this.hmsId = response?.data?.[0]?.deviceList?.[0]?.device_id;
+      if (!this.hmsId) throw new Error(`[HMS] Could not resolve HMS device ID for "${this.display_name}"`);
       return this.hmsId;
     } else return this.hmsId;
   }

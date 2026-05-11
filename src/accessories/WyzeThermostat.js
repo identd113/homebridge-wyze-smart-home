@@ -113,7 +113,6 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
       .onGet(this.handleTemperatureDisplayUnitsGet.bind(this))
       .onSet(this.handleTemperatureDisplayUnitsSet.bind(this));
 
-    this.updateCharacteristics();
   }
 
   async handleCurrentTemperatureGet() {

@@ -17,15 +17,17 @@ module.exports = class WyzeLight extends WyzeAccessory {
   constructor(plugin, homeKitAccessory) {
     super(plugin, homeKitAccessory);
 
-    this.getCharacteristic(Characteristic.On).on("set", this.setOn.bind(this));
-    this.getCharacteristic(Characteristic.Brightness).on(
-      "set",
-      this.setBrightness.bind(this)
-    );
-    this.getCharacteristic(Characteristic.ColorTemperature).on(
-      "set",
-      this.setColorTemperature.bind(this)
-    );
+    this.getCharacteristic(Characteristic.On)
+      .onGet(this.getOn.bind(this))
+      .onSet(this.setOn.bind(this));
+    this.getCharacteristic(Characteristic.Brightness)
+      .onSet(this.setBrightness.bind(this));
+    this.getCharacteristic(Characteristic.ColorTemperature)
+      .onSet(this.setColorTemperature.bind(this));
+  }
+
+  async getOn() {
+    return this._switchState ?? false;
   }
 
   async updateCharacteristics(device) {
@@ -41,9 +43,11 @@ module.exports = class WyzeLight extends WyzeAccessory {
           `[Light] Updating status of ${this.mac} (${this.display_name})`
         );
       }
-      this.getCharacteristic(Characteristic.On).updateValue(
-        device.device_params.switch_state
-      );
+      const switchState = device.device_params?.switch_state;
+      if (switchState != null) {
+        this._switchState = switchState;
+        this.getCharacteristic(Characteristic.On).updateValue(switchState);
+      }
 
       const propertyList = await this.plugin.client.getDevicePID(
         this.mac,
@@ -102,70 +106,31 @@ module.exports = class WyzeLight extends WyzeAccessory {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  async setOn(value, callback) {
+  async setOn(value) {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
         `[Light] Setting power for ${this.mac} (${this.display_name}) to ${value}`
       );
-
-    try {
-      await this.plugin.client.lightPower(
-        this.mac,
-        this.product_model,
-        value ? "1" : "0"
-      );
-      callback();
-    } catch (e) {
-      callback(e);
-    }
+    await this.plugin.client.lightPower(this.mac, this.product_model, value ? "1" : "0");
   }
 
-  async setBrightness(value, callback) {
+  async setBrightness(value) {
     await this.sleep(250);
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
         `[Light] Setting brightness for ${this.mac} (${this.display_name}) to ${value}`
       );
-
-    try {
-      await this.plugin.client.setBrightness(
-        this.mac,
-        this.product_model,
-        value
-      );
-      callback();
-    } catch (e) {
-      callback(e);
-    }
+    await this.plugin.client.setBrightness(this.mac, this.product_model, value);
   }
 
-  // TODO: Issues when Color Temp higher then
-  async setColorTemperature(value, callback) {
+  async setColorTemperature(value) {
     await this.sleep(500);
-    const floatValue = this.plugin.client.rangeToFloat(
-      value,
-      HOMEKIT_COLOR_TEMP_MIN,
-      HOMEKIT_COLOR_TEMP_MAX
-    );
-    const wyzeValue = this.plugin.client.floatToRange(
-      floatValue,
-      WYZE_COLOR_TEMP_MIN,
-      WYZE_COLOR_TEMP_MAX
-    );
+    const floatValue = this.plugin.client.rangeToFloat(value, HOMEKIT_COLOR_TEMP_MIN, HOMEKIT_COLOR_TEMP_MAX);
+    const wyzeValue = this.plugin.client.floatToRange(floatValue, WYZE_COLOR_TEMP_MIN, WYZE_COLOR_TEMP_MAX);
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
         `[Light] Setting color temperature for ${this.mac} (${this.display_name}) to ${value} (${wyzeValue})`
       );
-
-    try {
-      await this.plugin.client.setColorTemperature(
-        this.mac,
-        this.product_model,
-        wyzeValue
-      );
-      callback();
-    } catch (e) {
-      callback(e);
-    }
+    await this.plugin.client.setColorTemperature(this.mac, this.product_model, wyzeValue);
   }
 };

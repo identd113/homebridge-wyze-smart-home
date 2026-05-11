@@ -330,15 +330,17 @@ module.exports = class WyzeCamera extends WyzeAccessory {
           }
         }
       } else {
-        const newPowerSwitch = device.device_params.power_switch;
-        if (this.power_switch !== newPowerSwitch && this.plugin.config.pluginLoggingEnabled)
-          this.plugin.log(
-            `[Camera] [Privacy] Updating status of "${this.display_name} (${this.mac})"`
-          );
-        this.power_switch = newPowerSwitch;
-        this.privacySwitch
-          .getCharacteristic(Characteristic.On)
-          .updateValue(newPowerSwitch);
+        const newPowerSwitch = device.device_params?.power_switch;
+        if (newPowerSwitch != null) {
+          if (this.power_switch !== newPowerSwitch && this.plugin.config.pluginLoggingEnabled)
+            this.plugin.log(
+              `[Camera] [Privacy] Updating status of "${this.display_name} (${this.mac})"`
+            );
+          this.power_switch = newPowerSwitch;
+          this.privacySwitch
+            .getCharacteristic(Characteristic.On)
+            .updateValue(newPowerSwitch);
+        }
       }
     }
   }
@@ -516,7 +518,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     return !!(
       this.plugin.config.garageDoorAccessory?.find((d) => d === this.mac) ||
       this.plugin.config.spotLightAccessory?.find((d) => d === this.mac) ||
-      this.plugin.config.alarmAccessory?.find((d) => d === this.mac) ||
+      this.plugin.config.sirenAccessory?.find((d) => d === this.mac) ||
       this.plugin.config.floodLightAccessory?.find((d) => d === this.mac) ||
       this.plugin.config.notificationAccessory?.find((d) => d === this.mac)
     );

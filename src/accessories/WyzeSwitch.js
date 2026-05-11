@@ -161,12 +161,16 @@ module.exports = class WyzeSwitch extends WyzeAccessory {
           this.product_model,
           value ? true : false
         );
+        this.switch_power = !!value;
+        this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(this.switch_power);
       } else {
         await this.plugin.client.wallSwitchPower(
           this.mac,
           this.product_model,
           value ? true : false
         );
+        this.switch_power = !!value;
+        this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(this.switch_power);
       }
     } catch (error) {
       this.plugin.log.error?.(

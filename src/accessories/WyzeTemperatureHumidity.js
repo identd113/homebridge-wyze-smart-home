@@ -136,6 +136,7 @@ module.exports = class WyzeTemperatureHumidity extends WyzeAccessory {
     if (device.conn_state === 0) {
       this.getHumidityCharacteristic().updateValue(noResponse);
     } else {
+      if (!device.device_params) return;
       this.getHumidityCharacteristic().updateValue(
         device.device_params.th_sensor_humidity
       );
