@@ -20,23 +20,13 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
   constructor(plugin, homeKitAccessory) {
     super(plugin, homeKitAccessory);
 
-    this.getCharacteristic(Characteristic.On).on("set", this.setOn.bind(this));
-    this.getCharacteristic(Characteristic.Brightness).on(
-      "set",
-      this.setBrightness.bind(this)
-    );
-    this.getCharacteristic(Characteristic.ColorTemperature).on(
-      "set",
-      this.setColorTemperature.bind(this)
-    );
-    this.getCharacteristic(Characteristic.Hue).on(
-      "set",
-      this.setHue.bind(this)
-    );
-    this.getCharacteristic(Characteristic.Saturation).on(
-      "set",
-      this.setSaturation.bind(this)
-    );
+    this.getCharacteristic(Characteristic.On)
+      .onGet(this.getOn.bind(this))
+      .onSet(this.setOn.bind(this));
+    this.getCharacteristic(Characteristic.Brightness).onSet(this.setBrightness.bind(this));
+    this.getCharacteristic(Characteristic.ColorTemperature).onSet(this.setColorTemperature.bind(this));
+    this.getCharacteristic(Characteristic.Hue).onSet(this.setHue.bind(this));
+    this.getCharacteristic(Characteristic.Saturation).onSet(this.setSaturation.bind(this));
 
     // Local caching of HSV color space handling separate Hue & Saturation on HomeKit
     // Caching idea for handling HSV colors from:
@@ -49,9 +39,11 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
     if (device.conn_state == 0) {
       this.getCharacteristic(Characteristic.On).updateValue(noResponse);
     } else {
-      this.getCharacteristic(Characteristic.On).updateValue(
-        device.device_params.switch_state
-      );
+      const switchState = device.device_params?.switch_state;
+      if (switchState != null) {
+        this._switchState = switchState;
+        this.getCharacteristic(Characteristic.On).updateValue(switchState);
+      }
 
       const propertyList = await this.plugin.client.getDevicePID(
         this.mac,
@@ -77,7 +69,7 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
     if (
         property.value != null &&
         property.value !== "0" &&
-        property.value !== "undefi"
+        property.value !== "undefined"
     ) {
       return true;
     } else {
@@ -153,139 +145,73 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
     return this.getService().getCharacteristic(characteristic);
   }
 
-  async setOn(value, callback) {
+  async getOn() {
+    return this._switchState ?? false;
+  }
+
+  async setOn(value) {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
         `[MeshLight] Setting power for "${this.display_name} (${this.mac})" to ${value}"`
       );
-
-    try {
-      await this.plugin.client.lightMeshPower(
-        this.mac,
-        this.product_model,
-        value ? "1" : "0"
-      );
-      callback();
-    } catch (e) {
-      callback(e);
-    }
+    await this.plugin.client.lightMeshPower(this.mac, this.product_model, value ? "1" : "0");
   }
 
-  async setBrightness(value, callback) {
+  async setBrightness(value) {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
         `[MeshLight] Setting brightness for "${this.display_name} (${this.mac}) to ${value}"`
       );
+    await this.plugin.client.setMeshBrightness(this.mac, this.product_model, value);
+  }
 
-    try {
-      await this.plugin.client.setMeshBrightness(
-        this.mac,
-        this.product_model,
-        value
+  async setColorTemperature(value) {
+    if (value == null) return;
+    const floatValue = this.plugin.client.rangeToFloat(value, HOMEKIT_COLOR_TEMP_MIN, HOMEKIT_COLOR_TEMP_MAX);
+    const wyzeValue = this.plugin.client.floatToRange(floatValue, WYZE_COLOR_TEMP_MIN, WYZE_COLOR_TEMP_MAX);
+    if (this.plugin.config.pluginLoggingEnabled)
+      this.plugin.log(
+        `[MeshLight] Setting color temperature for "${this.display_name} (${this.mac}) to ${value} : ${wyzeValue}"`
       );
-      callback();
-    } catch (e) {
-      callback(e);
+    await this.plugin.client.setMeshColorTemperature(this.mac, this.product_model, wyzeValue);
+  }
+
+  async setHue(value) {
+    if (value == null) return;
+    if (this.plugin.config.pluginLoggingEnabled)
+      this.plugin.log(
+        `[MeshLight] Setting hue (color) for "${this.display_name} (${this.mac}) to ${value} : (H)S Values: ${value}, ${this.cache.saturation}"`
+      );
+    this.cache.hue = value;
+    if (this.cacheUpdated) {
+      let hexValue = colorsys.hsv2Hex(this.cache.hue, this.cache.saturation, 100);
+      hexValue = hexValue.replace("#", "");
+      if (this.plugin.config.pluginLoggingEnabled) this.plugin.log(hexValue);
+      await this.plugin.client.setMeshHue(this.mac, this.product_model, hexValue);
+      this.cacheUpdated = false;
+    } else {
+      this.cacheUpdated = true;
     }
   }
 
-  async setColorTemperature(value, callback) {
-    if (value != null) {
-      let floatValue = this.plugin.client.rangeToFloat(
-        value,
-        HOMEKIT_COLOR_TEMP_MIN,
-        HOMEKIT_COLOR_TEMP_MAX
+  async setSaturation(value) {
+    if (value == null) return;
+    if (this.plugin.config.pluginLoggingEnabled) {
+      this.plugin.log(
+        `[MeshLight] Setting saturation (color) for "${this.display_name} (${this.mac}) to ${value}"`
       );
-      let wyzeValue = this.plugin.client.floatToRange(
-        floatValue,
-        WYZE_COLOR_TEMP_MIN,
-        WYZE_COLOR_TEMP_MAX
+      this.plugin.log(
+        `[MeshLight] H(S) Values: ${this.cache.saturation}, ${value}`
       );
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(
-          `[MeshLight] Setting color temperature for "${this.display_name} (${this.mac}) to ${value} : ${wyzeValue}"`
-        );
-
-      try {
-        await this.plugin.client.setMeshColorTemperature(
-          this.mac,
-          this.product_model,
-          wyzeValue
-        );
-        callback();
-      } catch (e) {
-        callback(e);
-      }
     }
-  }
-
-  async setHue(value, callback) {
-    if (value != null) {
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(
-          `[MeshLight] Setting hue (color) for "${this.display_name} (${this.mac}) to ${value} : (H)S Values: ${value}, ${this.cache.saturation}"`
-        );
-
-      try {
-        this.cache.hue = value;
-        if (this.cacheUpdated) {
-          let hexValue = colorsys.hsv2Hex(
-            this.cache.hue,
-            this.cache.saturation,
-            100
-          );
-          hexValue = hexValue.replace("#", "");
-          if (this.plugin.config.pluginLoggingEnabled)
-            this.plugin.log(hexValue);
-          await this.plugin.client.setMeshHue(
-            this.mac,
-            this.product_model,
-            hexValue
-          );
-          this.cacheUpdated = false;
-        } else {
-          this.cacheUpdated = true;
-        }
-        callback();
-      } catch (e) {
-        callback(e);
-      }
-    }
-  }
-
-  async setSaturation(value, callback) {
-    if (value != null) {
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(
-          `[MeshLight] Setting saturation (color) for "${this.display_name} (${this.mac}) to ${value}"`
-        );
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(
-          `[MeshLight] H(S) Values: ${this.cache.saturation}, ${value}`
-        );
-
-      try {
-        this.cache.saturation = value;
-        if (this.cacheUpdated) {
-          let hexValue = colorsys.hsv2Hex(
-            this.cache.hue,
-            this.cache.saturation,
-            100
-          );
-          hexValue = hexValue.replace("#", "");
-          await this.plugin.client.setMeshSaturation(
-            this.mac,
-            this.product_model,
-            hexValue
-          );
-          this.cacheUpdated = false;
-        } else {
-          this.cacheUpdated = true;
-        }
-        callback();
-      } catch (e) {
-        callback(e);
-      }
+    this.cache.saturation = value;
+    if (this.cacheUpdated) {
+      let hexValue = colorsys.hsv2Hex(this.cache.hue, this.cache.saturation, 100);
+      hexValue = hexValue.replace("#", "");
+      await this.plugin.client.setMeshSaturation(this.mac, this.product_model, hexValue);
+      this.cacheUpdated = false;
+    } else {
+      this.cacheUpdated = true;
     }
   }
 };

@@ -107,6 +107,7 @@ module.exports = class WyzeMotionSensor extends WyzeAccessory {
     if (device.conn_state === 0) {
       this.getOnCharacteristic().updateValue(noResponse);
     } else {
+      if (!device.device_params) return;
       this.getOnCharacteristic().updateValue(device.device_params.motion_state);
       this.getBatteryCharacteristic().updateValue(
         this.plugin.client.checkBatteryVoltage(device.device_params.voltage)

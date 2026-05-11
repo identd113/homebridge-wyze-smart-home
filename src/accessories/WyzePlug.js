@@ -10,7 +10,21 @@ module.exports = class WyzePlug extends WyzeAccessory {
   constructor(plugin, homeKitAccessory) {
     super(plugin, homeKitAccessory);
 
-    this.getOnCharacteristic().on("set", this.set.bind(this));
+    this.getOnCharacteristic()
+      .onGet(this.getOn.bind(this))
+      .onSet(this.setOn.bind(this));
+  }
+
+  async getOn() {
+    return this._switchState ?? false;
+  }
+
+  async setOn(value) {
+    if (this.plugin.config.pluginLoggingEnabled)
+      this.plugin.log(
+        `[Plug] Setting power for "${this.display_name} (${this.mac})" to ${value}`
+      );
+    await this.plugin.client.plugPower(this.mac, this.product_model, value ? "1" : "0");
   }
 
   updateCharacteristics(device) {
@@ -21,7 +35,11 @@ module.exports = class WyzePlug extends WyzeAccessory {
     if (device.conn_state === 0) {
       this.getOnCharacteristic().updateValue(noResponse);
     } else {
-      this.getOnCharacteristic().updateValue(device.device_params.switch_state);
+      const switchState = device.device_params?.switch_state;
+      if (switchState != null) {
+        this._switchState = switchState;
+        this.getOnCharacteristic().updateValue(switchState);
+      }
     }
   }
 
@@ -51,21 +69,4 @@ module.exports = class WyzePlug extends WyzeAccessory {
     return this.getOutletService().getCharacteristic(Characteristic.On);
   }
 
-  async set(value, callback) {
-    if (this.plugin.config.pluginLoggingEnabled)
-      this.plugin.log(
-        `[Plug] Setting power for "${this.display_name} (${this.mac})" to ${value}`
-      );
-
-    try {
-      await this.plugin.client.plugPower(
-        this.mac,
-        this.product_model,
-        value ? "1" : "0"
-      );
-      callback();
-    } catch (e) {
-      callback(e);
-    }
-  }
 };

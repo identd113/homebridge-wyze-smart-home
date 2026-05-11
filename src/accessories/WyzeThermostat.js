@@ -113,7 +113,6 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
       .onGet(this.handleTemperatureDisplayUnitsGet.bind(this))
       .onSet(this.handleTemperatureDisplayUnitsSet.bind(this));
 
-    this.updateCharacteristics();
   }
 
   async handleCurrentTemperatureGet() {
@@ -394,7 +393,8 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
     let response;
     try {
       response = await this.plugin.client.thermostatGetIotProp(this.mac);
-      let properties = response.data.props;
+      let properties = response?.data?.props;
+      if (!properties) return;
       const prop_key = Object.keys(properties);
       for (const element of prop_key) {
         const prop = element;

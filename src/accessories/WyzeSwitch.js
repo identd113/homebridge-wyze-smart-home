@@ -98,15 +98,6 @@ module.exports = class WyzeSwitch extends WyzeAccessory {
           }
         }
 
-        if (
-          this.product_model === CommonModels.Palm &&
-          this.switch_power === undefined
-        ) {
-          this.switch_power = false;
-          this.wallSwitch
-            .getCharacteristic(Characteristic.On)
-            .updateValue(this.switch_power);
-        }
       } catch (error) {
         this.plugin.log.error?.(
           `[Switch] Failed to update "${this.display_name} (${this.mac})": ${error}`
@@ -132,41 +123,22 @@ module.exports = class WyzeSwitch extends WyzeAccessory {
         `[Switch] Target State Set "${this.display_name} (${this.mac})" : "${value}"`
       );
     try {
-      if (this.product_model === CommonModels.Palm) {
-        const prefersIot =
-          this.single_press_type == SinglePressType.IOT ||
-          this.switch_iot !== undefined;
-
-        if (prefersIot) {
-          await this.plugin.client.wallSwitchIot(
-            this.mac,
-            this.product_model,
-            value ? true : false
-          );
-        } else {
-          await this.plugin.client.wallSwitchPower(
-            this.mac,
-            this.product_model,
-            value ? true : false
-          );
-        }
-
-        this.switch_power = !!value;
-        this.wallSwitch
-          .getCharacteristic(Characteristic.On)
-          .updateValue(this.switch_power);
-      } else if (this.single_press_type == SinglePressType.IOT) {
+      if (this.single_press_type == SinglePressType.IOT) {
         await this.plugin.client.wallSwitchIot(
           this.mac,
           this.product_model,
           value ? true : false
         );
+        this.switch_power = !!value;
+        this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(this.switch_power);
       } else {
         await this.plugin.client.wallSwitchPower(
           this.mac,
           this.product_model,
           value ? true : false
         );
+        this.switch_power = !!value;
+        this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(this.switch_power);
       }
     } catch (error) {
       this.plugin.log.error?.(
