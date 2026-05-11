@@ -103,6 +103,8 @@ module.exports = class WyzeHMS extends WyzeAccessory {
         return Characteristic.SecuritySystemTargetState.AWAY_ARM;
       case "disarm":
         return Characteristic.SecuritySystemTargetState.DISARM;
+      default:
+        return Characteristic.SecuritySystemTargetState.DISARM;
     }
   }
   convertHomeKitStateToHmsState(homeKitState) {
@@ -122,7 +124,7 @@ module.exports = class WyzeHMS extends WyzeAccessory {
   async getHmsID() {
     if (this.hmsId == null || this.hmsId == "undefined") {
       const response = await this.plugin.client.getPlanBindingListByUser();
-      this.hmsId = response.data[0].deviceList[0].device_id;
+      this.hmsId = response?.data?.[0]?.deviceList?.[0]?.device_id;
       return this.hmsId;
     } else return this.hmsId;
   }

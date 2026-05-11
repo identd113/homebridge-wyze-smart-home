@@ -49,7 +49,7 @@ module.exports = class WyzeLight extends WyzeAccessory {
         this.mac,
         this.product_model
       );
-      for (const property of propertyList.data.property_list) {
+      for (const property of propertyList?.data?.property_list ?? []) {
         switch (property.pid) {
           case WYZE_API_BRIGHTNESS_PROPERTY:
             this.updateBrightness(property.value);

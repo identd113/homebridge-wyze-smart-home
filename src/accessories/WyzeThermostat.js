@@ -301,7 +301,9 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
     this.debugLog("Updating status of " + this.display_name);
 
     // have to wait for this call to finish before updating or we might get null data
-    this.thermostatGetIotProp().then(this.fillData.bind(this));
+    this.thermostatGetIotProp().then(this.fillData.bind(this)).catch(e => {
+      this.plugin.log.error("Error updating thermostat: " + e);
+    });
   }
 
   fillData() {

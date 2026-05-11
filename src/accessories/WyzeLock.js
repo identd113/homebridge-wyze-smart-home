@@ -107,7 +107,8 @@ module.exports = class WyzeLock extends WyzeAccessory {
         this.mac,
         this.product_model
       );
-      let lockProperties = propertyList.device;
+      let lockProperties = propertyList?.device;
+      if (!lockProperties) return false;
       const prop_key = Object.keys(lockProperties);
       for (const element of prop_key) {
         const prop = element;
@@ -138,7 +139,8 @@ module.exports = class WyzeLock extends WyzeAccessory {
             break;
         }
       }
-      let lockerStatusProperties = propertyList.device.locker_status;
+      let lockerStatusProperties = lockProperties.locker_status;
+      if (!lockerStatusProperties) return false;
       const prop_keyLock = Object.keys(lockerStatusProperties);
       for (const element of prop_keyLock) {
         const prop = element;
