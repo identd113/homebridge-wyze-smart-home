@@ -30,7 +30,6 @@
     "base64-js": "1.5.1",
     "colorsys": "^1.0.22",
     "crypto-js": "4.2.0",
-    "homebridge-config-ui-x": "^4.56.4",
     "querystring": "0.2.1",
     "urllib": "3.18.0",
     "utf8": "^3.0.0",
