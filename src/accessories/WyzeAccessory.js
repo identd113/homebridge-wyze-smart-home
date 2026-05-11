@@ -59,7 +59,7 @@ module.exports = class WyzeAccessory {
 
     this.lastDevice = device;
     if (this.shouldUpdateCharacteristics(timestamp)) {
-      this.updateCharacteristics(device);
+      Promise.resolve(this.updateCharacteristics(device)).catch(() => {});
     }
   }
   shouldUpdateCharacteristics(timestamp) {

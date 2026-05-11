@@ -247,7 +247,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
           this.mac,
           this.product_model
         );
-        for (const property of propertyList.data.property_list) {
+        for (const property of propertyList?.data?.property_list ?? []) {
           switch (property.pid) {
             case "P1":
               if (
