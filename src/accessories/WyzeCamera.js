@@ -186,10 +186,12 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   }
 
   async updateCharacteristics(device) {
+    const wasOffline = this._lastConnState === 0;
+    this._lastConnState = device.conn_state;
     if (device.conn_state === 0) {
-      if (this.plugin.config.pluginLoggingEnabled)
+      if (!wasOffline && this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[Camera] Updating status ${this.mac} (${this.display_name}) to noResponse`
+          `[Camera] Updating status "${this.display_name} (${this.mac}) to noResponse"`
         );
       this.privacySwitch
         .getCharacteristic(Characteristic.On)
@@ -255,9 +257,9 @@ module.exports = class WyzeCamera extends WyzeAccessory {
                   (d) => d === this.mac
                 )
               ) {
-                if (this.plugin.config.pluginLoggingEnabled) {
+                  if (this.notification !== property.value && this.plugin.config.pluginLoggingEnabled) {
                   this.plugin.log(
-                    `[Camera] [Notification] Updating status of ${this.mac} (${this.display_name})`
+                    `[Camera] [Notification] Updating status of "${this.display_name} (${this.mac})"`
                   );
                 }
                 this.notification = property.value;
@@ -267,9 +269,9 @@ module.exports = class WyzeCamera extends WyzeAccessory {
               }
               break;
             case "P3":
-              if (this.plugin.config.pluginLoggingEnabled)
+              if (this.on !== property.value && this.plugin.config.pluginLoggingEnabled)
                 this.plugin.log(
-                  `[Camera] [Privacy] Updating status of ${this.mac} (${this.display_name})`
+                  `[Camera] [Privacy] Updating status of "${this.display_name} (${this.mac})"`
                 );
               this.on = property.value;
               this.privacySwitch
@@ -328,14 +330,15 @@ module.exports = class WyzeCamera extends WyzeAccessory {
           }
         }
       } else {
-        if (this.plugin.config.pluginLoggingEnabled)
+        const newPowerSwitch = device.device_params.power_switch;
+        if (this.power_switch !== newPowerSwitch && this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(
-            `[Camera] [Privacy] Updating status of ${this.mac} (${this.display_name})`
+            `[Camera] [Privacy] Updating status of "${this.display_name} (${this.mac})"`
           );
-        this.power_switch = device.device_params.power_switch;
+        this.power_switch = newPowerSwitch;
         this.privacySwitch
           .getCharacteristic(Characteristic.On)
-          .updateValue(device.device_params.power_switch);
+          .updateValue(newPowerSwitch);
       }
     }
   }
