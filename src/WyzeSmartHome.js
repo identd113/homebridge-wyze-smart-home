@@ -41,6 +41,7 @@ module.exports = class WyzeSmartHome {
 
     this.accessories = []
     this._fastPollStats = new Map()
+    this._knownUnsupported = new Set()
 
     this.api.on('didFinishLaunching', this.didFinishLaunching.bind(this))
   }
@@ -142,24 +143,23 @@ module.exports = class WyzeSmartHome {
   }
 
   async refreshDevices() {
-    if (this.config.pluginLoggingEnabled) {
-      if (this._fastPollStats.size > 0) {
-        for (const [, stats] of this._fastPollStats) {
-          const sinceStr = stats.since.toLocaleTimeString()
-          this.log(`[LockFastPoll] ${stats.name}: ${stats.successes}/${stats.attempts} polls since ${sinceStr}`)
-        }
+    let fastPollSummary = ''
+    if (this._fastPollStats.size > 0) {
+      const parts = []
+      for (const [, stats] of this._fastPollStats) {
+        parts.push(`${stats.name}: ${stats.successes}/${stats.attempts} fast polls`)
       }
-      this._fastPollStats = new Map()
+      fastPollSummary = ` (${parts.join(', ')})`
     }
-    if (this.config.pluginLoggingEnabled) this.log('Refreshing devices...')
+    this._fastPollStats = new Map()
 
     try {
       const objectList = await this.client.getObjectList()
       const timestamp = objectList.ts
       const devices = objectList.data.device_list
 
-      if (this.config.pluginLoggingEnabled) this.log(`Found ${devices.length} device(s)`)
       await this.loadDevices(devices, timestamp)
+      if (this.config.pluginLoggingEnabled) this.log(`Refreshed ${this.accessories.length}/${devices.length} devices${fastPollSummary}`)
     } catch (e) {
       this.log.error(`Error getting devices: ${e}`)
       throw e
@@ -189,7 +189,10 @@ module.exports = class WyzeSmartHome {
   async loadDevice(device, timestamp) {
     const accessoryClass = this.getAccessoryClass(device.product_type, device.product_model, device.mac, device.nickname)
     if (!accessoryClass) {
-      if (this.config.pluginLoggingEnabled) this.log(`[${device.product_type}] Unsupported device type: (Name: ${device.nickname}) (MAC: ${device.mac}) (Model: ${device.product_model})`)
+      if (this.config.pluginLoggingEnabled && !this._knownUnsupported.has(device.mac)) {
+        this._knownUnsupported.add(device.mac)
+        this.log(`[${device.product_type}] Unsupported device type: (Name: ${device.nickname}) (MAC: ${device.mac}) (Model: ${device.product_model})`)
+      }
       return
     }
     else if (this.config.filterByMacAddressList?.find(d => d === device.mac) || this.config.filterDeviceTypeList?.find(d => d === device.product_type)) {
@@ -207,8 +210,6 @@ module.exports = class WyzeSmartHome {
       const homeKitAccessory = this.createHomeKitAccessory(device)
       accessory = new accessoryClass(this, homeKitAccessory)
       this.accessories.push(accessory)
-    } else {
-      if (this.config.pluginLoggingEnabled) this.log(`[${device.product_type}] Loading accessory from cache ${device.nickname} (MAC: ${device.mac})`)
     }
     accessory.update(device, timestamp)
 
@@ -218,34 +219,35 @@ module.exports = class WyzeSmartHome {
   getAccessoryClass(type, model) {
     switch (type) {
       case 'OutdoorPlug':
-        if (Object.values(OutdoorPlugModels).includes(model)) { return WyzePlug }
+        return Object.values(OutdoorPlugModels).includes(model) ? WyzePlug : null
       case 'Plug':
-        if (Object.values(PlugModels).includes(model)) { return WyzePlug }
+        return Object.values(PlugModels).includes(model) ? WyzePlug : null
       case 'Light':
-        if (Object.values(LightModels).includes(model)) { return WyzeLight }
+        return Object.values(LightModels).includes(model) ? WyzeLight : null
       case 'MeshLight':
-        if (Object.values(MeshLightModels).includes(model)) { return WyzeMeshLight }
+        return Object.values(MeshLightModels).includes(model) ? WyzeMeshLight : null
       case 'LightStrip':
-        if (Object.values(LightStripModels).includes(model)) { return WyzeMeshLight }
+        return Object.values(LightStripModels).includes(model) ? WyzeMeshLight : null
       case 'ContactSensor':
-        if (Object.values(ContactSensorModels).includes(model)) { return WyzeContactSensor }
+        return Object.values(ContactSensorModels).includes(model) ? WyzeContactSensor : null
       case 'MotionSensor':
-        if (Object.values(MotionSensorModels).includes(model)) { return WyzeMotionSensor }
+        return Object.values(MotionSensorModels).includes(model) ? WyzeMotionSensor : null
       case 'Lock':
-        if (Object.values(LockModels).includes(model)) { return WyzeLock }
+        return Object.values(LockModels).includes(model) ? WyzeLock : null
       case 'TemperatureHumidity':
-        if (Object.values(TemperatureHumidityModels).includes(model)) { return WyzeTemperatureHumidity }
+        return Object.values(TemperatureHumidityModels).includes(model) ? WyzeTemperatureHumidity : null
       case 'LeakSensor':
-        if (Object.values(LeakSensorModels).includes(model)) { return WyzeLeakSensor }
+        return Object.values(LeakSensorModels).includes(model) ? WyzeLeakSensor : null
       case 'Camera':
-        if (Object.values(CameraModels).includes(model)) { return WyzeCamera }
+        return Object.values(CameraModels).includes(model) ? WyzeCamera : null
       case 'Common':
-        if (Object.values(LockBoltV2Models).includes(model)) { return WyzeLockBoltV2 }
-        if (Object.values(CommonModels).includes(model)) { return WyzeSwitch }
+        if (Object.values(LockBoltV2Models).includes(model)) return WyzeLockBoltV2
+        if (Object.values(CommonModels).includes(model)) return WyzeSwitch
+        return null
       case 'S1Gateway':
-        if (Object.values(S1GatewayModels).includes(model)) { return WyzeHMS }
+        return Object.values(S1GatewayModels).includes(model) ? WyzeHMS : null
       case 'Thermostat':
-        if (Object.values(ThermostatModels).includes(model)) { return WyzeThermostat }
+        return Object.values(ThermostatModels).includes(model) ? WyzeThermostat : null
     }
   }
 

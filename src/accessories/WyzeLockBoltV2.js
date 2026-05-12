@@ -88,7 +88,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
     if (device.conn_state === 0) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[LockBoltV2] Updating status "${this.display_name} (${this.mac}) to noResponse"`
+          `[LockBoltV2] Updating status of "${this.display_name} (${this.mac})" to noResponse`
         );
       this.lockService
         .getCharacteristic(Characteristic.LockCurrentState)
@@ -105,10 +105,10 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
       // Palm Lock (DX_PVLOC) intentionally uses lockBoltV2GetProperties — it supports all 6 props
       // and palmLockGetProperties in wyze-api is missing door-status + power-source.
       const result = await this.plugin.client.lockBoltV2GetProperties(this.mac, this.product_model);
-      if (result.code !== "1") {
+      if (!result || result.code !== "1") {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(
-            `[LockBoltV2] IoT3 error for "${this.display_name} (${this.mac})": ${result.msg}`
+            `[LockBoltV2] IoT3 error for "${this.display_name} (${this.mac})": ${result?.msg ?? 'no response'}`
           );
         return false;
       }
@@ -262,10 +262,10 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
       const result = targetState === Characteristic.LockTargetState.SECURED
         ? await this.plugin.client.lockBoltV2Lock(this.mac, this.product_model)
         : await this.plugin.client.lockBoltV2Unlock(this.mac, this.product_model);
-      if (result.code !== "1") {
+      if (!result || result.code !== "1") {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(
-            `[LockBoltV2] Command failed for "${this.display_name} (${this.mac})": ${result.msg}`
+            `[LockBoltV2] Command failed for "${this.display_name} (${this.mac})": ${result?.msg ?? 'no response'}`
           );
         return;
       }

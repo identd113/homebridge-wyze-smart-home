@@ -41,7 +41,7 @@ module.exports = class WyzeHMS extends WyzeAccessory {
     if (device.conn_state === 0) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[HMS] Updating status ${this.mac} (${this.display_name}) to noResponse`
+          `[HMS] Updating status of "${this.display_name} (${this.mac})" to noResponse`
         );
       this.securityService.getCharacteristic(Characteristic.SecuritySystemCurrentState).updateValue(noResponse);
     } else {
@@ -87,6 +87,7 @@ module.exports = class WyzeHMS extends WyzeAccessory {
           this.display_name
         }" : "${this.convertHomeKitStateToHmsState(value)}"`
       );
+    await this.getHmsID();
     await this.plugin.client.setHMSState(
       this.hmsId,
       this.convertHomeKitStateToHmsState(value)
@@ -125,6 +126,7 @@ module.exports = class WyzeHMS extends WyzeAccessory {
     if (this.hmsId == null || this.hmsId == "undefined") {
       const response = await this.plugin.client.getPlanBindingListByUser();
       this.hmsId = response?.data?.[0]?.deviceList?.[0]?.device_id;
+      if (!this.hmsId) throw new Error(`[HMS] Could not resolve HMS device ID for "${this.display_name}"`);
       return this.hmsId;
     } else return this.hmsId;
   }
