@@ -103,7 +103,7 @@ module.exports = class WyzeHumidity extends WyzeAccessory {
     if (device.conn_state === 0) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[LeakSensor] Updating status ${this.mac} (${this.display_name}) to noResponse`
+          `[LeakSensor] Updating status of "${this.display_name} (${this.mac})" to noResponse`
         );
       this.getOnCharacteristic().updateValue(noResponse);
     } else {

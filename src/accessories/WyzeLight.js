@@ -34,7 +34,7 @@ module.exports = class WyzeLight extends WyzeAccessory {
     if (device.conn_state === 0) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[Light] Updating status ${this.mac} (${this.display_name}) to noResponse`
+          `[Light] Updating status of "${this.display_name} (${this.mac})" to noResponse`
         );
       this.getCharacteristic(Characteristic.On).updateValue(noResponse);
     } else {

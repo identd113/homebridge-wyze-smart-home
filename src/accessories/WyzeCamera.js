@@ -199,7 +199,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       if (this.plugin.config.sirenAccessory?.find((d) => d === device.mac)) {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(
-            `[Camera] [Siren] Updating status ${this.mac} (${this.display_name}) to noResponse`
+            `[Camera] [Siren] Updating status of "${this.display_name} (${this.mac})" to noResponse`
           );
         this.sirenSwitch
           .getCharacteristic(Characteristic.On)
@@ -208,7 +208,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       if (this.plugin.config.floodLightAccessory?.find((d) => d === this.mac)) {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(
-            `[Camera] [FloodLight] Updating status of ${this.mac} (${this.display_name}) to noResponse`
+            `[Camera] [FloodLight] Updating status of "${this.display_name} (${this.mac})" to noResponse`
           );
         this.floodLightService
           .getCharacteristic(Characteristic.On)
@@ -217,7 +217,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       if (this.plugin.config.spotLightAccessory?.find((d) => d === this.mac)) {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(
-            `[Camera] [SpotLight] Updating status of ${this.mac} (${this.display_name}) to noResponse`
+            `[Camera] [SpotLight] Updating status of "${this.display_name} (${this.mac})" to noResponse`
           );
         this.spotLightService
           .getCharacteristic(Characteristic.On)
@@ -226,7 +226,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       if (this.plugin.config.garageDoorAccessory?.find((d) => d === this.mac)) {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(
-            `[Camera] [Garage Door] Updating status of ${this.mac} (${this.display_name}) to noResponse`
+            `[Camera] [Garage Door] Updating status of "${this.display_name} (${this.mac})" to noResponse`
           );
         this.garageDoorService
           .getCharacteristic(Characteristic.CurrentDoorState)
@@ -237,7 +237,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       ) {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(
-            `[Camera] [Notification] Updating status of ${this.mac} (${this.display_name}) to noResponse`
+            `[Camera] [Notification] Updating status of "${this.display_name} (${this.mac})" to noResponse`
           );
         this.notificationSwitch
           .getCharacteristic(Characteristic.On)

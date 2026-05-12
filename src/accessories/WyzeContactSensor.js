@@ -102,7 +102,7 @@ module.exports = class WyzeContactSensor extends WyzeAccessory {
     if (device.conn_state === 0) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[ContactSensor] Updating status "${this.display_name} (${this.mac}) to noResponse"`
+          `[ContactSensor] Updating status of "${this.display_name} (${this.mac})" to noResponse`
         );
       this.getOnCharacteristic().updateValue(noResponse);
     } else {

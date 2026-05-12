@@ -41,7 +41,7 @@ module.exports = class WyzeHMS extends WyzeAccessory {
     if (device.conn_state === 0) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[HMS] Updating status ${this.mac} (${this.display_name}) to noResponse`
+          `[HMS] Updating status of "${this.display_name} (${this.mac})" to noResponse`
         );
       this.securityService.getCharacteristic(Characteristic.SecuritySystemCurrentState).updateValue(noResponse);
     } else {
