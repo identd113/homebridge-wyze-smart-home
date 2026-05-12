@@ -88,7 +88,7 @@ module.exports = class WyzeLock extends WyzeAccessory {
     if (device.conn_state === 0) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[Lock] Updating status "${this.display_name} (${this.mac}) to noResponse"`
+          `[Lock] Updating status of "${this.display_name} (${this.mac})" to noResponse`
         );
       this.lockService
         .getCharacteristic(Characteristic.LockCurrentState)

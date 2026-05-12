@@ -87,6 +87,7 @@ module.exports = class WyzeHMS extends WyzeAccessory {
           this.display_name
         }" : "${this.convertHomeKitStateToHmsState(value)}"`
       );
+    await this.getHmsID();
     await this.plugin.client.setHMSState(
       this.hmsId,
       this.convertHomeKitStateToHmsState(value)

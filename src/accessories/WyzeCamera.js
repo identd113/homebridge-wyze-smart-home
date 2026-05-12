@@ -191,7 +191,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     if (device.conn_state === 0) {
       if (!wasOffline && this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[Camera] Updating status "${this.display_name} (${this.mac}) to noResponse"`
+          `[Camera] Updating status of "${this.display_name} (${this.mac})" to noResponse`
         );
       this.privacySwitch
         .getCharacteristic(Characteristic.On)
@@ -257,7 +257,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
                   (d) => d === this.mac
                 )
               ) {
-                  if (this.notification !== property.value && this.plugin.config.pluginLoggingEnabled) {
+                if (this.notification !== property.value && this.plugin.config.pluginLoggingEnabled) {
                   this.plugin.log(
                     `[Camera] [Notification] Updating status of "${this.display_name} (${this.mac})"`
                   );

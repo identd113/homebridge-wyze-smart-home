@@ -114,7 +114,7 @@ module.exports = class WyzeSwitch extends WyzeAccessory {
       this.plugin.log(
         `[Switch] Getting Current State of "${this.display_name} (${this.mac})" : "${this.switch_power}"`
       );
-    return this.switch_power;
+    return this.switch_power ?? false;
   }
 
   async handleOnSetWallSwitch(value) {
@@ -124,22 +124,12 @@ module.exports = class WyzeSwitch extends WyzeAccessory {
       );
     try {
       if (this.single_press_type == SinglePressType.IOT) {
-        await this.plugin.client.wallSwitchIot(
-          this.mac,
-          this.product_model,
-          value ? true : false
-        );
-        this.switch_power = !!value;
-        this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(this.switch_power);
+        await this.plugin.client.wallSwitchIot(this.mac, this.product_model, value ? true : false);
       } else {
-        await this.plugin.client.wallSwitchPower(
-          this.mac,
-          this.product_model,
-          value ? true : false
-        );
-        this.switch_power = !!value;
-        this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(this.switch_power);
+        await this.plugin.client.wallSwitchPower(this.mac, this.product_model, value ? true : false);
       }
+      this.switch_power = !!value;
+      this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(this.switch_power);
     } catch (error) {
       this.plugin.log.error?.(
         `[Switch] Failed to set target state for "${this.display_name} (${this.mac})": ${error}`
