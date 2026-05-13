@@ -120,24 +120,24 @@ module.exports = class WyzeSmartHome {
     const targets = this.accessories.filter(a => FAST_POLL_CLASSES.has(a.constructor) && a.lastDevice)
     if (targets.length === 0) return
 
-    let anyChanged = false
+    let changedDevices = []
     for (const accessory of targets) {
       const mac = accessory.mac
       if (!this._fastPollStats.has(mac)) {
-        this._fastPollStats.set(mac, { name: accessory.display_name, attempts: 0, successes: 0, since: new Date() })
+        this._fastPollStats.set(mac, { name: accessory.display_name, model: accessory.model_name, attempts: 0, successes: 0, since: new Date() })
       }
       const stats = this._fastPollStats.get(mac)
       stats.attempts++
       try {
         const changed = await accessory.updateCharacteristics(accessory.lastDevice)
         stats.successes++
-        if (changed) anyChanged = true
+        if (changed) changedDevices.push(`${accessory.display_name} [${accessory.model_name}]`)
       } catch (e) { }
     }
 
-    if (anyChanged) {
+    if (changedDevices.length > 0) {
       if (this.config.pluginLoggingEnabled)
-        this.log('[LockFastPoll] State change detected, triggering full refresh')
+        this.log(`[LockFastPoll] State change detected for ${changedDevices.join(', ')}, triggering full refresh`)
       await this.refreshDevices()
     }
   }
@@ -147,7 +147,7 @@ module.exports = class WyzeSmartHome {
     if (this._fastPollStats.size > 0) {
       const parts = []
       for (const [, stats] of this._fastPollStats) {
-        parts.push(`${stats.name}: ${stats.successes}/${stats.attempts} fast polls`)
+        parts.push(`${stats.name} [${stats.model}]: ${stats.successes}/${stats.attempts} fast polls`)
       }
       fastPollSummary = ` (${parts.join(', ')})`
     }
