@@ -8,6 +8,46 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 ## Releases
 
+### v0.5.58
+- Fix original Wyze Lock (YD.LO1) failing with `PARAM_SIGN_INVALID` / `PARAM_TIMESTAMP_INVALID` — bumps `wyze-api` to `1.1.14`, which corrects Ford API payload signing: signature is now computed after `access_token`, `key`, and `timestamp` are injected, and `getLockInfo` now sends signed parameters on the GET request. Lock Bolt V2, Lock Bolt Pro, and Palm Lock (IoT3 path) are unaffected.
+- Closes #300
+
+### v0.5.57
+- Add `ModelNames` lookup table for cleaner device identification across all accessories
+- Standardize log prefixes across all accessories for consistent log formatting
+- Update README device list and add CONTRIBUTORS.md
+
+### v0.5.56
+- Remove `homebridge-config-ui-x` from plugin dependencies — it was never imported and caused install failures on Node.js 22/24 due to `node-pty` native bindings. Closes #286
+- Reduce log noise: apply change-detection to all accessories so HomeKit characteristics are only updated when values actually change, eliminating redundant `[Wyze]` log lines on every poll
+- Fix accessory routing regression — accessories were dispatching to the wrong handler after the 0.5.55 refactor
+- Normalize all `noResponse` log messages to a consistent format across all accessories
+- Fix four bugs identified in code review (null guards, incorrect characteristic references)
+- Homebridge 1.x and 2.x compatibility verified
+
+### v0.5.55
+- Fix continuous Homebridge restart loop introduced in 0.5.54 — closes #295
+- Add null guards for API responses across WyzeCamera, WyzeLight, WyzeMeshLight, WyzeLock, WyzeHMS, and WyzeThermostat to prevent `TypeError` crashes on transient Wyze API errors
+- Wrap all `updateCharacteristics()` calls with `Promise.resolve().catch()` to prevent unhandled rejections from terminating the Homebridge process on Node.js 15+
+- Add `default` branch to HMS state conversion to prevent undefined return
+
+### v0.5.54
+- Add Node.js 22 and 24 to supported engines — closes #281
+- Pin `eslint` to v8 to satisfy `eslint-config-standard@17` peer dependency
+- Bump `@typescript-eslint` to v8 for ESLint 9 compatibility
+
+### v0.5.53
+- First npm-published release via automated workflow
+- Add Wyze Lock Bolt v2 (`DX_LB2`) support via IoT3 API — closes #285
+- Add Palm Lock (`DX_PVLOC`) support via IoT3 API
+- Add security fast-poll loop (10s) for locks — lock state changes reflect in HomeKit within 10 seconds
+- Add `ChargingState` characteristic and firmware revision reporting to Lock Bolt V2
+- Add live connectivity detection via `iot-state` in Lock Bolt V2
+- Add humidity sensor, fan mode switch, emergency heat switch, hold mode switch, and keypad lock switch to thermostat
+- Fix thermostat sub-services resolving to the same cached service on restart
+- Fix WyzeHMS crash on offline
+- Update `wyze-api` to 1.1.12
+
 ### v0.5.48
 - Add security fast-poll loop (10s) for locks — lock state changes now reflect in HomeKit within 10 seconds instead of 60
 - Add `lastDevice` caching to `WyzeAccessory` base class to support fast-poll without a full device list refresh
