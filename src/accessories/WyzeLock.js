@@ -16,13 +16,13 @@ module.exports = class WyzeLock extends WyzeAccessory {
 
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[Lock] Retrieving previous service for "${this.display_name} (${this.mac})"`
+        `[Lock] Retrieving previous service for "${this.display_name} [${this.model_name}] (${this.mac})"`
       );
     this.lockService = this.homeKitAccessory.getService(Service.LockMechanism);
 
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[Lock] [Door Contact] Retrieving previous service for "${this.display_name} (${this.mac})"`
+        `[Lock] [Door Contact] Retrieving previous service for "${this.display_name} [${this.model_name}] (${this.mac})"`
       );
     this.contactService = this.homeKitAccessory.getService(
       Service.ContactSensor
@@ -30,14 +30,14 @@ module.exports = class WyzeLock extends WyzeAccessory {
 
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[Lock] [Battery] Retrieving previous service for "${this.display_name} (${this.mac})"`
+        `[Lock] [Battery] Retrieving previous service for "${this.display_name} [${this.model_name}] (${this.mac})"`
       );
     this.batteryService = this.homeKitAccessory.getService(Service.Battery);
 
     if (!this.lockService) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[Lock] Adding service for "${this.display_name} (${this.mac})"`
+          `[Lock] Adding service for "${this.display_name} [${this.model_name}] (${this.mac})"`
         );
       this.lockService = this.homeKitAccessory.addService(
         Service.LockMechanism
@@ -47,7 +47,7 @@ module.exports = class WyzeLock extends WyzeAccessory {
     if (!this.contactService) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[Lock] [Door Contact] Adding service for "${this.display_name} (${this.mac})"`
+          `[Lock] [Door Contact] Adding service for "${this.display_name} [${this.model_name}] (${this.mac})"`
         );
       this.contactService = this.homeKitAccessory.addService(
         Service.ContactSensor
@@ -57,7 +57,7 @@ module.exports = class WyzeLock extends WyzeAccessory {
     if (!this.batteryService) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[Lock] [Battery] Adding service for "${this.display_name} (${this.mac})"`
+          `[Lock] [Battery] Adding service for "${this.display_name} [${this.model_name}] (${this.mac})"`
         );
       this.batteryService = this.homeKitAccessory.addService(Service.Battery);
     }
@@ -88,7 +88,7 @@ module.exports = class WyzeLock extends WyzeAccessory {
     if (device.conn_state === 0) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[Lock] Updating status of "${this.display_name} (${this.mac})" to noResponse`
+          `[Lock] Updating status of "${this.display_name} [${this.model_name}] (${this.mac})" to noResponse`
         );
       this.lockService
         .getCharacteristic(Characteristic.LockCurrentState)
@@ -97,7 +97,7 @@ module.exports = class WyzeLock extends WyzeAccessory {
     } else {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[Lock] Updating status of "${this.display_name} (${this.mac})"`
+          `[Lock] Updating status of "${this.display_name} [${this.model_name}] (${this.mac})"`
         );
       const prevHardlock = this.hardlock;
       const prevDoorStatus = this.door_open_status;

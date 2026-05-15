@@ -36,14 +36,14 @@ module.exports = class WyzeHumidity extends WyzeAccessory {
   getBatterySensorService() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[LeakSensorBattery] Retrieving previous service for "${this.display_name}"`
+        `[LeakSensor] [Battery] Retrieving previous service for "${this.display_name}"`
       );
     let service = this.homeKitAccessory.getService(Service.Battery);
 
     if (!service) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[LeakSensorBattery] Adding service for "${this.display_name}"`
+          `[LeakSensor] [Battery] Adding service for "${this.display_name}"`
         );
       service = this.homeKitAccessory.addService(Service.Battery);
     }
@@ -54,14 +54,14 @@ module.exports = class WyzeHumidity extends WyzeAccessory {
   getIsBatteryLowSensorService() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[LeakSensorBatteryLow] Retrieving previous service for "${this.display_name}"`
+        `[LeakSensor] [Low Battery] Retrieving previous service for "${this.display_name}"`
       );
     let service = this.homeKitAccessory.getService(Service.Battery);
 
     if (!service) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[LeakSensorIsBatteryLow] Adding service for "${this.display_name}"`
+          `[LeakSensor] [Low Battery] Adding service for "${this.display_name}"`
         );
       service = this.homeKitAccessory.addService(Service.Battery);
     }
@@ -82,7 +82,7 @@ module.exports = class WyzeHumidity extends WyzeAccessory {
   getBatteryCharacteristic() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[LeakSensorBattery] Fetching status of "${this.display_name}"`
+        `[LeakSensor] [Battery] Fetching status of "${this.display_name}"`
       );
     return this.getBatterySensorService().getCharacteristic(
       Characteristic.BatteryLevel
@@ -92,7 +92,7 @@ module.exports = class WyzeHumidity extends WyzeAccessory {
   getIsBatteryLowCharacteristic() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[LeakSensorBattery] Fetching status of "${this.display_name}"`
+        `[LeakSensor] [Battery] Fetching status of "${this.display_name}"`
       );
     return this.getIsBatteryLowSensorService().getCharacteristic(
       Characteristic.StatusLowBattery

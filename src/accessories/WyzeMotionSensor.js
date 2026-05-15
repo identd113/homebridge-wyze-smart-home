@@ -36,14 +36,14 @@ module.exports = class WyzeMotionSensor extends WyzeAccessory {
   getBatterySensorService() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[MotionSensorBattery] Retrieving previous service for "${this.display_name} (${this.mac})"`
+        `[MotionSensor] [Battery] Retrieving previous service for "${this.display_name} (${this.mac})"`
       );
     let service = this.homeKitAccessory.getService(Service.Battery);
 
     if (!service) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[MotionSensorBattery] Adding service for "${this.display_name} (${this.mac})"`
+          `[MotionSensor] [Battery] Adding service for "${this.display_name} (${this.mac})"`
         );
       service = this.homeKitAccessory.addService(Service.Battery);
     }
@@ -54,14 +54,14 @@ module.exports = class WyzeMotionSensor extends WyzeAccessory {
   getIsBatteryLowSensorService() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[MotionSensorIsBatteryLow] Retrieving previous service for "${this.display_name} (${this.mac})"`
+        `[MotionSensor] [Low Battery] Retrieving previous service for "${this.display_name} (${this.mac})"`
       );
     let service = this.homeKitAccessory.getService(Service.Battery);
 
     if (!service) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[MotionSensorIsBatteryLow] Adding service for "${this.display_name} (${this.mac})"`
+          `[MotionSensor] [Low Battery] Adding service for "${this.display_name} (${this.mac})"`
         );
       service = this.homeKitAccessory.addService(Service.Battery);
     }
@@ -82,7 +82,7 @@ module.exports = class WyzeMotionSensor extends WyzeAccessory {
   getBatteryCharacteristic() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[MotionSensorBattery] Fetching status of "${this.display_name} (${this.mac})"`
+        `[MotionSensor] [Battery] Fetching status of "${this.display_name} (${this.mac})"`
       );
     return this.getBatterySensorService().getCharacteristic(
       Characteristic.BatteryLevel
@@ -92,7 +92,7 @@ module.exports = class WyzeMotionSensor extends WyzeAccessory {
   getIsBatteryLowCharacteristic() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[MotionSensorBattery] Fetching status of "${this.display_name} (${this.mac})"`
+        `[MotionSensor] [Battery] Fetching status of "${this.display_name} (${this.mac})"`
       );
     return this.getIsBatteryLowSensorService().getCharacteristic(
       Characteristic.StatusLowBattery

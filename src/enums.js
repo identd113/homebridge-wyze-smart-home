@@ -60,6 +60,49 @@ exports.ThermostatModels = ThermostatModels
 const ThermostatRoomSensor = { CO_TH1: "CO_TH1" }
 exports.ThermostatRoomSensor = ThermostatRoomSensor
 
+const ModelNames = {
+  // Locks
+  "DX_LB2":          "Lock Bolt V2",
+  "DX_PVLOC":        "Palm Lock",
+  "YD.LO1":          "Lock",
+  // Plugs
+  "WLPP1":           "Plug",
+  "WLPP1CFH":        "Plug",
+  "WLPPO-SUB":       "Outdoor Plug (satellite)",
+  // Lights
+  "WLPA19":          "Bulb White",
+  "HL_HWB2":         "Bulb White V2",
+  "WLPA19C":         "Color Bulb",
+  "HL_BR30C":        "BR30 Color Bulb",
+  "HL_A19C2":        "A19 Color Bulb V2",
+  "HL_LSL":          "Light Strip",
+  "HL_LSLP":         "Light Strip Pro",
+  // Sensors
+  "DWS2U":           "Contact Sensor V1",
+  "DWS3U":           "Contact Sensor V2",
+  "PIR2U":           "Motion Sensor V1",
+  "PIR3U":           "Motion Sensor V2",
+  "WS3U":            "Leak Sensor",
+  // Cameras
+  "WYZEC1":          "Cam V1",
+  "WYZEC1-JZ":       "Cam V2",
+  "WYZE_CAKP2JFUS":  "Cam V3",
+  "HL_CAM3P":        "Cam V3 Pro",
+  "HL_CAM4":         "Cam V4",
+  "WYZECP1_JEF":     "Cam Pan",
+  "HL_PAN2":         "Cam Pan V2",
+  "HL_PAN3":         "Cam Pan V3",
+  "WVOD1":           "Cam Outdoor",
+  "HL_WCO2":         "Cam Outdoor V2",
+  // Other
+  "TH3U":            "Temp/Humidity Sensor",
+  "CO_EA1":          "Thermostat",
+  "CO_TH1":          "Thermostat Room Sensor",
+  "GW3U":            "S1 Gateway",
+  "LD_SS1":          "Light Switch",
+}
+exports.ModelNames = ModelNames
+
 //"OutdoorPlugMain" : "WLPPO", "ChimeSensor" : "CHIME", "HeadPhones":"JA_HP","YDGW1":"YD.GW1",
 //"Scale_S":"WL_SC3","WL_SC2":"WL_SC2", "JA_RO2":"JA_RO2", "Sprinkler":"BS_WK1", "ThermostatRoomSensor":"CO_TH1",
 //"BLE_Lock":"YD_BT1","JA_SL10":"JA_SL10"}

@@ -18,26 +18,26 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
 
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[LockBoltV2] Retrieving previous service for "${this.display_name} (${this.mac})"`
+        `[Lock] Retrieving previous service for "${this.display_name} [${this.model_name}] (${this.mac})"`
       );
     this.lockService = this.homeKitAccessory.getService(Service.LockMechanism);
 
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[LockBoltV2] [Door Contact] Retrieving previous service for "${this.display_name} (${this.mac})"`
+        `[Lock] [Door Contact] Retrieving previous service for "${this.display_name} [${this.model_name}] (${this.mac})"`
       );
     this.contactService = this.homeKitAccessory.getService(Service.ContactSensor);
 
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[LockBoltV2] [Battery] Retrieving previous service for "${this.display_name} (${this.mac})"`
+        `[Lock] [Battery] Retrieving previous service for "${this.display_name} [${this.model_name}] (${this.mac})"`
       );
     this.batteryService = this.homeKitAccessory.getService(Service.Battery);
 
     if (!this.lockService) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[LockBoltV2] Adding service for "${this.display_name} (${this.mac})"`
+          `[Lock] Adding service for "${this.display_name} [${this.model_name}] (${this.mac})"`
         );
       this.lockService = this.homeKitAccessory.addService(Service.LockMechanism);
     }
@@ -45,7 +45,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
     if (!this.contactService) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[LockBoltV2] [Door Contact] Adding service for "${this.display_name} (${this.mac})"`
+          `[Lock] [Door Contact] Adding service for "${this.display_name} [${this.model_name}] (${this.mac})"`
         );
       this.contactService = this.homeKitAccessory.addService(Service.ContactSensor);
     }
@@ -53,7 +53,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
     if (!this.batteryService) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[LockBoltV2] [Battery] Adding service for "${this.display_name} (${this.mac})"`
+          `[Lock] [Battery] Adding service for "${this.display_name} [${this.model_name}] (${this.mac})"`
         );
       this.batteryService = this.homeKitAccessory.addService(Service.Battery);
     }
@@ -88,7 +88,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
     if (device.conn_state === 0) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[LockBoltV2] Updating status of "${this.display_name} (${this.mac})" to noResponse`
+          `[Lock] Updating status of "${this.display_name} [${this.model_name}] (${this.mac})" to noResponse`
         );
       this.lockService
         .getCharacteristic(Characteristic.LockCurrentState)
@@ -108,7 +108,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
       if (!result || result.code !== "1") {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(
-            `[LockBoltV2] IoT3 error for "${this.display_name} (${this.mac})": ${result?.msg ?? 'no response'}`
+            `[Lock] IoT3 error for "${this.display_name} [${this.model_name}] (${this.mac})": ${result?.msg ?? 'no response'}`
           );
         return false;
       }
@@ -120,7 +120,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
       if (props["iot-device::iot-state"] !== undefined && !props["iot-device::iot-state"]) {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(
-            `[LockBoltV2] Device offline per IoT3 "${this.display_name} (${this.mac})"`
+            `[Lock] Device offline per IoT3 "${this.display_name} [${this.model_name}] (${this.mac})"`
           );
         this.lockService
           .getCharacteristic(Characteristic.LockCurrentState)
@@ -187,7 +187,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
     } catch (e) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[LockBoltV2] Error updating "${this.display_name} (${this.mac})": ${e}`
+          `[Lock] Error updating "${this.display_name} [${this.model_name}] (${this.mac})": ${e}`
         );
       return false;
     }
@@ -201,7 +201,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
   async getLockCurrentState() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[LockBoltV2] Getting Current State "${this.display_name} (${this.mac}) to ${this.isLocked}"`
+        `[Lock] Getting Current State "${this.display_name} [${this.model_name}] (${this.mac}) to ${this.isLocked}"`
       );
     return this.isLocked
       ? Characteristic.LockCurrentState.SECURED
@@ -211,7 +211,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
   async getLockTargetState() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[LockBoltV2] Getting Target State "${this.display_name} (${this.mac}) to ${this.isLocked}"`
+        `[Lock] Getting Target State "${this.display_name} [${this.model_name}] (${this.mac}) to ${this.isLocked}"`
       );
     return this.isLocked
       ? Characteristic.LockTargetState.SECURED
@@ -221,7 +221,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
   async getDoorStatus() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[LockBoltV2] Getting Door Status "${this.display_name} (${this.mac}) to ${this.isDoorOpen}"`
+        `[Lock] Getting Door Status "${this.display_name} [${this.model_name}] (${this.mac}) to ${this.isDoorOpen}"`
       );
     return this.isDoorOpen
       ? Characteristic.ContactSensorState.CONTACT_NOT_DETECTED
@@ -231,7 +231,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
   async getBatteryLevel() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[LockBoltV2] Getting Battery Level "${this.display_name} (${this.mac}) to ${this.batteryLevel}"`
+        `[Lock] Getting Battery Level "${this.display_name} [${this.model_name}] (${this.mac}) to ${this.batteryLevel}"`
       );
     return this.plugin.client.checkBatteryVoltage(this.batteryLevel);
   }
@@ -239,7 +239,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
   async getLowBatteryStatus() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[LockBoltV2] Getting Low Battery Status "${this.display_name} (${this.mac}) to ${this.plugin.client.checkLowBattery(this.batteryLevel)}"`
+        `[Lock] Getting Low Battery Status "${this.display_name} [${this.model_name}] (${this.mac}) to ${this.plugin.client.checkLowBattery(this.batteryLevel)}"`
       );
     return this.plugin.client.checkLowBattery(this.batteryLevel);
   }
@@ -247,7 +247,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
   async getChargingState() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[LockBoltV2] Getting Charging State "${this.display_name} (${this.mac}) to ${this.chargingState}"`
+        `[Lock] Getting Charging State "${this.display_name} [${this.model_name}] (${this.mac}) to ${this.chargingState}"`
       );
     return this.chargingState;
   }
@@ -255,7 +255,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
   async setLockTargetState(targetState) {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[LockBoltV2] Setting Target State "${this.display_name} (${this.mac}) to ${targetState}"`
+        `[Lock] Setting Target State "${this.display_name} [${this.model_name}] (${this.mac}) to ${targetState}"`
       );
 
     try {
@@ -265,7 +265,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
       if (!result || result.code !== "1") {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(
-            `[LockBoltV2] Command failed for "${this.display_name} (${this.mac})": ${result?.msg ?? 'no response'}`
+            `[Lock] Command failed for "${this.display_name} [${this.model_name}] (${this.mac})": ${result?.msg ?? 'no response'}`
           );
         return;
       }
@@ -279,7 +279,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
     } catch (e) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[LockBoltV2] Error setting lock "${this.display_name} (${this.mac})": ${e}`
+          `[Lock] Error setting lock "${this.display_name} [${this.model_name}] (${this.mac})": ${e}`
         );
     }
   }

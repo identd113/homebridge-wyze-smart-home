@@ -1,4 +1,5 @@
 const { Service, Characteristic } = require("../types");
+const { ModelNames } = require("../enums");
 
 // Responses from the Wyze API can lag a little after a new value is set
 const UPDATE_THROTTLE_MS = 1000;
@@ -25,6 +26,9 @@ module.exports = class WyzeAccessory {
   }
   get product_model() {
     return this.homeKitAccessory.context.product_model;
+  }
+  get model_name() {
+    return ModelNames[this.product_model] || this.product_model;
   }
 
   /** Determines whether this accessory matches the given Wyze device */

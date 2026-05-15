@@ -217,7 +217,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       if (this.plugin.config.spotLightAccessory?.find((d) => d === this.mac)) {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(
-            `[Camera] [SpotLight] Updating status of "${this.display_name} (${this.mac})" to noResponse`
+            `[Camera] [Spotlight] Updating status of "${this.display_name} (${this.mac})" to noResponse`
           );
         this.spotLightService
           .getCharacteristic(Characteristic.On)
@@ -304,7 +304,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
               ) {
                 if (this.plugin.config.pluginLoggingEnabled) {
                   this.plugin.log(
-                    `[Camera] [SpotLight] Updating status of ${this.mac} (${this.display_name})`
+                    `[Camera] [Spotlight] Updating status of ${this.mac} (${this.display_name})`
                   );
                 }
                 this.floodLight = property.value;
@@ -348,7 +348,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   async getGarageCurrentState() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[Camera Garage Door] Getting Current State for ${this.mac} (${this.display_name} : ${this.garageDoor})`
+        `[Camera] [Garage Door] Getting Current State for ${this.mac} (${this.display_name} : ${this.garageDoor})`
       );
     let currentValue;
 
@@ -361,7 +361,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   async getGarageTargetState() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[Camera Garage Door] Getting Target State for ${this.mac} (${this.display_name} : ${this.garageDoor})`
+        `[Camera] [Garage Door] Getting Target State for ${this.mac} (${this.display_name} : ${this.garageDoor})`
       );
 
     let currentValue;
@@ -376,7 +376,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   async handleObstructionDetectedGet() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[Camera Garage Door] Getting ObstructionState for ${this.mac} (${this.display_name})`
+        `[Camera] [Garage Door] Getting ObstructionState for ${this.mac} (${this.display_name})`
       );
 
     return 0;
@@ -400,7 +400,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   async handleOnGetSpotlight() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[Camera] [SpotLight] Getting Current State for ${this.mac} (${this.display_name} : ${this.floodLight})`
+        `[Camera] [Spotlight] Getting Current State for ${this.mac} (${this.display_name} : ${this.floodLight})`
       );
     if (this.floodLight === "undefined" || this.floodLight == null) {
       return 0;
@@ -440,7 +440,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   async handleOnSetSpotlight(value) {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[Camera] [SpotLight] Setting Current State for ${this.mac} (${this.display_name}) to ${value}`
+        `[Camera] [Spotlight] Setting Current State for ${this.mac} (${this.display_name}) to ${value}`
       );
     this.plugin.client.cameraSpotLight(
       this.mac,
@@ -500,7 +500,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   async setGarageTargetState(value) {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[Camera Garage Door] Setting Target State for ${this.mac} (${this.display_name}) to ${value}`
+        `[Camera] [Garage Door] Setting Target State for ${this.mac} (${this.display_name}) to ${value}`
       );
     this.plugin.client.garageDoor(this.mac, this.product_model);
     if (value == 0) {

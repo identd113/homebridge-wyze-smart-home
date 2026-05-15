@@ -19,14 +19,14 @@ module.exports = class WyzeTemperatureHumidity extends WyzeAccessory {
   getHumiditySensorService() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[Humidity] Retrieving previous service for "${this.display_name} (${this.mac})"`
+        `[Temperature Humidity] [Humidity] Retrieving previous service for "${this.display_name} (${this.mac})"`
       );
     let service = this.homeKitAccessory.getService(Service.HumiditySensor);
 
     if (!service) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[Humidity] Adding service for "${this.display_name} (${this.mac})"`
+          `[Temperature Humidity] [Humidity] Adding service for "${this.display_name} (${this.mac})"`
         );
       service = this.homeKitAccessory.addService(Service.HumiditySensor);
     }
@@ -37,14 +37,14 @@ module.exports = class WyzeTemperatureHumidity extends WyzeAccessory {
   getTemperatureSensorService() {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[Temperature] Retrieving previous service for "${this.display_name} (${this.mac})"`
+        `[Temperature Humidity] [Temperature] Retrieving previous service for "${this.display_name} (${this.mac})"`
       );
     let service = this.homeKitAccessory.getService(Service.TemperatureSensor);
 
     if (!service) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[Temperature] Adding service for "${this.display_name} (${this.mac})"`
+          `[Temperature Humidity] [Temperature] Adding service for "${this.display_name} (${this.mac})"`
         );
       service = this.homeKitAccessory.addService(Service.TemperatureSensor);
     }
