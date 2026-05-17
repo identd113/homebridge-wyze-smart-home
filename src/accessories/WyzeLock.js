@@ -13,6 +13,7 @@ module.exports = class WyzeLock extends WyzeAccessory {
     this.hardlock = null;
     this.door_open_status = null;
     this.lockPower = null;
+    this._commandGraceUntil = 0;
 
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
@@ -146,13 +147,17 @@ module.exports = class WyzeLock extends WyzeAccessory {
         const prop = element;
         switch (prop) {
           case "hardlock":
-            // Door Locked Status
-            this.lockService
-              .getCharacteristic(Characteristic.LockCurrentState)
-              .updateValue(
-                this.plugin.client.getLockState(lockerStatusProperties[prop])
-              );
-            this.hardlock = lockerStatusProperties[prop];
+            // Door Locked Status — skip during grace period after a command
+            if (Date.now() > this._commandGraceUntil) {
+              this.hardlock = lockerStatusProperties[prop];
+              const lockState = this.plugin.client.getLockState(lockerStatusProperties[prop]);
+              this.lockService
+                .getCharacteristic(Characteristic.LockCurrentState)
+                .updateValue(lockState);
+              this.lockService
+                .getCharacteristic(Characteristic.LockTargetState)
+                .updateValue(lockState);
+            }
             break;
         }
       }
@@ -220,21 +225,30 @@ module.exports = class WyzeLock extends WyzeAccessory {
 
   async setLockTargetState(targetState) {
     if (this.plugin.config.pluginLoggingEnabled)
-      this.plugin.log(`[Lock] Setting Target State "${targetState}"`); // this is zero or 1
-    await this.plugin.client.controlLock(
+      this.plugin.log(`[Lock] Setting Target State "${this.display_name} [${this.model_name}] (${this.mac}) to ${targetState}"`);
+
+    const locking = targetState === Characteristic.LockTargetState.SECURED;
+
+    // Optimistically update HomeKit immediately so the tile clears "waiting".
+    // Grace period prevents the fast poll from reverting this before the API propagates.
+    this.hardlock = locking ? 1 : 2;
+    this._commandGraceUntil = Date.now() + 15000;
+    this.lockService
+      .getCharacteristic(Characteristic.LockCurrentState)
+      .updateValue(
+        locking
+          ? Characteristic.LockCurrentState.SECURED
+          : Characteristic.LockCurrentState.UNSECURED
+      );
+
+    this.plugin.client.controlLock(
       this.mac,
       this.product_model,
-      targetState === Characteristic.LockTargetState.SECURED
-        ? "remoteLock"
-        : "remoteUnlock"
-    );
-
-    this.lockService.setCharacteristic(
-      Characteristic.LockCurrentState,
-      targetState === Characteristic.LockTargetState.SECURED
-        ? Characteristic.LockCurrentState.SECURED
-        : Characteristic.LockCurrentState.UNSECURED
-    );
+      locking ? "remoteLock" : "remoteUnlock"
+    ).catch((e) => {
+      if (this.plugin.config.pluginLoggingEnabled)
+        this.plugin.log(`[Lock] Command error for "${this.display_name} [${this.model_name}] (${this.mac})": ${e}`);
+    });
   }
 
 };

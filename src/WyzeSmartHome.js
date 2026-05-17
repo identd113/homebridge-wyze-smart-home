@@ -1,3 +1,5 @@
+const fs = require('fs')
+const path = require('path')
 const { homebridge, Accessory, UUIDGen } = require('./types')
 const { OutdoorPlugModels, PlugModels, CommonModels, CameraModels, LeakSensorModels,
   TemperatureHumidityModels, LockModels, LockBoltV2Models, MotionSensorModels, ContactSensorModels, LightModels,
@@ -42,6 +44,7 @@ module.exports = class WyzeSmartHome {
     this.accessories = []
     this._fastPollStats = new Map()
     this._knownUnsupported = new Set()
+    this._lastFullRefreshAt = 0
 
     this.api.on('didFinishLaunching', this.didFinishLaunching.bind(this))
   }
@@ -86,6 +89,10 @@ module.exports = class WyzeSmartHome {
   }
 
   didFinishLaunching() {
+    if (fs.existsSync(path.join(__dirname, '..', '.git'))) {
+      const { version } = require('../package.json')
+      this.log(`[Plugin] Local dev build v${version}`)
+    }
     this.runLoop()
     this.runLockFastPollLoop()
   }
@@ -117,6 +124,9 @@ module.exports = class WyzeSmartHome {
   }
 
   async refreshLockDevices() {
+    const interval = this.config.securityRefreshInterval || DEFAULT_SECURITY_REFRESH_INTERVAL
+    if (Date.now() - this._lastFullRefreshAt < interval) return
+
     const targets = this.accessories.filter(a => FAST_POLL_CLASSES.has(a.constructor) && a.lastDevice)
     if (targets.length === 0) return
 
@@ -159,6 +169,7 @@ module.exports = class WyzeSmartHome {
       const devices = objectList.data.device_list
 
       await this.loadDevices(devices, timestamp)
+      this._lastFullRefreshAt = Date.now()
       if (this.config.pluginLoggingEnabled) this.log(`Refreshed ${this.accessories.length}/${devices.length} devices${fastPollSummary}`)
     } catch (e) {
       this.log.error(`Error getting devices: ${e}`)

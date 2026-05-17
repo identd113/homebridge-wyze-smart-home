@@ -87,11 +87,21 @@ module.exports = class WyzeHMS extends WyzeAccessory {
           this.display_name
         }" : "${this.convertHomeKitStateToHmsState(value)}"`
       );
-    await this.getHmsID();
-    await this.plugin.client.setHMSState(
-      this.hmsId,
-      this.convertHomeKitStateToHmsState(value)
-    );
+
+    // Optimistic update so the panel clears immediately.
+    const hmsState = this.convertHomeKitStateToHmsState(value);
+    this.hmsStatus = hmsState === "off" ? "disarm" : hmsState;
+    const homeKitState = this.convertHmsStateToHomeKitState(this.hmsStatus);
+    this.securityService
+      .getCharacteristic(Characteristic.SecuritySystemCurrentState)
+      .updateValue(homeKitState);
+
+    this.getHmsID()
+      .then(() => this.plugin.client.setHMSState(this.hmsId, hmsState))
+      .catch((e) => {
+        if (this.plugin.config.pluginLoggingEnabled)
+          this.plugin.log(`[HMS] Command error for "${this.display_name}": ${e}`);
+      });
   }
 
   convertHmsStateToHomeKitState(hmsState) {

@@ -44,7 +44,7 @@ module.exports = class WyzeLight extends WyzeAccessory {
         );
       }
       const switchState = device.device_params?.switch_state;
-      if (switchState != null) {
+      if (switchState != null && switchState !== this._switchState) {
         this._switchState = switchState;
         this.getCharacteristic(Characteristic.On).updateValue(switchState);
       }
@@ -111,7 +111,8 @@ module.exports = class WyzeLight extends WyzeAccessory {
       this.plugin.log(
         `[Light] Setting power for ${this.mac} (${this.display_name}) to ${value}`
       );
-    await this.plugin.client.lightPower(this.mac, this.product_model, value ? "1" : "0");
+    this._switchState = value ? 1 : 0;
+    this.plugin.client.lightPower(this.mac, this.product_model, value ? "1" : "0").catch(() => {});
   }
 
   async setBrightness(value) {
@@ -120,7 +121,7 @@ module.exports = class WyzeLight extends WyzeAccessory {
       this.plugin.log(
         `[Light] Setting brightness for ${this.mac} (${this.display_name}) to ${value}`
       );
-    await this.plugin.client.setBrightness(this.mac, this.product_model, value);
+    this.plugin.client.setBrightness(this.mac, this.product_model, value).catch(() => {});
   }
 
   async setColorTemperature(value) {
@@ -131,6 +132,6 @@ module.exports = class WyzeLight extends WyzeAccessory {
       this.plugin.log(
         `[Light] Setting color temperature for ${this.mac} (${this.display_name}) to ${value} (${wyzeValue})`
       );
-    await this.plugin.client.setColorTemperature(this.mac, this.product_model, wyzeValue);
+    this.plugin.client.setColorTemperature(this.mac, this.product_model, wyzeValue).catch(() => {});
   }
 };

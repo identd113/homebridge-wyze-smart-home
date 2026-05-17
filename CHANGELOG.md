@@ -8,6 +8,17 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 ## Releases
 
+### v0.5.59
+- Eliminate "waiting" tile state on lock/unlock commands: `setLockTargetState` now updates HomeKit optimistically and fires the API call in the background for both WyzeLockBoltV2 (Palm Lock, Lock Bolt V2) and WyzeLock (YD.LO1)
+- Add 15s command grace period on both lock types: fast poll skips updating lock state from the API during the grace window, preventing stale reads from reverting the optimistic HomeKit state before the Wyze API propagates
+- Skip fast poll when a full refresh ran within the last 10s — prevents redundant back-to-back API polls and double full refreshes after a fast-poll-detected change
+- Fix WyzeLock `updateCharacteristics` not pushing `LockTargetState` on physical lock/unlock — previously only `LockCurrentState` was updated, leaving HomeKit stuck in "waiting" after panel or physical state changes
+- Fix WyzeHMS security panel "waiting": `handleSecuritySystemTargetStateSet` now updates `SecuritySystemCurrentState` optimistically and fires `setHMSState` in the background
+- Optimistic on/off updates for WyzePlug, WyzeLight, WyzeMeshLight, and WyzeSwitch: setters update local state immediately and fire API calls in the background, eliminating HAP blocking
+- Add change detection to WyzePlug, WyzeLight, and WyzeMeshLight `updateCharacteristics`: on/off state is only pushed to HomeKit when it differs from local state, preventing 60s refresh from flickering tiles whose state was just set
+- WyzeSwitch: remove `throw` from `handleOnSetWallSwitch` error path — re-throwing caused HAP to put the tile in an error state; errors are now logged only
+- Add dev-only startup log line showing plugin version when running from a local git clone
+
 ### v0.5.58
 - Fix original Wyze Lock (YD.LO1) failing with `PARAM_SIGN_INVALID` / `PARAM_TIMESTAMP_INVALID` — bumps `wyze-api` to `1.1.14`, which corrects Ford API payload signing: signature is now computed after `access_token`, `key`, and `timestamp` are injected, and `getLockInfo` now sends signed parameters on the GET request. Lock Bolt V2, Lock Bolt Pro, and Palm Lock (IoT3 path) are unaffected.
 - Closes #300

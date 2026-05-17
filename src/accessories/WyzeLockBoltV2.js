@@ -15,6 +15,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
     this.batteryLevel = 100;
     this.chargingState = 0;
     this.firmwareVersion = "";
+    this._commandGraceUntil = 0;
 
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
@@ -129,21 +130,25 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
       }
 
       if (props["lock::lock-status"] !== undefined) {
-        this.isLocked = props["lock::lock-status"];
-        this.lockService
-          .getCharacteristic(Characteristic.LockCurrentState)
-          .updateValue(
-            this.isLocked
-              ? Characteristic.LockCurrentState.SECURED
-              : Characteristic.LockCurrentState.UNSECURED
-          );
-        this.lockService
-          .getCharacteristic(Characteristic.LockTargetState)
-          .updateValue(
-            this.isLocked
-              ? Characteristic.LockTargetState.SECURED
-              : Characteristic.LockTargetState.UNSECURED
-          );
+        // Skip during grace period after a command to avoid reverting an
+        // optimistic update before the API has propagated the change.
+        if (Date.now() > this._commandGraceUntil) {
+          this.isLocked = props["lock::lock-status"];
+          this.lockService
+            .getCharacteristic(Characteristic.LockCurrentState)
+            .updateValue(
+              this.isLocked
+                ? Characteristic.LockCurrentState.SECURED
+                : Characteristic.LockCurrentState.UNSECURED
+            );
+          this.lockService
+            .getCharacteristic(Characteristic.LockTargetState)
+            .updateValue(
+              this.isLocked
+                ? Characteristic.LockTargetState.SECURED
+                : Characteristic.LockTargetState.UNSECURED
+            );
+        }
       }
 
       if (props["lock::door-status"] !== undefined) {
@@ -258,29 +263,27 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
         `[Lock] Setting Target State "${this.display_name} [${this.model_name}] (${this.mac}) to ${targetState}"`
       );
 
-    try {
-      const result = targetState === Characteristic.LockTargetState.SECURED
-        ? await this.plugin.client.lockBoltV2Lock(this.mac, this.product_model)
-        : await this.plugin.client.lockBoltV2Unlock(this.mac, this.product_model);
-      if (!result || result.code !== "1") {
-        if (this.plugin.config.pluginLoggingEnabled)
-          this.plugin.log(
-            `[Lock] Command failed for "${this.display_name} [${this.model_name}] (${this.mac})": ${result?.msg ?? 'no response'}`
-          );
-        return;
-      }
-      this.isLocked = targetState === Characteristic.LockTargetState.SECURED;
-      this.lockService.setCharacteristic(
-        Characteristic.LockCurrentState,
+    // Optimistically update HomeKit immediately so the tile clears "waiting".
+    // Grace period prevents the fast poll from reverting this before the API propagates.
+    this.isLocked = targetState === Characteristic.LockTargetState.SECURED;
+    this._commandGraceUntil = Date.now() + 15000;
+    this.lockService
+      .getCharacteristic(Characteristic.LockCurrentState)
+      .updateValue(
         this.isLocked
           ? Characteristic.LockCurrentState.SECURED
           : Characteristic.LockCurrentState.UNSECURED
       );
-    } catch (e) {
+
+    const call = this.isLocked
+      ? this.plugin.client.lockBoltV2Lock(this.mac, this.product_model)
+      : this.plugin.client.lockBoltV2Unlock(this.mac, this.product_model);
+
+    call.catch((e) => {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[Lock] Error setting lock "${this.display_name} [${this.model_name}] (${this.mac})": ${e}`
+          `[Lock] Command error for "${this.display_name} [${this.model_name}] (${this.mac})": ${e}`
         );
-    }
+    });
   }
 };
