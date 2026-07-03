@@ -8,6 +8,11 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 ## Releases
 
+### v0.5.60
+- Differentiate command grace period by direction: locking still uses a 15s grace window, but unlocking now uses 90s to match how long the Wyze API actually takes to propagate an unlock, preventing the fast poll from reverting the optimistic "unlocked" tile back to "locked" for WyzeLock and WyzeLockBoltV2
+- Fix WyzeLock/WyzeLockBoltV2 `setLockTargetState` not updating `LockTargetState` alongside `LockCurrentState` on optimistic command updates
+- Gate new lock timing/command-ack debug logs behind `pluginLoggingEnabled`, consistent with the rest of the plugin
+
 ### v0.5.59
 - Eliminate "waiting" tile state on lock/unlock commands: `setLockTargetState` now updates HomeKit optimistically and fires the API call in the background for both WyzeLockBoltV2 (Palm Lock, Lock Bolt V2) and WyzeLock (YD.LO1)
 - Add 15s command grace period on both lock types: fast poll skips updating lock state from the API during the grace window, preventing stale reads from reverting the optimistic HomeKit state before the Wyze API propagates

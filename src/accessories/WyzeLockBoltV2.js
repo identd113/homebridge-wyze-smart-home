@@ -105,7 +105,9 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
     try {
       // Palm Lock (DX_PVLOC) intentionally uses lockBoltV2GetProperties — it supports all 6 props
       // and palmLockGetProperties in wyze-api is missing door-status + power-source.
+      const apiT0 = Date.now();
       const result = await this.plugin.client.lockBoltV2GetProperties(this.mac, this.product_model);
+      const apiMs = Date.now() - apiT0;
       if (!result || result.code !== "1") {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(
@@ -189,6 +191,12 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
           .getService(Service.AccessoryInformation)
           .setCharacteristic(Characteristic.FirmwareRevision, this.firmwareVersion);
       }
+
+      if (this.plugin.config.pluginLoggingEnabled) {
+        const hkMs = Date.now() - apiT0 - apiMs;
+        const inGrace = Date.now() < this._commandGraceUntil;
+        this.plugin.log(`[Lock] Timing for "${this.display_name}": API ${apiMs}ms | HK update ${hkMs}ms | locked=${props["lock::lock-status"]} | grace=${inGrace}`);
+      }
     } catch (e) {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
@@ -265,25 +273,32 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
 
     // Optimistically update HomeKit immediately so the tile clears "waiting".
     // Grace period prevents the fast poll from reverting this before the API propagates.
+    // Locking propagates in ~15s; unlocking takes ~90s on the Wyze IoT3 endpoint.
     this.isLocked = targetState === Characteristic.LockTargetState.SECURED;
-    this._commandGraceUntil = Date.now() + 15000;
-    this.lockService
-      .getCharacteristic(Characteristic.LockCurrentState)
-      .updateValue(
-        this.isLocked
-          ? Characteristic.LockCurrentState.SECURED
-          : Characteristic.LockCurrentState.UNSECURED
-      );
+    this._commandGraceUntil = Date.now() + (this.isLocked ? 15000 : 90000);
+    const hkLockState = this.isLocked
+      ? Characteristic.LockCurrentState.SECURED
+      : Characteristic.LockCurrentState.UNSECURED;
+    this.lockService.getCharacteristic(Characteristic.LockCurrentState).updateValue(hkLockState);
+    this.lockService.getCharacteristic(Characteristic.LockTargetState).updateValue(
+      this.isLocked
+        ? Characteristic.LockTargetState.SECURED
+        : Characteristic.LockTargetState.UNSECURED
+    );
 
+    const cmdT0 = Date.now();
     const call = this.isLocked
       ? this.plugin.client.lockBoltV2Lock(this.mac, this.product_model)
       : this.plugin.client.lockBoltV2Unlock(this.mac, this.product_model);
 
-    call.catch((e) => {
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(
-          `[Lock] Command error for "${this.display_name} [${this.model_name}] (${this.mac})": ${e}`
-        );
-    });
+    call
+      .then(() => {
+        if (this.plugin.config.pluginLoggingEnabled)
+          this.plugin.log(`[Lock] Command ACK in ${Date.now() - cmdT0}ms for "${this.display_name}"`);
+      })
+      .catch((e) => {
+        if (this.plugin.config.pluginLoggingEnabled)
+          this.plugin.log(`[Lock] Command error after ${Date.now() - cmdT0}ms for "${this.display_name}": ${e}`);
+      });
   }
 };

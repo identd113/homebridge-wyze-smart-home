@@ -104,10 +104,12 @@ module.exports = class WyzeLock extends WyzeAccessory {
       const prevDoorStatus = this.door_open_status;
       const prevPower = this.lockPower;
 
+      const apiT0 = Date.now();
       const propertyList = await this.plugin.client.getLockInfo(
         this.mac,
         this.product_model
       );
+      const apiMs = Date.now() - apiT0;
       let lockProperties = propertyList?.device;
       if (!lockProperties) return false;
       const prop_key = Object.keys(lockProperties);
@@ -160,6 +162,11 @@ module.exports = class WyzeLock extends WyzeAccessory {
             }
             break;
         }
+      }
+
+      if (this.plugin.config.pluginLoggingEnabled) {
+        const hkMs = Date.now() - apiT0 - apiMs;
+        this.plugin.log(`[Lock] Timing for "${this.display_name}": API ${apiMs}ms | HK update ${hkMs}ms`);
       }
 
       return this.hardlock !== prevHardlock ||
@@ -231,24 +238,30 @@ module.exports = class WyzeLock extends WyzeAccessory {
 
     // Optimistically update HomeKit immediately so the tile clears "waiting".
     // Grace period prevents the fast poll from reverting this before the API propagates.
+    // Locking propagates in ~15s; unlocking takes ~90s on the Wyze Ford API endpoint.
     this.hardlock = locking ? 1 : 2;
-    this._commandGraceUntil = Date.now() + 15000;
-    this.lockService
-      .getCharacteristic(Characteristic.LockCurrentState)
-      .updateValue(
-        locking
-          ? Characteristic.LockCurrentState.SECURED
-          : Characteristic.LockCurrentState.UNSECURED
-      );
+    this._commandGraceUntil = Date.now() + (locking ? 15000 : 90000);
+    this.lockService.getCharacteristic(Characteristic.LockCurrentState).updateValue(
+      locking ? Characteristic.LockCurrentState.SECURED : Characteristic.LockCurrentState.UNSECURED
+    );
+    this.lockService.getCharacteristic(Characteristic.LockTargetState).updateValue(
+      locking ? Characteristic.LockTargetState.SECURED : Characteristic.LockTargetState.UNSECURED
+    );
 
+    const cmdT0 = Date.now();
     this.plugin.client.controlLock(
       this.mac,
       this.product_model,
       locking ? "remoteLock" : "remoteUnlock"
-    ).catch((e) => {
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(`[Lock] Command error for "${this.display_name} [${this.model_name}] (${this.mac})": ${e}`);
-    });
+    )
+      .then(() => {
+        if (this.plugin.config.pluginLoggingEnabled)
+          this.plugin.log(`[Lock] Command ACK in ${Date.now() - cmdT0}ms for "${this.display_name}"`);
+      })
+      .catch((e) => {
+        if (this.plugin.config.pluginLoggingEnabled)
+          this.plugin.log(`[Lock] Command error after ${Date.now() - cmdT0}ms for "${this.display_name}": ${e}`);
+      });
   }
 
 };
