@@ -53,10 +53,15 @@ module.exports = class WyzeHMS extends WyzeAccessory {
       const response = await this.plugin.client.monitoringProfileStateStatus(
         this.hmsId
       );
-      this.hmsStatus = response.message;
-      this.securityService
-        .getCharacteristic(Characteristic.SecuritySystemCurrentState)
-        .updateValue(this.convertHmsStateToHomeKitState(this.hmsStatus));
+      // Skip during grace period after a command — the API can report a
+      // transient "changing" status while the real arm/disarm propagates,
+      // which would otherwise revert the optimistic update we just made.
+      if (!this.inCommandGrace()) {
+        this.hmsStatus = response.message;
+        this.securityService
+          .getCharacteristic(Characteristic.SecuritySystemCurrentState)
+          .updateValue(this.convertHmsStateToHomeKitState(this.hmsStatus));
+      }
     }
   }
 
@@ -88,9 +93,12 @@ module.exports = class WyzeHMS extends WyzeAccessory {
         }" : "${this.convertHomeKitStateToHmsState(value)}"`
       );
 
-    // Optimistic update so the panel clears immediately.
+    // Optimistic update so the panel clears immediately. Grace period
+    // prevents the next full refresh from reverting this before the API
+    // propagates (or from re-showing a stale "changing" status).
     const hmsState = this.convertHomeKitStateToHmsState(value);
     this.hmsStatus = hmsState === "off" ? "disarm" : hmsState;
+    this.armCommandGrace(15000);
     const homeKitState = this.convertHmsStateToHomeKitState(this.hmsStatus);
     this.securityService
       .getCharacteristic(Characteristic.SecuritySystemCurrentState)
@@ -99,6 +107,9 @@ module.exports = class WyzeHMS extends WyzeAccessory {
     this.getHmsID()
       .then(() => this.plugin.client.setHMSState(this.hmsId, hmsState))
       .catch((e) => {
+        // Command never went through — let the next full refresh correct
+        // the optimistic state instead of holding it for the full grace window.
+        this.clearCommandGrace();
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(`[HMS] Command error for "${this.display_name}": ${e}`);
       });

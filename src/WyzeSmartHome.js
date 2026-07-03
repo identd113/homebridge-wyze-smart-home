@@ -26,6 +26,14 @@ const PLATFORM_NAME = 'WyzeSmartHome'
 const DEFAULT_REFRESH_INTERVAL = 30000
 const DEFAULT_SECURITY_REFRESH_INTERVAL = 10000
 
+// Fixed window (independent of user-configured refresh intervals) used to skip
+// a fast poll immediately after a full refresh — avoids a redundant back-to-back
+// API call. Deliberately NOT tied to securityRefreshInterval: that value is also
+// the fast poll's own tick cadence, so reusing it here could make the skip
+// window as long as (or longer than) the poll loop itself and silently disable
+// fast polling whenever refreshInterval <= securityRefreshInterval.
+const FULL_REFRESH_SKIP_WINDOW_MS = 10000
+
 // Accessories that make their own API call in updateCharacteristics and return
 // a boolean indicating whether state changed — safe to fast-poll independently.
 const FAST_POLL_CLASSES = new Set([WyzeLock, WyzeLockBoltV2])
@@ -124,8 +132,7 @@ module.exports = class WyzeSmartHome {
   }
 
   async refreshLockDevices() {
-    const interval = this.config.securityRefreshInterval || DEFAULT_SECURITY_REFRESH_INTERVAL
-    if (Date.now() - this._lastFullRefreshAt < interval) return
+    if (Date.now() - this._lastFullRefreshAt < FULL_REFRESH_SKIP_WINDOW_MS) return
 
     const targets = this.accessories.filter(a => FAST_POLL_CLASSES.has(a.constructor) && a.lastDevice)
     if (targets.length === 0) return

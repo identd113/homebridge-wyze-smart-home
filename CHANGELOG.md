@@ -8,6 +8,18 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 ## Releases
 
+### v0.5.61
+Fixes for regressions and gaps found in code review of the 0.5.59/0.5.60 optimistic-update work:
+- Fix WyzeLockBoltV2 lock/unlock commands treating a resolved-but-logically-failed IoT3 response (`result.code !== "1"`) as success — this check was dropped when the command path became fire-and-forget; it's now restored and clears the grace period on failure so HomeKit doesn't keep showing a command that never applied
+- Fix `refreshLockDevices` reusing `securityRefreshInterval` as both the fast-poll's own cadence and the "skip right after a full refresh" threshold — any config where `refreshInterval` <= `securityRefreshInterval` silently disabled lock fast-polling almost entirely; the skip window is now a fixed 10s constant, decoupled from user-configured intervals
+- Add the same optimistic-update grace period used by locks to WyzeHMS (security panel) and to the on/off setter in WyzePlug/WyzeLight/WyzeMeshLight — without it, a poll landing mid-command could revert the optimistic state back to a stale/transitional value, reproducing the exact flicker bug the grace period was built to fix for locks
+- Add a shared `armCommandGrace`/`clearCommandGrace`/`inCommandGrace` helper on the `WyzeAccessory` base class instead of copy-pasting the grace-period pattern into each accessory
+- On command failure (reject or logical failure), clear the grace period immediately across WyzeLock, WyzeLockBoltV2, WyzeHMS, WyzePlug, WyzeLight, and WyzeMeshLight so the next poll can correct the optimistic state right away instead of waiting out the full 15s/90s window
+- Fix WyzePlug/WyzeLight/WyzeMeshLight command errors being swallowed with `.catch(() => {})` and zero logging — errors are now logged when `pluginLoggingEnabled` is set, consistent with every other accessory
+- Known limitation (not changed): the grace period can still mask a genuine physical/keypad lock change or a third-party app change that happens to match the pre-command state, for the duration of the window — this is an inherent trade-off of optimistic updates and isn't fixable without the Wyze API surfacing a freshness/version signal
+- Reviewed but not changed: WyzeSwitch's `handleOnSetWallSwitch` has no grace period, so a failed command already self-corrects on the next full refresh (unlike the accessories above); the only gap is the removed `throw`, which is intentional per v0.5.59 (avoids putting the tile in a HAP error state)
+- Reviewed but not changed: `runLockFastPollLoop`'s pre-existing `securityRefreshInterval || DEFAULT_SECURITY_REFRESH_INTERVAL` treats an explicit `0` as unset; this predates this diff and is left as-is
+
 ### v0.5.60
 - Differentiate command grace period by direction: locking still uses a 15s grace window, but unlocking now uses 90s to match how long the Wyze API actually takes to propagate an unlock, preventing the fast poll from reverting the optimistic "unlocked" tile back to "locked" for WyzeLock and WyzeLockBoltV2
 - Fix WyzeLock/WyzeLockBoltV2 `setLockTargetState` not updating `LockTargetState` alongside `LockCurrentState` on optimistic command updates

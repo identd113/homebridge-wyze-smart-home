@@ -15,7 +15,6 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
     this.batteryLevel = 100;
     this.chargingState = 0;
     this.firmwareVersion = "";
-    this._commandGraceUntil = 0;
 
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
@@ -134,7 +133,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
       if (props["lock::lock-status"] !== undefined) {
         // Skip during grace period after a command to avoid reverting an
         // optimistic update before the API has propagated the change.
-        if (Date.now() > this._commandGraceUntil) {
+        if (!this.inCommandGrace()) {
           this.isLocked = props["lock::lock-status"];
           this.lockService
             .getCharacteristic(Characteristic.LockCurrentState)
@@ -194,8 +193,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
 
       if (this.plugin.config.pluginLoggingEnabled) {
         const hkMs = Date.now() - apiT0 - apiMs;
-        const inGrace = Date.now() < this._commandGraceUntil;
-        this.plugin.log(`[Lock] Timing for "${this.display_name}": API ${apiMs}ms | HK update ${hkMs}ms | locked=${props["lock::lock-status"]} | grace=${inGrace}`);
+        this.plugin.log(`[Lock] Timing for "${this.display_name}": API ${apiMs}ms | HK update ${hkMs}ms | locked=${props["lock::lock-status"]} | grace=${this.inCommandGrace()}`);
       }
     } catch (e) {
       if (this.plugin.config.pluginLoggingEnabled)
@@ -275,7 +273,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
     // Grace period prevents the fast poll from reverting this before the API propagates.
     // Locking propagates in ~15s; unlocking takes ~90s on the Wyze IoT3 endpoint.
     this.isLocked = targetState === Characteristic.LockTargetState.SECURED;
-    this._commandGraceUntil = Date.now() + (this.isLocked ? 15000 : 90000);
+    this.armCommandGrace(this.isLocked ? 15000 : 90000);
     const hkLockState = this.isLocked
       ? Characteristic.LockCurrentState.SECURED
       : Characteristic.LockCurrentState.UNSECURED;
@@ -292,11 +290,20 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
       : this.plugin.client.lockBoltV2Unlock(this.mac, this.product_model);
 
     call
-      .then(() => {
+      .then((result) => {
+        if (!result || result.code !== "1") {
+          // IoT3 resolved without throwing but reported a logical failure —
+          // don't leave HomeKit showing a command that never actually applied.
+          this.clearCommandGrace();
+          if (this.plugin.config.pluginLoggingEnabled)
+            this.plugin.log(`[Lock] Command failed for "${this.display_name}": ${result?.msg ?? 'no response'}`);
+          return;
+        }
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(`[Lock] Command ACK in ${Date.now() - cmdT0}ms for "${this.display_name}"`);
       })
       .catch((e) => {
+        this.clearCommandGrace();
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(`[Lock] Command error after ${Date.now() - cmdT0}ms for "${this.display_name}": ${e}`);
       });

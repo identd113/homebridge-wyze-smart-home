@@ -25,7 +25,12 @@ module.exports = class WyzePlug extends WyzeAccessory {
         `[Plug] Setting power for "${this.display_name} (${this.mac})" to ${value}`
       );
     this._switchState = value ? 1 : 0;
-    this.plugin.client.plugPower(this.mac, this.product_model, value ? "1" : "0").catch(() => {});
+    this.armCommandGrace(15000);
+    this.plugin.client.plugPower(this.mac, this.product_model, value ? "1" : "0").catch((e) => {
+      this.clearCommandGrace();
+      if (this.plugin.config.pluginLoggingEnabled)
+        this.plugin.log(`[Plug] Command error for "${this.display_name}": ${e}`);
+    });
   }
 
   updateCharacteristics(device) {
@@ -37,7 +42,7 @@ module.exports = class WyzePlug extends WyzeAccessory {
       this.getOnCharacteristic().updateValue(noResponse);
     } else {
       const switchState = device.device_params?.switch_state;
-      if (switchState != null && switchState !== this._switchState) {
+      if (switchState != null && switchState !== this._switchState && !this.inCommandGrace()) {
         this._switchState = switchState;
         this.getOnCharacteristic().updateValue(switchState);
       }

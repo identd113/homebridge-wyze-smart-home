@@ -40,7 +40,7 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
       this.getCharacteristic(Characteristic.On).updateValue(noResponse);
     } else {
       const switchState = device.device_params?.switch_state;
-      if (switchState != null && switchState !== this._switchState) {
+      if (switchState != null && switchState !== this._switchState && !this.inCommandGrace()) {
         this._switchState = switchState;
         this.getCharacteristic(Characteristic.On).updateValue(switchState);
       }
@@ -155,7 +155,12 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
         `[MeshLight] Setting power for "${this.display_name} (${this.mac})" to ${value}"`
       );
     this._switchState = value ? 1 : 0;
-    this.plugin.client.lightMeshPower(this.mac, this.product_model, value ? "1" : "0").catch(() => {});
+    this.armCommandGrace(15000);
+    this.plugin.client.lightMeshPower(this.mac, this.product_model, value ? "1" : "0").catch((e) => {
+      this.clearCommandGrace();
+      if (this.plugin.config.pluginLoggingEnabled)
+        this.plugin.log(`[MeshLight] Command error for "${this.display_name}": ${e}`);
+    });
   }
 
   async setBrightness(value) {
@@ -163,7 +168,10 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
       this.plugin.log(
         `[MeshLight] Setting brightness for "${this.display_name} (${this.mac}) to ${value}"`
       );
-    this.plugin.client.setMeshBrightness(this.mac, this.product_model, value).catch(() => {});
+    this.plugin.client.setMeshBrightness(this.mac, this.product_model, value).catch((e) => {
+      if (this.plugin.config.pluginLoggingEnabled)
+        this.plugin.log(`[MeshLight] Command error for "${this.display_name}": ${e}`);
+    });
   }
 
   async setColorTemperature(value) {
@@ -174,7 +182,10 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
       this.plugin.log(
         `[MeshLight] Setting color temperature for "${this.display_name} (${this.mac}) to ${value} : ${wyzeValue}"`
       );
-    this.plugin.client.setMeshColorTemperature(this.mac, this.product_model, wyzeValue).catch(() => {});
+    this.plugin.client.setMeshColorTemperature(this.mac, this.product_model, wyzeValue).catch((e) => {
+      if (this.plugin.config.pluginLoggingEnabled)
+        this.plugin.log(`[MeshLight] Command error for "${this.display_name}": ${e}`);
+    });
   }
 
   async setHue(value) {
@@ -188,7 +199,10 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
       let hexValue = colorsys.hsv2Hex(this.cache.hue, this.cache.saturation, 100);
       hexValue = hexValue.replace("#", "");
       if (this.plugin.config.pluginLoggingEnabled) this.plugin.log(hexValue);
-      this.plugin.client.setMeshHue(this.mac, this.product_model, hexValue).catch(() => {});
+      this.plugin.client.setMeshHue(this.mac, this.product_model, hexValue).catch((e) => {
+        if (this.plugin.config.pluginLoggingEnabled)
+          this.plugin.log(`[MeshLight] Command error for "${this.display_name}": ${e}`);
+      });
       this.cacheUpdated = false;
     } else {
       this.cacheUpdated = true;
@@ -209,7 +223,10 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
     if (this.cacheUpdated) {
       let hexValue = colorsys.hsv2Hex(this.cache.hue, this.cache.saturation, 100);
       hexValue = hexValue.replace("#", "");
-      this.plugin.client.setMeshSaturation(this.mac, this.product_model, hexValue).catch(() => {});
+      this.plugin.client.setMeshSaturation(this.mac, this.product_model, hexValue).catch((e) => {
+        if (this.plugin.config.pluginLoggingEnabled)
+          this.plugin.log(`[MeshLight] Command error for "${this.display_name}": ${e}`);
+      });
       this.cacheUpdated = false;
     } else {
       this.cacheUpdated = true;

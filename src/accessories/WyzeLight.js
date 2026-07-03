@@ -44,7 +44,7 @@ module.exports = class WyzeLight extends WyzeAccessory {
         );
       }
       const switchState = device.device_params?.switch_state;
-      if (switchState != null && switchState !== this._switchState) {
+      if (switchState != null && switchState !== this._switchState && !this.inCommandGrace()) {
         this._switchState = switchState;
         this.getCharacteristic(Characteristic.On).updateValue(switchState);
       }
@@ -112,7 +112,12 @@ module.exports = class WyzeLight extends WyzeAccessory {
         `[Light] Setting power for ${this.mac} (${this.display_name}) to ${value}`
       );
     this._switchState = value ? 1 : 0;
-    this.plugin.client.lightPower(this.mac, this.product_model, value ? "1" : "0").catch(() => {});
+    this.armCommandGrace(15000);
+    this.plugin.client.lightPower(this.mac, this.product_model, value ? "1" : "0").catch((e) => {
+      this.clearCommandGrace();
+      if (this.plugin.config.pluginLoggingEnabled)
+        this.plugin.log(`[Light] Command error for "${this.display_name}": ${e}`);
+    });
   }
 
   async setBrightness(value) {
@@ -121,7 +126,10 @@ module.exports = class WyzeLight extends WyzeAccessory {
       this.plugin.log(
         `[Light] Setting brightness for ${this.mac} (${this.display_name}) to ${value}`
       );
-    this.plugin.client.setBrightness(this.mac, this.product_model, value).catch(() => {});
+    this.plugin.client.setBrightness(this.mac, this.product_model, value).catch((e) => {
+      if (this.plugin.config.pluginLoggingEnabled)
+        this.plugin.log(`[Light] Command error for "${this.display_name}": ${e}`);
+    });
   }
 
   async setColorTemperature(value) {
@@ -132,6 +140,9 @@ module.exports = class WyzeLight extends WyzeAccessory {
       this.plugin.log(
         `[Light] Setting color temperature for ${this.mac} (${this.display_name}) to ${value} (${wyzeValue})`
       );
-    this.plugin.client.setColorTemperature(this.mac, this.product_model, wyzeValue).catch(() => {});
+    this.plugin.client.setColorTemperature(this.mac, this.product_model, wyzeValue).catch((e) => {
+      if (this.plugin.config.pluginLoggingEnabled)
+        this.plugin.log(`[Light] Command error for "${this.display_name}": ${e}`);
+    });
   }
 };

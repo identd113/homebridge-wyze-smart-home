@@ -13,7 +13,6 @@ module.exports = class WyzeLock extends WyzeAccessory {
     this.hardlock = null;
     this.door_open_status = null;
     this.lockPower = null;
-    this._commandGraceUntil = 0;
 
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
@@ -150,7 +149,7 @@ module.exports = class WyzeLock extends WyzeAccessory {
         switch (prop) {
           case "hardlock":
             // Door Locked Status — skip during grace period after a command
-            if (Date.now() > this._commandGraceUntil) {
+            if (!this.inCommandGrace()) {
               this.hardlock = lockerStatusProperties[prop];
               const lockState = this.plugin.client.getLockState(lockerStatusProperties[prop]);
               this.lockService
@@ -240,7 +239,7 @@ module.exports = class WyzeLock extends WyzeAccessory {
     // Grace period prevents the fast poll from reverting this before the API propagates.
     // Locking propagates in ~15s; unlocking takes ~90s on the Wyze Ford API endpoint.
     this.hardlock = locking ? 1 : 2;
-    this._commandGraceUntil = Date.now() + (locking ? 15000 : 90000);
+    this.armCommandGrace(locking ? 15000 : 90000);
     this.lockService.getCharacteristic(Characteristic.LockCurrentState).updateValue(
       locking ? Characteristic.LockCurrentState.SECURED : Characteristic.LockCurrentState.UNSECURED
     );
@@ -259,6 +258,9 @@ module.exports = class WyzeLock extends WyzeAccessory {
           this.plugin.log(`[Lock] Command ACK in ${Date.now() - cmdT0}ms for "${this.display_name}"`);
       })
       .catch((e) => {
+        // Command failed — don't leave the optimistic state stuck for the
+        // full grace window; let the next poll correct it.
+        this.clearCommandGrace();
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(`[Lock] Command error after ${Date.now() - cmdT0}ms for "${this.display_name}": ${e}`);
       });
