@@ -105,4 +105,21 @@ module.exports = class WyzeAccessory {
   sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
+
+  // Optimistic-update grace period: after firing a command, arm this for the
+  // command's expected propagation time so a poll landing before the Wyze API
+  // catches up doesn't revert the optimistic HomeKit state back to stale data.
+  armCommandGrace(ms) {
+    this._commandGraceUntil = Date.now() + ms;
+  }
+
+  // Call when a command is known to have failed so the next poll (rather than
+  // the full grace window) is free to correct the optimistic state.
+  clearCommandGrace() {
+    this._commandGraceUntil = 0;
+  }
+
+  inCommandGrace() {
+    return Date.now() <= (this._commandGraceUntil || 0);
+  }
 };

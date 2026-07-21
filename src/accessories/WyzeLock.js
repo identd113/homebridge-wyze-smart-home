@@ -103,10 +103,12 @@ module.exports = class WyzeLock extends WyzeAccessory {
       const prevDoorStatus = this.door_open_status;
       const prevPower = this.lockPower;
 
+      const apiT0 = Date.now();
       const propertyList = await this.plugin.client.getLockInfo(
         this.mac,
         this.product_model
       );
+      const apiMs = Date.now() - apiT0;
       let lockProperties = propertyList?.device;
       if (!lockProperties) return false;
       const prop_key = Object.keys(lockProperties);
@@ -146,15 +148,24 @@ module.exports = class WyzeLock extends WyzeAccessory {
         const prop = element;
         switch (prop) {
           case "hardlock":
-            // Door Locked Status
-            this.lockService
-              .getCharacteristic(Characteristic.LockCurrentState)
-              .updateValue(
-                this.plugin.client.getLockState(lockerStatusProperties[prop])
-              );
-            this.hardlock = lockerStatusProperties[prop];
+            // Door Locked Status — skip during grace period after a command
+            if (!this.inCommandGrace()) {
+              this.hardlock = lockerStatusProperties[prop];
+              const lockState = this.plugin.client.getLockState(lockerStatusProperties[prop]);
+              this.lockService
+                .getCharacteristic(Characteristic.LockCurrentState)
+                .updateValue(lockState);
+              this.lockService
+                .getCharacteristic(Characteristic.LockTargetState)
+                .updateValue(lockState);
+            }
             break;
         }
+      }
+
+      if (this.plugin.config.pluginLoggingEnabled) {
+        const hkMs = Date.now() - apiT0 - apiMs;
+        this.plugin.log(`[Lock] Timing for "${this.display_name}": API ${apiMs}ms | HK update ${hkMs}ms`);
       }
 
       return this.hardlock !== prevHardlock ||
@@ -220,21 +231,39 @@ module.exports = class WyzeLock extends WyzeAccessory {
 
   async setLockTargetState(targetState) {
     if (this.plugin.config.pluginLoggingEnabled)
-      this.plugin.log(`[Lock] Setting Target State "${targetState}"`); // this is zero or 1
-    await this.plugin.client.controlLock(
-      this.mac,
-      this.product_model,
-      targetState === Characteristic.LockTargetState.SECURED
-        ? "remoteLock"
-        : "remoteUnlock"
+      this.plugin.log(`[Lock] Setting Target State "${this.display_name} [${this.model_name}] (${this.mac}) to ${targetState}"`);
+
+    const locking = targetState === Characteristic.LockTargetState.SECURED;
+
+    // Optimistically update HomeKit immediately so the tile clears "waiting".
+    // Grace period prevents the fast poll from reverting this before the API propagates.
+    // Locking propagates in ~15s; unlocking takes ~90s on the Wyze Ford API endpoint.
+    this.hardlock = locking ? 1 : 2;
+    this.armCommandGrace(locking ? 15000 : 90000);
+    this.lockService.getCharacteristic(Characteristic.LockCurrentState).updateValue(
+      locking ? Characteristic.LockCurrentState.SECURED : Characteristic.LockCurrentState.UNSECURED
+    );
+    this.lockService.getCharacteristic(Characteristic.LockTargetState).updateValue(
+      locking ? Characteristic.LockTargetState.SECURED : Characteristic.LockTargetState.UNSECURED
     );
 
-    this.lockService.setCharacteristic(
-      Characteristic.LockCurrentState,
-      targetState === Characteristic.LockTargetState.SECURED
-        ? Characteristic.LockCurrentState.SECURED
-        : Characteristic.LockCurrentState.UNSECURED
-    );
+    const cmdT0 = Date.now();
+    this.plugin.client.controlLock(
+      this.mac,
+      this.product_model,
+      locking ? "remoteLock" : "remoteUnlock"
+    )
+      .then(() => {
+        if (this.plugin.config.pluginLoggingEnabled)
+          this.plugin.log(`[Lock] Command ACK in ${Date.now() - cmdT0}ms for "${this.display_name}"`);
+      })
+      .catch((e) => {
+        // Command failed — don't leave the optimistic state stuck for the
+        // full grace window; let the next poll correct it.
+        this.clearCommandGrace();
+        if (this.plugin.config.pluginLoggingEnabled)
+          this.plugin.log(`[Lock] Command error after ${Date.now() - cmdT0}ms for "${this.display_name}": ${e}`);
+      });
   }
 
 };

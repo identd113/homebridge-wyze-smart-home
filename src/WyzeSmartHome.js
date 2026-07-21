@@ -1,3 +1,5 @@
+const fs = require('fs')
+const path = require('path')
 const { homebridge, Accessory, UUIDGen } = require('./types')
 const { OutdoorPlugModels, PlugModels, CommonModels, CameraModels, LeakSensorModels,
   TemperatureHumidityModels, LockModels, LockBoltV2Models, MotionSensorModels, ContactSensorModels, LightModels,
@@ -24,6 +26,14 @@ const PLATFORM_NAME = 'WyzeSmartHome'
 const DEFAULT_REFRESH_INTERVAL = 30000
 const DEFAULT_SECURITY_REFRESH_INTERVAL = 10000
 
+// Fixed window (independent of user-configured refresh intervals) used to skip
+// a fast poll immediately after a full refresh — avoids a redundant back-to-back
+// API call. Deliberately NOT tied to securityRefreshInterval: that value is also
+// the fast poll's own tick cadence, so reusing it here could make the skip
+// window as long as (or longer than) the poll loop itself and silently disable
+// fast polling whenever refreshInterval <= securityRefreshInterval.
+const FULL_REFRESH_SKIP_WINDOW_MS = 10000
+
 // Accessories that make their own API call in updateCharacteristics and return
 // a boolean indicating whether state changed — safe to fast-poll independently.
 const FAST_POLL_CLASSES = new Set([WyzeLock, WyzeLockBoltV2])
@@ -42,6 +52,7 @@ module.exports = class WyzeSmartHome {
     this.accessories = []
     this._fastPollStats = new Map()
     this._knownUnsupported = new Set()
+    this._lastFullRefreshAt = 0
 
     this.api.on('didFinishLaunching', this.didFinishLaunching.bind(this))
   }
@@ -86,6 +97,10 @@ module.exports = class WyzeSmartHome {
   }
 
   didFinishLaunching() {
+    if (fs.existsSync(path.join(__dirname, '..', '.git'))) {
+      const { version } = require('../package.json')
+      this.log(`[Plugin] Local dev build v${version}`)
+    }
     this.runLoop()
     this.runLockFastPollLoop()
   }
@@ -117,6 +132,8 @@ module.exports = class WyzeSmartHome {
   }
 
   async refreshLockDevices() {
+    if (Date.now() - this._lastFullRefreshAt < FULL_REFRESH_SKIP_WINDOW_MS) return
+
     const targets = this.accessories.filter(a => FAST_POLL_CLASSES.has(a.constructor) && a.lastDevice)
     if (targets.length === 0) return
 
@@ -159,6 +176,7 @@ module.exports = class WyzeSmartHome {
       const devices = objectList.data.device_list
 
       await this.loadDevices(devices, timestamp)
+      this._lastFullRefreshAt = Date.now()
       if (this.config.pluginLoggingEnabled) this.log(`Refreshed ${this.accessories.length}/${devices.length} devices${fastPollSummary}`)
     } catch (e) {
       this.log.error(`Error getting devices: ${e}`)
