@@ -1,5 +1,6 @@
 const { Service, Characteristic } = require("../types");
 const { ModelNames } = require("../enums");
+const { sanitizeDeviceName } = require("wyze-api/src/util/security");
 
 // Responses from the Wyze API can lag a little after a new value is set
 const UPDATE_THROTTLE_MS = 1000;
@@ -42,6 +43,12 @@ module.exports = class WyzeAccessory {
     // device list from Wyze on every characteristic read.
     this.device = device;
 
+    // Bound length and strip control chars — same sanitization applied at
+    // initial accessory creation (WyzeSmartHome.createHomeKitAccessory), but
+    // a device's nickname can change between refreshes, so it has to be
+    // re-applied here too rather than only once at creation time.
+    const safeName = sanitizeDeviceName(device.nickname);
+
     // Merge identifying fields into context — DON'T replace the whole
     // object, since accessories also stash persisted state in
     // context.lastState that needs to survive across refreshes (and
@@ -51,12 +58,12 @@ module.exports = class WyzeAccessory {
       mac: device.mac,
       product_type: device.product_type,
       product_model: device.product_model,
-      nickname: device.nickname,
+      nickname: safeName,
     });
 
     this.homeKitAccessory
       .getService(Service.AccessoryInformation)
-      .updateCharacteristic(Characteristic.Name, device.nickname)
+      .updateCharacteristic(Characteristic.Name, safeName)
       .updateCharacteristic(Characteristic.Manufacturer, "Wyze")
       .updateCharacteristic(Characteristic.Model, device.product_model)
       .updateCharacteristic(Characteristic.SerialNumber, device.mac)
