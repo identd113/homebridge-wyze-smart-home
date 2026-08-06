@@ -157,6 +157,17 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     return Boolean(this.plugin.config[key]?.includes(this.mac));
   }
 
+  // Cameras are published as external accessories (publishExternalAccessories),
+  // not registered with the bridge — the base class's persistState() calls
+  // api.updatePlatformAccessories(), which on Homebridge 2.x doesn't throw for
+  // externals like the base class's try/catch expects. Instead it silently
+  // breaks accessory-cache serialization for every device discovered
+  // afterward ("Cannot serialize accessory - missing associated platform"),
+  // so nothing persists across restarts until homebridge is restarted with
+  // cameras excluded. No-op here rather than relying on the base class's
+  // catch. Fixes #311.
+  persistState() {}
+
   _getOrAddService({ ServiceType, subtype, defaultName, legacyLookup, label }) {
     // Prefer subtype-based lookup (stable across renames). Fall back to a
     // legacy name-based lookup so cameras paired before the naming change
