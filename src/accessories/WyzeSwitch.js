@@ -81,19 +81,25 @@ module.exports = class WyzeSwitch extends WyzeAccessory {
         case "long_press_type":    this.long_press_type = value; break;
         case "switch-iot":         this.switch_iot = value; break;
         case "switch-power":
-          this.switch_power = !!value;
-          this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(this.switch_power);
+          // Skip during grace period after a command — avoids reverting the
+          // optimistic update before Wyze's API has propagated the change.
+          if (!this.inCommandGrace()) {
+            this.switch_power = !!value;
+            this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(this.switch_power);
+          }
           break;
         case "palm-state":
           // Palm reports as boolean or 0/1 for power; default to false for safety.
-          this.switch_power = value == null ? false : !!value;
-          this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(this.switch_power);
+          if (!this.inCommandGrace()) {
+            this.switch_power = value == null ? false : !!value;
+            this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(this.switch_power);
+          }
           break;
       }
     }
 
     // Palm devices that haven't reported a switch_power yet — assume off.
-    if (this.product_model === CommonModels.Palm && this.switch_power === undefined) {
+    if (this.product_model === CommonModels.Palm && this.switch_power === undefined && !this.inCommandGrace()) {
       this.switch_power = false;
       this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(false);
     }
@@ -128,9 +134,11 @@ module.exports = class WyzeSwitch extends WyzeAccessory {
 
     // Reflect the user's intent immediately — Wyze doesn't push a fast
     // state update back through the bulk list, so waiting for the next
-    // poll would show a stale/reverted tile until the next refresh.
+    // poll would show a stale/reverted tile until the next refresh. Grace
+    // period stops the poll from reverting this before the API propagates.
     this.switch_power = !!value;
     this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(this.switch_power);
+    this.armCommandGrace(15000);
 
     // Palm devices need IoT vs Classic routing; LightSwitch always uses
     // single_press_type to decide. Both branches converge on the same
@@ -145,6 +153,9 @@ module.exports = class WyzeSwitch extends WyzeAccessory {
       : this.plugin.client.wallSwitchPower(this.mac, this.product_model, !!value);
 
     call.catch((error) => {
+      // Command failed — don't leave the optimistic state stuck for the
+      // full grace window; let the next poll correct it.
+      this.clearCommandGrace();
       this.plugin.log.error?.(
         `[Switch] Set failed for "${this.display_name} (${this.mac})": ${error.message || error}`
       );

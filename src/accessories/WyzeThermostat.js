@@ -372,10 +372,12 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
         case "mode_sys":      this.thermostatModeSys = value; break;
         case "humidity":      this.thermostatHumidity = Math.round(value); break;
         case "fan_mode":      this.thermostatFanMode = value; break;
-        case "emheat":        this.thermostatEmheat = value; break;
+        // Coerce explicitly — Wyze may report these as "1"/"0" strings or
+        // numbers rather than real booleans, and a string "0" is truthy in JS.
+        case "emheat":        this.thermostatEmheat = value === true || value === 1 || value === "1"; break;
         case "current_scenario": this.thermostatCurrentScenario = value; break;
-        case "dev_hold":      this.thermostatHold = value; break;
-        case "kid_lock":      this.thermostatKidLock = value; break;
+        case "dev_hold":      this.thermostatHold = value === true || value === 1 || value === "1"; break;
+        case "kid_lock":      this.thermostatKidLock = value === true || value === 1 || value === "1"; break;
         // can check for "iot_state" and "time2temp_val" in future if needed
       }
     }
