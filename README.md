@@ -10,112 +10,135 @@
 
 [Major Feature Backlog/Status](https://github.com/jfarmer08/homebridge-wyze-smart-home/discussions/224)
 
+> **This is the `2.0.0-beta` branch.** It's a large release from the stable `latest` npm tag — real HomeKit camera streaming, several new device types, a restructured config, and security hardening. See [What's new in 2.0](#whats-new-in-20) below, or the full [change log](CHANGELOG.md).
 
 # Funding   [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg?style=flat-square&maxAge=2592000)](https://www.paypal.com/paypalme/AllenFarmer) [![Donate](https://img.shields.io/badge/Donate-Venmo-blue.svg?style=flat-square&maxAge=2592000)](https://venmo.com/u/Allen-Farmer) [![Donate](https://img.shields.io/badge/Donate-Cash_App-blue.svg?style=flat-square&maxAge=2592000)](https://cash.app/$Jfamer08)
 If you like what I have done here and want to help I would recommend that you firstly look into supporting Homebridge. None of this could happen without them.
 
 After you have done that if you feel like my work has been valuable to you I welcome your support through Paypal, Venmo or Cash App.
 
+## What's new in 2.0
+
+- **Live HomeKit camera streaming.** Cameras publish as proper camera tiles with live video + audio (Opus) and snapshots — not just on/off switches. Cameras now pair as **external accessories**, independent of the bridge — if you're upgrading from an earlier version, you'll need to re-pair each camera in the Home app once.
+- **New device types**: Robot Vacuum, Sprinkler/Irrigation Controller, and Wyze Thermostat Room Sensors.
+- **Restructured, nested config** (`auth` / `polling` / `cameras` / `thermostat` / `vacuum` / `hms` / `excludes` / `logging` / `advanced`), auto-migrated from an old flat 1.x config on first launch — a backup is saved to `config.json.pre-2.0.bak`.
+- **Security hardening**: credential/token log redaction by default, an optional mode-600 secrets file (`auth.secretsFile`), and base-URL hostname allowlisting.
+- **Friendlier offline handling**: accessories show a small "inactive"/warning-triangle indicator instead of the full HomeKit "No Response" banner, and last-known state persists to disk across restarts.
+- **`deviceTypeOverrides`**: route a Wyze model code the plugin doesn't recognize yet to an existing accessory class for testing, without waiting for a release.
+
 ## Supported Devices
+
+- **Cameras** (live view, audio, snapshots) — V1, V2, V3, V3 Pro, V4, Pan, Pan v2, Pan v3, Pan Pro, Outdoor, Outdoor 2, Floodlight, Floodlight Pro, Battery Cam Pro, OG, OG Telephoto 3x, Doorbell, Doorbell Pro, Doorbell Pro 2
+  - Optional per-camera capability switches: Garage Door, Spotlight, Floodlight, Siren, Notifications, Motion Detection (each configured per-MAC — see [Configuration](#configuration))
+- **Locks** — Wyze Lock (YD.LO1), Lock Bolt V2, Palm Lock — battery, door-contact, and lock/unlock control
+- **Robot Vacuum** — start/stop, suction level, battery; optional per-room sweep switches
+- **Sprinkler / Irrigation Controller** — one HomeKit valve per zone
+- **Thermostat** — including heat-only/cool-only mode restriction and optional Room Sensor discovery
+- **Home Monitoring System (HMS)** — security panel arm/disarm
+- **Wall Switch**
 - Light Bulb (White, White V2)
 - Light Strips (Light Strip, Light Strip Pro)
-- Color Bulb (Mesh Light A19, BR30, A19 v2)
-- Plug
-- Outdoor Plug
-- V1 & V2 Contact Sensor (Status / Battery)
-- V1 & V2 Motion Sensor (Status / Battery)
-- Temperature & Humidity Sensor (Status / Battery)
-- Leak Sensor (Status / Battery)
-- Lock (Battery / Door Status / Control)
-- Lock Bolt v2 / Palm Lock (Battery / Door Status / Control)
-- Camera v1, v2, v3, v3 Pro, v4 (on/off, Siren, Floodlight, Garage Door)
-- Cam Pan, Pan v2, Pan v3 (on/off, Siren)
-- Outdoor Cam, Outdoor Cam 2
-- Wall Switch
-- Home Monitoring System (HMS)
-- Thermostat
+- Color Bulb / Mesh Light (A19, BR30, A19 v2)
+- Plug, Outdoor Plug
+- Contact Sensor (V1, V2), Motion Sensor (V1, V2) — status & battery
+- Temperature & Humidity Sensor, Leak Sensor — status & battery
 
 ## Not Yet Supported
-The following Wyze products are recognized by the plugin but have no HomeKit support yet:
-- Cameras: Battery Cam Pro, Cam OG, Cam OG Telephoto 3x, Cam Floodlight Pro, Cam Pan Pro
-- Doorbells: Video Doorbell, Video Doorbell Pro, Video Doorbell Pro 2
-- Plugs: Outdoor Plug (main unit)
-- Sensors: Chime Sensor, Room Sensor (thermostat companion), Keypad
-- Locks: Lock Bolt (original BLE-only version)
-- Sprinkler Controller
 
-The following newer Wyze products have no model codes in the plugin yet:
-- Cam Pan v4, Bulb Cam, Window Cam, Battery Video Doorbell, Duo Cam Doorbell
+The following have no model code registered in the plugin yet — if you have one, check the Homebridge log for a line like `[Camera] Unsupported device type: (Name: ...) (Model: XXXXX)` and you can route it to an existing accessory class immediately via `advanced.deviceTypeOverrides`, without waiting for a release:
+
+- Cam Pan v4, Window Cam, Battery Video Doorbell, Duo Cam Doorbell
 - Lamp Socket / Lamp Socket v2, Night Light, Surge Protector
+- Chime Sensor, Keypad
+- Original Wyze Lock Bolt (BLE-only, pre-WiFi version)
 
-The following Wyze products are not applicable to HomeKit:
-- Robot Vacuum, Cordless Vacuum, Scales, Watch, Headphones, Air Purifier
+The following are not applicable to HomeKit: Scales, Watch, Headphones, Air Purifier.
 
 For more information about our version updates, please check our [change log](CHANGELOG.md).
 
 ## Configuration
 
-Use the settings UI in Homebridge Config UI X to configure your Wyze account, or manually add the following to the platforms section of your config file:
+Use the settings UI in Homebridge Config UI X to configure your Wyze account, or manually add the following to the `platforms` section of your config file:
 
-```js
+```json
 {
   "platforms": [
     {
-      "platform": "WyzeSmartHome",
       "name": "Wyze",
-      "username": "YOUR_EMAIL",
-      "password": "YOUR_PASSWORD",
-      "keyId": "",
-      "apiKey": "",
-      "hms": false,
-      "lowBatteryPercentage": 30,
-      "filterDeviceTypeList": ["OutdoorPlug","Plug"],
-      "filterByMacAddressList": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
-      "garageDoorAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
-      "spotLightAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
-      "floodLightAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
-      "sirenAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
-      "notificationAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
-      "securityRefreshInterval": 10000
+      "platform": "WyzeSmartHome",
+      "auth": {
+        "username": "you@example.com",
+        "password": "your-wyze-password",
+        "keyId": "your-key-id",
+        "apiKey": "your-api-key"
+      },
+      "polling": {
+        "refreshInterval": 30000,
+        "lowBatteryPercentage": 30
+      },
+      "cameras": [
+        {
+          "mac": "AA:BB:CC:DD:EE:FF",
+          "name": "Front Garage",
+          "garage": true,
+          "spotlight": false,
+          "floodlight": false,
+          "siren": false,
+          "notifications": true,
+          "motionDetection": false
+        }
+      ],
+      "thermostat": {
+        "exposeRoomSensors": false,
+        "mode": "auto"
+      },
+      "vacuum": {
+        "perRoomSwitches": false
+      },
+      "hms": {
+        "enabled": false
+      },
+      "excludes": {
+        "macs": [],
+        "types": []
+      },
+      "logging": {
+        "level": "info",
+        "disableRedaction": false
+      },
+      "advanced": {
+        "deviceTypeOverrides": {}
+      }
     }
   ]
 }
 ```
 
-Supported devices will be discovered and added to Homebridge automatically.
+Supported devices will be discovered and added to Homebridge automatically. If you're upgrading from a 1.x flat config, it's migrated to this nested shape automatically on first launch.
 
 ### Required Fields
 
-* **`username`** &ndash; App email address
-* **`password`** &ndash; App password
-* **`apiKey`** &ndash; Navigate to [this portal](https://developer-api-console.wyze.com/)
-* **`keyId`** &ndash; Navigate to [this portal](https://developer-api-console.wyze.com/), and click Login to sign in to your Wyze account.
-Note: Ensure that the login info you are using matches the info you use when logLevel into the Wyze app.
-Once you’ve signed in, you’ll be automatically redirected back to the developer page.
-Click Create an API key for your API key to be created.
-Once created, you can click view to see the entire key.
-You should receive an email that a new API key has been generated.
-Once you have the API key, you can use it in your script to get the access token and refresh token.
+* **`auth.username`** &ndash; Wyze app email address
+* **`auth.password`** &ndash; Wyze app password
+* **`auth.apiKey`** / **`auth.keyId`** &ndash; Navigate to [this portal](https://developer-api-console.wyze.com/) and log in with the same account you use in the Wyze app. Click "Create an API key" — you'll receive an email once it's generated. Use the generated Key ID and API Key here.
+
+As an alternative to putting credentials directly in `config.json`, set **`auth.secretsFile`** to the path of a JSON file (must be mode `600`) containing `{ "username", "password", "keyId", "apiKey" }`.
 
 ### Optional Fields
 
-* **`hms`** &ndash; Set to `true` to enable the Home Monitoring System (HMS) gateway accessory. Defaults to `false`.
-* **`refreshInterval`** &ndash; Defines how often the status of the devices will be polled in milliseconds (e.g., `"refreshInterval": 60000` will check the status of your devices' status every 60 seconds). Defaults to 60 seconds.
-* **`phoneId`** &ndash; The phone id used by the Wyze App. This value is just found by intercepting your phone's traffic. If no `phoneId` is specified, a default value will be used.
-* **`logLevel`** &ndash; If no `logLevel` is specified, a default value will be used.
-* **`apiLogEnabled`** &ndash; If no `apiLogEnabled` is specified, a default value will be used.
-* **`authApiKey`** &ndash; If no `authApiKey` is specified, a default value will be used.
-* **`appName`** &ndash; If no `appName` is specified, a default value will be used.
-* **`appVer`** &ndash; If no `appVer` is specified, a default value will be used.
-* **`appVersion`** &ndash; If no `appVersion` is specified, a default value will be used.
-* **`userAgent`** &ndash; If no `userAgent` is specified, a default value will be used.
-* **`sc`** &ndash; If no `sc` is specified, a default value will be used.
-* **`sv`** &ndash; If no `sv` is specified, a default value will be used.
-* **`persistPath`** &ndash; If no `persistPath` is specified, a default value will be used.
-* **`refreshTokenTimerEnabled`** &ndash; If no `refreshTokenTimerEnabled` is specified, a default value will be used.
-* **`lowBatteryPercentage`** &ndash; Defines when to show devices with low battery (e.g., `"lowBatteryPercentage": 30`). Defaults to 30%.
-* **`securityRefreshInterval`** &ndash; How often (in milliseconds) to fast-poll lock devices (Wyze Lock, Lock Bolt v2, Palm Lock) for state changes independently of the main refresh cycle (e.g., `"securityRefreshInterval": 10000`). Defaults to 10 seconds.
-* **`pluginLoggingEnabled`** &ndash; Enables additional plugin-level debug logging, including lock fast-poll summaries. Defaults to false.
+* **`polling.refreshInterval`** &ndash; How often (ms) to poll device status. Defaults to 30 seconds.
+* **`polling.lowBatteryPercentage`** &ndash; Battery percentage at which a device is flagged low. Defaults to 30%.
+* **`cameras[].garage` / `.spotlight` / `.floodlight` / `.siren` / `.notifications` / `.motionDetection`** &ndash; per-camera capability switches, keyed by MAC. Omit a camera entirely to just get the live-view tile with no extra switches.
+* **`thermostat.exposeRoomSensors`** &ndash; Discover Wyze Thermostat Room Sensors (CO_TH1) as separate temperature/humidity accessories. One extra API call per thermostat per refresh cycle. Defaults to `false`.
+* **`thermostat.mode`** &ndash; `"auto"` (default), `"heat-only"`, or `"cool-only"` — restricts which modes HomeKit shows, for systems that physically only support one side (e.g. a gas furnace with no AC).
+* **`vacuum.perRoomSwitches`** &ndash; Add one HomeKit switch per room from the vacuum's current map ("Hey Siri, vacuum kitchen"). Off by default since a multi-room map can add many extra tiles.
+* **`hms.enabled`** &ndash; Expose the Home Monitoring System security-panel accessory. Defaults to `false`.
+* **`excludes.macs`** / **`excludes.types`** &ndash; Arrays of MAC addresses or device-type strings (e.g. `"OutdoorPlug"`, `"Plug"`) to skip entirely.
+* **`logging.level`** &ndash; `"error"` / `"warn"` / `"info"` / `"debug"`. Defaults to `"info"`.
+* **`logging.disableRedaction`** &ndash; Bypass automatic redaction of tokens/credentials/GPS/emails/MACs in log output — only for your own debugging; never share logs captured this way.
+* **`advanced.deviceTypeOverrides`** &ndash; Route an unrecognized Wyze model code to an existing accessory class, e.g. `{ "CameraModels": ["NEW_MODEL_CODE"] }`. Lets you test a brand-new device before official support lands.
+* **`advanced.dangerouslyAllowCustomBaseUrls`**, **`advanced.authBaseUrl`**, **`advanced.apiBaseUrl`** &ndash; Override the Wyze API hosts the plugin talks to. Off by default; only allowlisted Wyze hostnames are ever accepted even when enabled.
+* **`securityRefreshInterval`** &ndash; A legacy top-level field (not yet promoted into `polling`) controlling how often, in milliseconds, lock devices (Wyze Lock, Lock Bolt V2, Palm Lock) are fast-polled independently of the main refresh cycle. Defaults to 10 seconds.
 
 ## Other Info
 
