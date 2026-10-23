@@ -86,6 +86,7 @@ function normalize(input) {
     apiKey: auth.apiKey ?? c.apiKey ?? "",
     secretsFile: auth.secretsFile ?? c.secretsFile ?? "",
     mfaCode: auth.mfaCode ?? c.mfaCode ?? "",
+    totpSecret: auth.totpSecret ?? c.totpSecret ?? "",
   };
   // Mirror to flat for legacy consumers.
   c.username = c.auth.username;
@@ -94,6 +95,7 @@ function normalize(input) {
   c.apiKey = c.auth.apiKey;
   c.secretsFile = c.auth.secretsFile;
   c.mfaCode = c.auth.mfaCode;
+  c.totpSecret = c.auth.totpSecret;
 
   // --- Polling ---
   const polling = isPlainObject(c.polling) ? c.polling : {};
@@ -261,6 +263,7 @@ function toCanonical2x(normalized, platformMeta) {
 
   if (normalized.auth.secretsFile) out.auth.secretsFile = normalized.auth.secretsFile;
   if (normalized.auth.mfaCode) out.auth.mfaCode = normalized.auth.mfaCode;
+  if (normalized.auth.totpSecret) out.auth.totpSecret = normalized.auth.totpSecret;
 
   // Only include the advanced block if anything in it is set, so the
   // file stays clean for the 99% of users who never touch it.

@@ -12,6 +12,7 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 Pairs with `wyze-api@2.0.0-beta.3`.
 
+- **`totpSecret` option**: authenticator-app secret so the plugin generates a fresh 2FA code on every login (the typed `mfaCode` expires in 30s). Optional; existing configs are unaffected.
 - **2FA/MFA login restored** (TOTP authenticator apps only): `mfaCode` option added to the config schema and README. wyze-api had silently dropped MFA handling in Feb 2024. Not yet verified against a live 2FA account.
 - **Persisted-token loop fixed**: a stale/invalid saved token no longer permanently blocks re-login (fixes the "cannot find any devices" reports in #306 / #277).
 - Username validated up front; refresh timer fixed (was firing every ~2.9 minutes instead of every 48 hours); concurrent token refreshes are deduplicated.

@@ -99,6 +99,7 @@ Once you have the API key, you can use it in your script to get the access token
 
 ### Optional Fields
 
+* **`totpSecret`** &ndash; Recommended if your Wyze account uses an authenticator app for 2-factor authentication. Enter the base32 key Wyze shows next to the QR code when you set up 2FA ("can't scan? enter this key"). The plugin generates a fresh code on every login, so it keeps working when Wyze forces a re-login. Treat it like your password. Takes precedence over `mfaCode`. Authenticator apps only, not SMS.
 * **`mfaCode`** &ndash; Only required if your Wyze account has 2-factor authentication enabled (authenticator-app/TOTP only). Enter the current code from your authenticator app. This code rotates every 30 seconds, so it must be current at the moment Homebridge logs in - if login fails because the code expired, update this value and restart Homebridge.
 * **`hms`** &ndash; Set to `true` to enable the Home Monitoring System (HMS) gateway accessory. Defaults to `false`.
 * **`refreshInterval`** &ndash; Defines how often the status of the devices will be polled in milliseconds (e.g., `"refreshInterval": 60000` will check the status of your devices' status every 60 seconds). Defaults to 60 seconds.

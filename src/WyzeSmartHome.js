@@ -148,6 +148,7 @@ module.exports = class WyzeSmartHome {
       username: this.config.username,
       password: this.config.password,
       mfaCode: this.config.mfaCode,
+      totpSecret: this.config.totpSecret,
       keyId: this.config.keyId,
       apiKey: this.config.apiKey,
       //Logging — the API uses its own @ptkdev/logger for colored
