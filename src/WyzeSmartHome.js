@@ -2,6 +2,7 @@ const fs = require('fs')
 const path = require('path')
 const { homebridge, Accessory, UUIDGen, Categories } = require('./types')
 const enums = require('./enums')
+const wyzeApiVersion = require('./wyzeApiVersion')
 const { OutdoorPlugModels, PlugModels, CommonModels, CameraModels, LeakSensorModels,
   TemperatureHumidityModels, LockModels, LockBoltV2Models, MotionSensorModels, ContactSensorModels, LightModels,
   LightStripModels, MeshLightModels, ThermostatModels, ThermostatRoomSensor, S1GatewayModels,
@@ -119,6 +120,15 @@ module.exports = class WyzeSmartHome {
         (overrideResult.skipped > 0 ? `; ${overrideResult.skipped} already present` : '') +
         (overrideResult.unknownCategories.length ? `; ignored unknown categor${overrideResult.unknownCategories.length === 1 ? 'y' : 'ies'}: ${overrideResult.unknownCategories.join(', ')}` : '')
       )
+    }
+
+    // Refuse to start against a wyze-api older than package.json declares,
+    // instead of failing later with confusing missing-method errors.
+    const apiCheck = wyzeApiVersion.checkInstalled()
+    if (!apiCheck.ok) {
+      this.log.error(apiCheck.message)
+      this.accessories = []
+      return
     }
 
     this.client = this.getClient()
