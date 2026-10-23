@@ -14,6 +14,7 @@ This plugin is built on the [wyze-api](https://github.com/jfarmer08/wyze-api) li
 
 Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/jfarmer08/wyze-api/blob/2.0.0/CHANGELOG.md#v200-beta3)).
 
+- **Requires Node.js 22 or newer** (`engines.node` is now `^22 || ^24 || ^26`; Node 18 and 20 are no longer supported). Needed by the upgraded `werift` (`^0.25.1`), which fixes the known `ip`/`uuid` vulnerabilities. Homebridge 2.x already requires Node 22+; Homebridge 1.x users must be on Node 22 or newer to update.
 - **`totpSecret` option**: authenticator-app secret so the plugin generates a fresh 2FA code on every login (the typed `mfaCode` expires in 30s). Optional; existing configs are unaffected.
 - **2FA/MFA login restored** (TOTP authenticator apps only): `mfaCode` option added to the config schema and README. wyze-api had silently dropped MFA handling in Feb 2024. Not yet verified against a live 2FA account.
 - **Persisted-token loop fixed**: a stale/invalid saved token no longer permanently blocks re-login (fixes the "cannot find any devices" reports in #306 / #277).
