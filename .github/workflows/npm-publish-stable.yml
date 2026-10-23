@@ -46,6 +46,11 @@ jobs:
             echo "Either uncheck the 'Pre-release' box in the GitHub release UI, or rename the package.json version to a stable identifier."
             exit 1
           fi
+
+  publish:
+    needs: guard
+    runs-on: ubuntu-latest
+    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -60,7 +65,7 @@ jobs:
         # satisfies it (e.g. wyze-api was not published first).
         run: |
           RANGE=$(node -p "require('./package.json').dependencies['wyze-api']")
-          FOUND=$(npm view "wyze-api@$RANGE" version 2>/dev/null | tail -1 || true)
+          FOUND=$(npm view "wyze-api@$RANGE" version --json 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const v=JSON.parse(s);console.log([].concat(v).pop()||'')}catch(e){console.log('')}})")
           if [ -z "$FOUND" ]; then
             echo "No published wyze-api satisfies '$RANGE'. Publish wyze-api first, then re-run."
             exit 1
