@@ -298,6 +298,12 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       return;
     }
 
+    // Newer cameras (Floodlight Pro, Battery Cam Pro, OG, Pan v4) report state
+    // through the devicemgmt API, not property IDs.
+    if (this.plugin.client.cameraUsesDeviceMgmt(this.product_model)) {
+      return this._refreshFromDeviceMgmt();
+    }
+
     // NOTE: one extra getDevicePID API call per refresh per camera that has
     // any attached accessory configured (garage / spotlight / floodlight /
     // siren / notification). Required because the bulk getObjectList
@@ -383,6 +389,61 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       siren: this.siren,
       floodLight: this.floodLight,
       garageDoor: this.garageDoor,
+      motionDetection: this.motionDetection,
+    });
+
+    if (this.plugin.config.pluginLoggingEnabled && summary.length > 0)
+      this.plugin.log(
+        `[Camera] ${this.mac} (${this.display_name}): ${summary.join(", ")}`
+      );
+  }
+
+  async _refreshFromDeviceMgmt() {
+    let state;
+    try {
+      state = await this.plugin.client.cameraGetDeviceMgmtState(this.mac, this.product_model);
+    } catch (err) {
+      this.plugin.log.error(
+        `[Camera] devicemgmt state failed for ${this.display_name}: ${err.message}`
+      );
+      markServiceOnline(this.privacySwitch, false);
+      return;
+    }
+
+    const summary = [];
+    const flag = (v) => (v ? 1 : 0);
+    if (state.available !== undefined) this.available = flag(state.available);
+    if (state.on !== undefined) {
+      this.on = flag(state.on);
+      this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(this.on);
+      summary.push(`privacy=${this.on ? "on" : "off"}`);
+    }
+    if (state.siren !== undefined && this._isInConfig("sirenAccessory")) {
+      this.siren = flag(state.siren);
+      this.sirenSwitch?.getCharacteristic(Characteristic.On).updateValue(this.siren);
+      summary.push(`siren=${this.siren ? "on" : "off"}`);
+    }
+    if (state.floodlight !== undefined && this._isInConfig("spotLightAccessory")) {
+      this.floodLight = flag(state.floodlight);
+      this.spotLightService?.getCharacteristic(Characteristic.On).updateValue(this.floodLight);
+      summary.push(`spotlight=${this.floodLight ? "on" : "off"}`);
+    }
+    if (state.notify !== undefined && this._isInConfig("notificationAccessory")) {
+      this.notification = flag(state.notify);
+      this.notificationSwitch?.getCharacteristic(Characteristic.On).updateValue(this.notification);
+      summary.push(`notifications=${this.notification ? "on" : "off"}`);
+    }
+    if (state.motion !== undefined && this._isInConfig("motionDetectionAccessory")) {
+      this.motionDetection = !!state.motion;
+      this.motionDetectionSwitch?.getCharacteristic(Characteristic.On).updateValue(this.motionDetection);
+      summary.push(`motion=${this.motionDetection ? "on" : "off"}`);
+    }
+
+    this.persistState({
+      on: this.on,
+      notification: this.notification,
+      siren: this.siren,
+      floodLight: this.floodLight,
       motionDetection: this.motionDetection,
     });
 
