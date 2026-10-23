@@ -8,6 +8,15 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 ## Releases
 
+### v2.0.0-beta.3
+
+Pairs with `wyze-api@2.0.0-beta.3`.
+
+- **2FA/MFA login restored** (TOTP authenticator apps only): `mfaCode` option added to the config schema and README. wyze-api had silently dropped MFA handling in Feb 2024. Not yet verified against a live 2FA account.
+- **Persisted-token loop fixed**: a stale/invalid saved token no longer permanently blocks re-login (fixes the "cannot find any devices" reports in #306 / #277).
+- Username validated up front; refresh timer fixed (was firing every ~2.9 minutes instead of every 48 hours); concurrent token refreshes are deduplicated.
+- Updated the `wyze-api` submodule to 2.0.0-beta.3.
+
 ### v2.0.0-beta.2
 
 Merges `main`'s unreleased 0.5.x hardening work (24 commits since the branches last synced at `412b891`) into the 2.0.0 line. Manual reconciliation across 18 conflicting files, not a mechanical merge — `main` and `2.0.0` had independently built overlapping features (most notably two separate Lock Bolt V2/Palm Lock implementations and two separate Thermostat fan/emheat/hold/kidlock implementations) that needed combining rather than picking one side.

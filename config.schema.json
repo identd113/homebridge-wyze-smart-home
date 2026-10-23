@@ -43,6 +43,12 @@
             "required": true,
             "description": "API Key from the official Wyze portal."
           },
+          "mfaCode": {
+            "title": "2FA/MFA Code",
+            "type": "string",
+            "required": false,
+            "description": "Only required if your Wyze account has 2-factor authentication enabled. Enter the current code from your authenticator app."
+          },
           "secretsFile": {
             "title": "Secrets File (optional)",
             "type": "string",
