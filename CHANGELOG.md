@@ -18,6 +18,9 @@ Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/jfarme
 - **2FA/MFA login restored** (TOTP authenticator apps only): `mfaCode` option added to the config schema and README. wyze-api had silently dropped MFA handling in Feb 2024. Not yet verified against a live 2FA account.
 - **Persisted-token loop fixed**: a stale/invalid saved token no longer permanently blocks re-login (fixes the "cannot find any devices" reports in #306 / #277).
 - Username validated up front; refresh timer fixed (was firing every ~2.9 minutes instead of every 48 hours); concurrent token refreshes are deduplicated.
+- **Minimum wyze-api version is declared once**: `dependencies.wyze-api` in `package.json` (now `^2.0.0-beta.3`). The plugin checks the installed wyze-api against that range at startup and logs a clear error instead of failing later with missing-method errors.
+- Publish workflows now verify a published wyze-api satisfies that range, instead of reading the submodule version and rewriting the dependency. Release wyze-api to npm first.
+- Added tests: wyze-api version check and a guard that every wyze-api method the plugin calls exists in the installed wyze-api (`npm test`).
 - Updated the `wyze-api` submodule to 2.0.0-beta.3.
 
 ### v2.0.0-beta.2
