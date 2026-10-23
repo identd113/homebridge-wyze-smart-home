@@ -8,9 +8,11 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 ## Releases
 
+This plugin is built on the [wyze-api](https://github.com/jfarmer08/wyze-api) library. For API-level changes (login, 2FA, device commands), see the [wyze-api changelog](https://github.com/jfarmer08/wyze-api/blob/2.0.0/CHANGELOG.md).
+
 ### v2.0.0-beta.3
 
-Pairs with `wyze-api@2.0.0-beta.3`.
+Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/jfarmer08/wyze-api/blob/2.0.0/CHANGELOG.md#v200-beta3)).
 
 - **`totpSecret` option**: authenticator-app secret so the plugin generates a fresh 2FA code on every login (the typed `mfaCode` expires in 30s). Optional; existing configs are unaffected.
 - **2FA/MFA login restored** (TOTP authenticator apps only): `mfaCode` option added to the config schema and README. wyze-api had silently dropped MFA handling in Feb 2024. Not yet verified against a live 2FA account.
