@@ -22,4 +22,5 @@ test('the range is declared once, in package.json', () => {
   assert.strictEqual(pj.dependencies['wyze-api'], '^2.0.0-beta.3')
   const r = checkInstalled()
   assert.strictEqual(r.required, pj.dependencies['wyze-api'])
+  assert.strictEqual(r.ok, true, r.message) // the installed wyze-api must satisfy the declared minimum
 })

@@ -19,6 +19,7 @@ Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/jfarme
 - **Persisted-token loop fixed**: a stale/invalid saved token no longer permanently blocks re-login (fixes the "cannot find any devices" reports in #306 / #277).
 - Username validated up front; refresh timer fixed (was firing every ~2.9 minutes instead of every 48 hours); concurrent token refreshes are deduplicated.
 - **Minimum wyze-api version is declared once**: `dependencies.wyze-api` in `package.json` (now `^2.0.0-beta.3`). The plugin checks the installed wyze-api against that range at startup and logs a clear error instead of failing later with missing-method errors.
+- **Fatal startup problems no longer crash or damage the bridge**: a missing `username`, or an installed wyze-api older than the declared minimum, logs one `[FATAL]` error (for example "Cannot log in to Wyze: no username specified") and leaves the platform idle. Cached accessories are left untouched, so nothing is removed from HomeKit.
 - Publish workflows now verify a published wyze-api satisfies that range, instead of reading the submodule version and rewriting the dependency. Release wyze-api to npm first.
 - Added tests: wyze-api version check and a guard that every wyze-api method the plugin calls exists in the installed wyze-api (`npm test`).
 - Updated the `wyze-api` submodule to 2.0.0-beta.3.

@@ -122,11 +122,19 @@ module.exports = class WyzeSmartHome {
       )
     }
 
-    // Refuse to start against a wyze-api older than package.json declares,
-    // instead of failing later with confusing missing-method errors.
+    // Fatal startup problems: log once and leave the platform inert. Cached
+    // accessories are left alone (see configureAccessory) so a config or
+    // version problem never removes paired accessories from HomeKit.
     const apiCheck = wyzeApiVersion.checkInstalled()
-    if (!apiCheck.ok) {
-      this.log.error(apiCheck.message)
+    const username = typeof this.config.username === 'string' ? this.config.username.trim() : ''
+    const fatal = !apiCheck.ok
+      ? apiCheck.message
+      : !username
+          ? 'Cannot log in to Wyze: no username specified. Add your Wyze account email to the plugin config ("username") and restart Homebridge.'
+          : null
+    if (fatal) {
+      this.log.error(`[FATAL] ${fatal}`)
+      this.disabled = true
       this.accessories = []
       return
     }
@@ -582,6 +590,10 @@ module.exports = class WyzeSmartHome {
 
   // Homebridge calls this method on boot to reinitialize previously-discovered devices
   configureAccessory(homeKitAccessory) {
+    // Platform disabled by a fatal startup error: leave cached accessories
+    // untouched (neither set up nor unregistered) so nothing is lost.
+    if (this.disabled) return
+
     // Make sure we haven't set up this accessory already
     let accessory = this.accessories.find(a => a.homeKitAccessory === homeKitAccessory)
     if (accessory) {
