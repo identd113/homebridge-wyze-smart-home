@@ -5,6 +5,20 @@ const WyzeCameraStreamingDelegate = require("../camera/WyzeCameraStreamingDelega
 const { markServiceOnline } = require("./offlineIndicator");
 
 module.exports = class WyzeCamera extends WyzeAccessory {
+
+  /**
+   * Cameras are published as external accessories, so they are not part of
+   * Homebridge's platform accessory cache. Calling updatePlatformAccessories()
+   * on one does not throw on Homebridge 2.x - it makes Homebridge fail to
+   * serialize the whole cache ("missing associated platform"), so no accessory
+   * after the first camera persists (#311). Keep the state in memory only.
+   */
+  persistState(state) {
+    this.homeKitAccessory.context.lastState = {
+      ...(this.homeKitAccessory.context.lastState || {}),
+      ...state,
+    };
+  }
   constructor(plugin, homeKitAccessory) {
     super(plugin, homeKitAccessory);
 
