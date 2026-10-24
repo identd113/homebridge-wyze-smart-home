@@ -154,6 +154,16 @@ module.exports = class WyzeSmartHome {
     })
 
     this.api.on('didFinishLaunching', this.didFinishLaunching.bind(this))
+    this.api.on('shutdown', () => this.shutdown())
+  }
+
+  // Close live camera sessions cleanly: a camera that is left with a dead viewer
+  // (a restart used to abandon them) can refuse the next one for a while.
+  shutdown() {
+    for (const accessory of this.accessories ?? []) {
+      try { accessory.stopStreams?.() } catch (_) { /* best effort */ }
+    }
+    return this.client?.closeAllCameraSessions?.().catch(() => {})
   }
 
   static register() {

@@ -18,6 +18,15 @@ class WyzeCameraStreamingDelegate {
     this._snapshotInFlight = null; // shared by concurrent snapshot requests
   }
 
+  // Stop every live stream (Homebridge is shutting down).
+  stopAll() {
+    for (const session of this._sessions.values()) {
+      try { session.streamHandle?.stop(); } catch (_) { /* already stopped */ }
+      session.streamHandle = null;
+    }
+    this._sessions.clear();
+  }
+
   async handleSnapshotRequest(request, callback) {
     // Skip the slow live-capture fallback if we already know the camera is
     // offline — otherwise HomeKit waits for the full WebRTC timeout and

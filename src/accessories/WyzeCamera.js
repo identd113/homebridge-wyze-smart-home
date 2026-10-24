@@ -209,6 +209,11 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     return service;
   }
 
+  // Stop live streams so the camera isn't left with a dead viewer (shutdown).
+  stopStreams() {
+    this._streamingDelegate?.stopAll();
+  }
+
   // ---- HomeKit camera controller -------------------------------------------
 
   _setupCameraController() {
@@ -216,6 +221,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     if (!hap?.CameraController) return; // unit-test environments
 
     const delegate = new WyzeCameraStreamingDelegate(this);
+    this._streamingDelegate = delegate;
 
     const controller = new hap.CameraController({
       cameraStreamCount: 2,

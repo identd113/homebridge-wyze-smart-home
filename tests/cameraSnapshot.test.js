@@ -70,3 +70,13 @@ test('a stream start waits for a capture that is already in flight', async () =>
   await tick(20)
   assert.deepStrictEqual(events, ['capture', 'stream'])
 })
+
+test('stopAll stops every live stream and forgets the sessions', () => {
+  const { delegate } = make(async () => Buffer.from('jpg'))
+  const stopped = []
+  delegate._sessions.set('a', { streamHandle: { stop: () => stopped.push('a') } })
+  delegate._sessions.set('b', { streamHandle: null })
+  delegate.stopAll()
+  assert.deepStrictEqual(stopped, ['a'])
+  assert.strictEqual(delegate._sessions.size, 0)
+})
