@@ -14,6 +14,8 @@ class WyzeCameraStreamingDelegate {
     //                     streamHandle }
     this._sessions = new Map();
     this._snapshotCache = null; // { buffer, expiresAt }
+    this._lastSnapshot = null; // last good picture, shown while a live stream is running
+    this._snapshotInFlight = null; // shared by concurrent snapshot requests
   }
 
   async handleSnapshotRequest(request, callback) {
@@ -32,6 +34,39 @@ class WyzeCameraStreamingDelegate {
       return;
     }
 
+    // A camera serves one WebRTC session at a time: a snapshot capture and a
+    // live stream started together knock each other out (seen on the Doorbell
+    // v2). While a stream is active, show the last picture instead of opening
+    // another session.
+    if (this._sessions.size > 0) {
+      if (this._lastSnapshot) callback(undefined, this._lastSnapshot);
+      else callback(new Error("Live stream in progress"));
+      return;
+    }
+
+    // Concurrent requests share one capture.
+    if (!this._snapshotInFlight) {
+      this._snapshotInFlight = this._fetchSnapshot().finally(() => {
+        this._snapshotInFlight = null;
+      });
+    }
+    try {
+      callback(undefined, await this._snapshotInFlight);
+    } catch (err) {
+      this.camera.plugin.log.error(
+        `[Camera] [Snapshot] Failed for ${this.camera.display_name}: ${err.message}`
+      );
+      callback(err);
+    }
+  }
+
+  async _fetchSnapshot() {
+    const remember = (buffer) => {
+      this._snapshotCache = { buffer, expiresAt: Date.now() + SNAPSHOT_CACHE_MS };
+      this._lastSnapshot = buffer;
+      return buffer;
+    };
+
     // Try the cloud thumbnail URL straight from the device payload we
     // already have cached on the accessory. Avoids re-fetching the entire
     // Wyze device list, which was the main source of "slow to respond".
@@ -42,10 +77,7 @@ class WyzeCameraStreamingDelegate {
           responseType: "arraybuffer",
           timeout: 4000,
         });
-        const buffer = Buffer.from(resp.data);
-        this._snapshotCache = { buffer, expiresAt: Date.now() + SNAPSHOT_CACHE_MS };
-        callback(undefined, buffer);
-        return;
+        return remember(Buffer.from(resp.data));
       } catch (err) {
         this.camera.plugin.log.warn?.(
           `[Camera] [Snapshot] Cloud thumb failed for ${this.camera.display_name}: ${err.message} — falling back to capture`
@@ -54,19 +86,11 @@ class WyzeCameraStreamingDelegate {
     }
 
     // Last resort: full WebRTC capture. Slow, so we cache the result.
-    try {
-      const result = await this.camera.plugin.client.getCameraSnapshotImage(
-        this.camera.mac,
-        { skipCloud: true }
-      );
-      this._snapshotCache = { buffer: result.buffer, expiresAt: Date.now() + SNAPSHOT_CACHE_MS };
-      callback(undefined, result.buffer);
-    } catch (err) {
-      this.camera.plugin.log.error(
-        `[Camera] [Snapshot] Failed for ${this.camera.display_name}: ${err.message}`
-      );
-      callback(err);
-    }
+    const result = await this.camera.plugin.client.getCameraSnapshotImage(
+      this.camera.mac,
+      { skipCloud: true }
+    );
+    return remember(result.buffer);
   }
 
   async prepareStream(request, callback) {
@@ -136,6 +160,8 @@ class WyzeCameraStreamingDelegate {
       session.streamHandle = null;
       (async () => {
         try {
+          // Don't start while a snapshot capture still holds the camera's session.
+          await this._snapshotInFlight?.catch(() => {});
           const handle = await this.camera.plugin.client.startCameraHKStream(
             this.camera.mac,
             this.camera.product_model,
