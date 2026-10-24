@@ -2,6 +2,7 @@ const fs = require('fs')
 const path = require('path')
 const { homebridge, Accessory, UUIDGen, Categories } = require('./types')
 const enums = require('./enums')
+const wyzeApiVersion = require('./wyzeApiVersion')
 const { OutdoorPlugModels, PlugModels, CommonModels, CameraModels, LeakSensorModels,
   TemperatureHumidityModels, LockModels, LockBoltV2Models, MotionSensorModels, ContactSensorModels, LightModels,
   LightStripModels, MeshLightModels, ThermostatModels, ThermostatRoomSensor, S1GatewayModels,
@@ -121,6 +122,23 @@ module.exports = class WyzeSmartHome {
       )
     }
 
+    // Fatal startup problems: log once and leave the platform inert. Cached
+    // accessories are left alone (see configureAccessory) so a config or
+    // version problem never removes paired accessories from HomeKit.
+    const apiCheck = wyzeApiVersion.checkInstalled()
+    const username = typeof this.config.username === 'string' ? this.config.username.trim() : ''
+    const fatal = !apiCheck.ok
+      ? apiCheck.message
+      : !username
+          ? 'Cannot log in to Wyze: no username specified. Add your Wyze account email to the plugin config ("username") and restart Homebridge.'
+          : null
+    if (fatal) {
+      this.log.error(`[FATAL] ${fatal}`)
+      this.disabled = true
+      this.accessories = []
+      return
+    }
+
     this.client = this.getClient()
 
     this.accessories = []
@@ -148,6 +166,7 @@ module.exports = class WyzeSmartHome {
       username: this.config.username,
       password: this.config.password,
       mfaCode: this.config.mfaCode,
+      totpSecret: this.config.totpSecret,
       keyId: this.config.keyId,
       apiKey: this.config.apiKey,
       //Logging — the API uses its own @ptkdev/logger for colored
@@ -571,6 +590,10 @@ module.exports = class WyzeSmartHome {
 
   // Homebridge calls this method on boot to reinitialize previously-discovered devices
   configureAccessory(homeKitAccessory) {
+    // Platform disabled by a fatal startup error: leave cached accessories
+    // untouched (neither set up nor unregistered) so nothing is lost.
+    if (this.disabled) return
+
     // Make sure we haven't set up this accessory already
     let accessory = this.accessories.find(a => a.homeKitAccessory === homeKitAccessory)
     if (accessory) {

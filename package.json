@@ -1,6 +1,6 @@
 {
   "name": "homebridge-wyze-smart-home",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3",
   "description": "Wyze Smart Home plugin for Homebridge",
   "license": "MIT",
   "main": "src/index.js",
@@ -9,6 +9,7 @@
     "platform": "WyzeSmartHome"
   },
   "scripts": {
+    "test": "node --test tests/*.test.js",
     "lint": "eslint src/**.js --max-warnings=0",
     "start": "hb-service run -P ../ -U ./ --stdout",
     "dev-link": "cd src/wyze-api && npm link && cd ../.. && npm link wyze-api"
@@ -34,10 +35,11 @@
     "axios": "^1.15.0",
     "ffmpeg-static": "^5.3.0",
     "querystring": "0.2.1",
+    "semver": "^7.6.0",
     "utf8": "^3.0.0",
     "uuid-by-string": "4.0.0",
     "werift": "^0.23.0",
-    "wyze-api": "2.0.0-beta.2"
+    "wyze-api": "^2.0.0-beta.3"
   },
   "devDependencies": {
     "@fastify/multipart": "^10.0.0",
