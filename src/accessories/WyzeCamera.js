@@ -19,6 +19,12 @@ const NATIVE_STREAM_RESOLUTIONS = {
   [enums.CameraModels.WyzeCamDoorbellV2]: [[640, 480, 15]],
 };
 
+// Doorbell press: it only exists in Wyze's cloud event list, where a press starts
+// as a motion event and is flipped to "Doorbell rang" a few seconds later. Poll
+// often enough that the Home app rings promptly; each press rings once.
+const DOORBELL_POLL_MS = 5000;
+const DOORBELL_MAX_AGE_MS = 3 * 60 * 1000; // a press older than this is history
+
 module.exports = class WyzeCamera extends WyzeAccessory {
 
   constructor(plugin, homeKitAccessory) {
@@ -209,8 +215,41 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     return service;
   }
 
+  // ---- Doorbell press -------------------------------------------------------
+
+  _startRingWatch() {
+    if (this._ringTimer) return;
+    this._ringedIds = new Set();
+    this._ringWatchStartedAt = Date.now();
+    this._ringTimer = setInterval(() => this._checkRing(), DOORBELL_POLL_MS);
+    this._ringTimer.unref?.();
+  }
+
+  async _checkRing() {
+    if (this._ringBusy || this.cameraOnline === false) return;
+    this._ringBusy = true;
+    try {
+      const events = await this.plugin.client.cameraGetEvents(this.mac, { sinceMs: 5 * 60 * 1000, count: 10 });
+      for (const event of events) {
+        // Events change after they appear, so judge each by its current type.
+        if (event.type !== "DOORBELL_RANG" || this._ringedIds.has(event.id)) continue;
+        this._ringedIds.add(event.id);
+        // Presses from before we started watching, or long ago, are history.
+        if (event.time < this._ringWatchStartedAt || Date.now() - event.time > DOORBELL_MAX_AGE_MS) continue;
+        this._cameraController?.ringDoorbell();
+        this.plugin.log(`[Camera] ${this.display_name}: doorbell pressed`);
+      }
+    } catch (err) {
+      this.plugin.log.debug?.(`[Camera] ${this.display_name}: doorbell event check failed: ${err.message}`);
+    } finally {
+      this._ringBusy = false;
+    }
+  }
+
   // Stop live streams so the camera isn't left with a dead viewer (shutdown).
   stopStreams() {
+    clearInterval(this._ringTimer);
+    this._ringTimer = null;
     this._streamingDelegate?.stopAll();
   }
 
@@ -220,10 +259,14 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     const { hap } = require("../types");
     if (!hap?.CameraController) return; // unit-test environments
 
+    // Cameras with a doorbell button get HomeKit's DoorbellController (a
+    // CameraController plus a Doorbell service) so the Home app can ring.
+    const isDoorbell = !!this.plugin.client?.cameraIsDoorbell?.(this.product_model) && !!hap.DoorbellController;
+
     const delegate = new WyzeCameraStreamingDelegate(this);
     this._streamingDelegate = delegate;
 
-    const controller = new hap.CameraController({
+    const controller = new (isDoorbell ? hap.DoorbellController : hap.CameraController)({
       cameraStreamCount: 2,
       delegate,
       streamingOptions: {
@@ -251,6 +294,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     });
 
     this.homeKitAccessory.configureController(controller);
+    this._cameraController = controller;
+    if (isDoorbell) this._startRingWatch();
 
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
