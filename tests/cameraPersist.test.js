@@ -62,3 +62,39 @@ test('devicemgmt cameras refresh state through cameraGetDeviceMgmtState, not get
   assert.strictEqual(acc.floodLight, 1)
   assert.strictEqual(flushed, 0) // camera state stays out of the platform cache
 })
+
+test('privacy-only devicemgmt cameras (Pan v4) still refresh through devicemgmt and keep power_switch in sync', async () => {
+  const acc = Object.create(WyzeCamera.prototype)
+  const privacy = []
+  acc.homeKitAccessory = { context: { mac: 'AA', product_model: 'HL_PAN4' }, displayName: 'Pan' }
+  acc._markServicesOnline = () => {}
+  acc.privacySwitch = { getCharacteristic: () => ({ updateValue: (v) => privacy.push(v) }) }
+  acc._cameraControllerReady = true
+  acc.cameraAccessoryAttached = () => false
+  acc.plugin = {
+    config: {},
+    log: Object.assign(() => {}, { error: () => {} }),
+    client: {
+      cameraIsOnline: () => true,
+      cameraUsesDeviceMgmt: (m) => m === 'HL_PAN4',
+      cameraGetDeviceMgmtState: async () => ({ on: true })
+    }
+  }
+  await acc.updateCharacteristics({ device_params: { power_switch: 0 } })
+  assert.deepStrictEqual(privacy, [1])
+  assert.strictEqual(acc.power_switch, 1)
+  assert.strictEqual(await acc.handleOnGetPrivacySwitch(), 1)
+})
+
+test('a devicemgmt state failure marks every camera service offline', async () => {
+  const acc = Object.create(WyzeCamera.prototype)
+  const calls = []
+  acc._markServicesOnline = (online) => calls.push(online)
+  acc.homeKitAccessory = { context: { mac: 'AA', product_model: 'HL_PAN4' }, displayName: 'Pan' }
+  acc.plugin = {
+    log: { error: () => {} },
+    client: { cameraGetDeviceMgmtState: async () => { throw new Error('503') } }
+  }
+  await acc._refreshFromDeviceMgmt()
+  assert.deepStrictEqual(calls, [false])
+})

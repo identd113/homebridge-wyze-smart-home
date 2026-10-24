@@ -6,19 +6,6 @@ const { markServiceOnline } = require("./offlineIndicator");
 
 module.exports = class WyzeCamera extends WyzeAccessory {
 
-  /**
-   * Cameras are published as external accessories, so they are not part of
-   * Homebridge's platform accessory cache. Calling updatePlatformAccessories()
-   * on one does not throw on Homebridge 2.x - it makes Homebridge fail to
-   * serialize the whole cache ("missing associated platform"), so no accessory
-   * after the first camera persists (#311). Keep the state in memory only.
-   */
-  persistState(state) {
-    this.homeKitAccessory.context.lastState = {
-      ...(this.homeKitAccessory.context.lastState || {}),
-      ...state,
-    };
-  }
   constructor(plugin, homeKitAccessory) {
     super(plugin, homeKitAccessory);
 
@@ -165,6 +152,20 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     }
   }
 
+  /**
+   * Cameras are published as external accessories, so they are not part of
+   * Homebridge's platform accessory cache. Calling updatePlatformAccessories()
+   * on one does not throw on Homebridge 2.x - it makes Homebridge fail to
+   * serialize the whole cache ("missing associated platform"), so no accessory
+   * after the first camera persists (#311). Keep the state in memory only.
+   */
+  persistState(state) {
+    this.homeKitAccessory.context.lastState = {
+      ...(this.homeKitAccessory.context.lastState || {}),
+      ...state,
+    };
+  }
+
   // ---- Helpers --------------------------------------------------------------
 
   _isInConfig(key) {
@@ -269,13 +270,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     // StatusActive on every service so the user sees an "inactive" badge
     // when the camera is offline (much friendlier than the noResponse
     // banner — the last known state stays visible).
-    markServiceOnline(this.privacySwitch, this.cameraOnline);
-    markServiceOnline(this.sirenSwitch, this.cameraOnline);
-    markServiceOnline(this.floodLightService, this.cameraOnline);
-    markServiceOnline(this.spotLightService, this.cameraOnline);
-    markServiceOnline(this.garageDoorService, this.cameraOnline);
-    markServiceOnline(this.notificationSwitch, this.cameraOnline);
-    markServiceOnline(this.motionDetectionSwitch, this.cameraOnline);
+    this._markServicesOnline(this.cameraOnline);
 
     if (!this.cameraOnline) {
       if (this.plugin.config.pluginLoggingEnabled)
@@ -283,6 +278,12 @@ module.exports = class WyzeCamera extends WyzeAccessory {
           `[Camera] ${this.mac} (${this.display_name}) is offline — keeping last known state, marked inactive`
         );
       return;
+    }
+
+    // Newer cameras (Floodlight Pro, Battery Cam Pro, OG, Pan v4) report state
+    // through the devicemgmt API, not property IDs.
+    if (this.plugin.client.cameraUsesDeviceMgmt(this.product_model)) {
+      return this._refreshFromDeviceMgmt();
     }
 
     if (!this.cameraAccessoryAttached()) {
@@ -296,12 +297,6 @@ module.exports = class WyzeCamera extends WyzeAccessory {
           `[Camera] ${this.mac} (${this.display_name}): privacy ${powerSwitch ? "on" : "off"}`
         );
       return;
-    }
-
-    // Newer cameras (Floodlight Pro, Battery Cam Pro, OG, Pan v4) report state
-    // through the devicemgmt API, not property IDs.
-    if (this.plugin.client.cameraUsesDeviceMgmt(this.product_model)) {
-      return this._refreshFromDeviceMgmt();
     }
 
     // NOTE: one extra getDevicePID API call per refresh per camera that has
@@ -398,6 +393,16 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       );
   }
 
+  _markServicesOnline(online) {
+    markServiceOnline(this.privacySwitch, online);
+    markServiceOnline(this.sirenSwitch, online);
+    markServiceOnline(this.floodLightService, online);
+    markServiceOnline(this.spotLightService, online);
+    markServiceOnline(this.garageDoorService, online);
+    markServiceOnline(this.notificationSwitch, online);
+    markServiceOnline(this.motionDetectionSwitch, online);
+  }
+
   async _refreshFromDeviceMgmt() {
     let state;
     try {
@@ -406,7 +411,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this.plugin.log.error(
         `[Camera] devicemgmt state failed for ${this.display_name}: ${err.message}`
       );
-      markServiceOnline(this.privacySwitch, false);
+      this._markServicesOnline(false);
       return;
     }
 
@@ -415,6 +420,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     if (state.available !== undefined) this.available = flag(state.available);
     if (state.on !== undefined) {
       this.on = flag(state.on);
+      this.power_switch = this.on;
       this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(this.on);
       summary.push(`privacy=${this.on ? "on" : "off"}`);
     }
@@ -441,6 +447,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
 
     this.persistState({
       on: this.on,
+      power_switch: this.power_switch,
       notification: this.notification,
       siren: this.siren,
       floodLight: this.floodLight,
