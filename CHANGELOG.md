@@ -10,6 +10,10 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 This plugin is built on the [wyze-api](https://github.com/jfarmer08/wyze-api) library. For API-level changes (login, 2FA, device commands), see the [wyze-api changelog](https://github.com/jfarmer08/wyze-api/blob/2.0.0/CHANGELOG.md).
 
+### v2.1.0-next.1 (npm tag `next`)
+
+The work described under 2.0.0-beta.3 below, published as its own version and tag so it can't be picked up by installs of the 2.0.0 betas: `npm install homebridge-wyze-smart-home@next`. It is a prerelease of 2.1.0, so ranges such as `^2.0.0-beta.2` do not match it, and `latest` and `beta` are unchanged. Pairs with `wyze-api@2.1.0-next.1` (installed automatically) and needs Node.js 22 or newer.
+
 ### v2.0.0-beta.3
 
 Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/jfarmer08/wyze-api/blob/2.0.0/CHANGELOG.md#v200-beta3)).

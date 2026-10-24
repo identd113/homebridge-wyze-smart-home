@@ -1,6 +1,6 @@
 {
   "name": "homebridge-wyze-smart-home",
-  "version": "2.0.0-beta.3",
+  "version": "2.1.0-next.1",
   "description": "Wyze Smart Home plugin for Homebridge",
   "license": "MIT",
   "main": "src/index.js",
@@ -39,7 +39,7 @@
     "utf8": "^3.0.0",
     "uuid-by-string": "4.0.0",
     "werift": "^0.25.1",
-    "wyze-api": "^2.0.0-beta.3"
+    "wyze-api": "^2.1.0-next.1"
   },
   "devDependencies": {
     "@fastify/multipart": "^10.0.0",

@@ -16,6 +16,10 @@ If you like what I have done here and want to help I would recommend that you fi
 
 After you have done that if you feel like my work has been valuable to you I welcome your support through Paypal, Venmo or Cash App.
 
+## `next` channel
+
+`npm install homebridge-wyze-smart-home@next` installs 2.1.0-next.1: 2FA/TOTP login, the camera streaming fixes (live view, snapshots, audio) and the Wyze Cam Doorbell v2 (rings the Home app). It needs Node.js 22 or newer and leaves the `latest` and `beta` releases untouched.
+
 ## Requirements
 - Node.js 22 or newer (2.0.0-beta.3 and later). Homebridge 2.x already requires it; on Homebridge 1.x, update Node first.
 - The plugin installs the matching `wyze-api` automatically and checks its version at startup. If the version is wrong, or no Wyze `username` is configured, the log shows a `[FATAL]` message and the plugin stays idle without removing your cached accessories.
