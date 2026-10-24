@@ -6,7 +6,8 @@
 # Bridge-specific: `dependencies.wyze-api` in package.json is the single
 # declaration of the minimum wyze-api version (a semver range), also
 # checked by the plugin at startup. Before publish, the workflow verifies
-# a published wyze-api satisfies that range, so release wyze-api first.
+# a published *stable* (non-prerelease) wyze-api satisfies that range, so
+# release wyze-api first.
 #
 # Safeguards:
 #   * Version in package.json must NOT contain `-beta.`
@@ -59,18 +60,21 @@ jobs:
           always-auth: true
       - run: npm install --package-lock-only
       - run: npm ci
-      - name: Verify a published wyze-api satisfies the declared range
+      - name: Verify a stable wyze-api satisfies the declared range
         # Single source of truth: dependencies.wyze-api in package.json is the
-        # minimum wyze-api this release supports. Fail early if nothing on npm
-        # satisfies it (e.g. wyze-api was not published first).
+        # minimum wyze-api this release supports. A stable plugin must not
+        # depend on a prerelease, so only non-prerelease wyze-api versions
+        # count. Fail early if none satisfies the range (e.g. wyze-api was not
+        # published first, or the range still names a beta such as
+        # ^2.0.0-beta.3 instead of ^2.0.0).
         run: |
           RANGE=$(node -p "require('./package.json').dependencies['wyze-api']")
-          FOUND=$(npm view "wyze-api@$RANGE" version --json 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const v=JSON.parse(s);console.log([].concat(v).pop()||'')}catch(e){console.log('')}})")
+          FOUND=$(npm view wyze-api versions --json 2>/dev/null | RANGE="$RANGE" node -e "const semver=require('semver');let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const stable=[].concat(JSON.parse(s)).filter(v=>!semver.prerelease(v));console.log(semver.maxSatisfying(stable,process.env.RANGE)||'')}catch(e){console.log('')}})")
           if [ -z "$FOUND" ]; then
-            echo "No published wyze-api satisfies '$RANGE'. Publish wyze-api first, then re-run."
+            echo "No stable (non-prerelease) wyze-api satisfies '$RANGE'. Publish a stable wyze-api first and set dependencies.wyze-api to its stable range, then re-run."
             exit 1
           fi
-          echo "wyze-api range '$RANGE' resolves to $FOUND"
+          echo "wyze-api range '$RANGE' resolves to stable $FOUND"
       - name: Ensure NPM_TOKEN is configured
         run: |
           if [ -z "$NODE_AUTH_TOKEN" ]; then
