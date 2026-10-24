@@ -4,6 +4,21 @@ const enums = require("../enums");
 const WyzeCameraStreamingDelegate = require("../camera/WyzeCameraStreamingDelegate");
 const { markServiceOnline } = require("./offlineIndicator");
 
+// Sizes advertised to HomeKit. The video is passed through unscaled, so these
+// must match what the camera really sends or the Home app letterboxes it.
+const DEFAULT_STREAM_RESOLUTIONS = [
+  [1920, 1080, 30],
+  [1280, 720, 30],
+  [1280, 720, 15],
+  [640, 360, 30],
+  [640, 360, 15],
+  [320, 240, 15],
+];
+// Cameras whose WebRTC stream isn't 16:9 (read from the stream's SPS).
+const NATIVE_STREAM_RESOLUTIONS = {
+  [enums.CameraModels.WyzeCamDoorbellV2]: [[640, 480, 15]],
+};
+
 module.exports = class WyzeCamera extends WyzeAccessory {
 
   constructor(plugin, homeKitAccessory) {
@@ -208,14 +223,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       streamingOptions: {
         supportedCryptoSuites: [hap.SRTPCryptoSuites.AES_CM_128_HMAC_SHA1_80],
         video: {
-          resolutions: [
-            [1920, 1080, 30],
-            [1280, 720, 30],
-            [1280, 720, 15],
-            [640, 360, 30],
-            [640, 360, 15],
-            [320, 240, 15],
-          ],
+          resolutions: NATIVE_STREAM_RESOLUTIONS[this.product_model] ?? DEFAULT_STREAM_RESOLUTIONS,
           codec: {
             profiles: [hap.H264Profile.BASELINE, hap.H264Profile.MAIN],
             levels: [hap.H264Level.LEVEL3_1, hap.H264Level.LEVEL4_0],
