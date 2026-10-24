@@ -62,3 +62,16 @@ test('a disabled platform leaves cached accessories alone (no unregister, no set
   assert.strictEqual(api.calls.unregister.length, 0)
   assert.strictEqual(platform.accessories.length, 0)
 })
+
+test('a camera that drops out of the device list stops its streams and doorbell poll', async () => {
+  const platform = Object.create(WyzeSmartHome.prototype)
+  const stopped = []
+  platform.config = { pluginLoggingEnabled: false }
+  platform.log = makeLog()
+  platform.api = makeApi()
+  platform.accessories = [{ stopStreams: () => stopped.push('doorbell') }]
+  platform.loadDevice = async () => null // nothing found any more
+  await platform.loadDevices([{ mac: 'AA' }], Date.now())
+  assert.deepStrictEqual(stopped, ['doorbell'])
+  assert.strictEqual(platform.accessories.length, 0)
+})

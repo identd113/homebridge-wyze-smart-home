@@ -4,6 +4,27 @@ const enums = require("../enums");
 const WyzeCameraStreamingDelegate = require("../camera/WyzeCameraStreamingDelegate");
 const { markServiceOnline } = require("./offlineIndicator");
 
+// Sizes advertised to HomeKit. The video is passed through unscaled, so these
+// must match what the camera really sends or the Home app letterboxes it.
+const DEFAULT_STREAM_RESOLUTIONS = [
+  [1920, 1080, 30],
+  [1280, 720, 30],
+  [1280, 720, 15],
+  [640, 360, 30],
+  [640, 360, 15],
+  [320, 240, 15],
+];
+// Cameras whose WebRTC stream isn't 16:9 (read from the stream's SPS).
+const NATIVE_STREAM_RESOLUTIONS = {
+  [enums.CameraModels.WyzeCamDoorbellV2]: [[640, 480, 15]],
+};
+
+// Doorbell press: it only exists in Wyze's cloud event list, where a press starts
+// as a motion event and is flipped to "Doorbell rang" a few seconds later. Poll
+// often enough that the Home app rings promptly; each press rings once.
+const DOORBELL_POLL_MS = 5000;
+const DOORBELL_MAX_BACKOFF_TICKS = 12; // ~1 minute between tries while Wyze keeps failing
+
 module.exports = class WyzeCamera extends WyzeAccessory {
 
   constructor(plugin, homeKitAccessory) {
@@ -33,20 +54,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
 
     if (!Object.values(enums.CameraModels).includes(this.product_model)) return;
 
-    // Privacy switch — always added for cameras. Legacy fallback covers
-    // cameras that were paired before we started naming the service
-    // "<name> Privacy" (used to be just the camera name).
-    this.privacySwitch = this._getOrAddService({
-      ServiceType: Service.Switch,
-      subtype: "Privacy",
-      defaultName: `${this.display_name} Privacy`,
-      legacyLookup: () => this.homeKitAccessory.getService(this.display_name),
-      label: "Privacy Switch",
-    });
-    this.privacySwitch
-      .getCharacteristic(Characteristic.On)
-      .onGet(this.handleOnGetPrivacySwitch.bind(this))
-      .onSet(this.handleOnSetPrivacySwitch.bind(this));
+    this._setupPrivacySwitch();
 
     if (!this.cameraAccessoryAttached()) return;
 
@@ -194,28 +202,116 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     return service;
   }
 
+  // ---- Doorbell press -------------------------------------------------------
+
+  _startRingWatch() {
+    if (this._ringTimer) return;
+    this._ringedIds = null; // seeded by the first successful poll
+    this._ringFailures = 0;
+    this._ringSkip = 0;
+    this._ringTimer = setInterval(() => this._checkRing(), DOORBELL_POLL_MS);
+    this._ringTimer.unref?.();
+  }
+
+  async _checkRing() {
+    if (this._ringBusy) return;
+    if (this.cameraOnline === false) {
+      this._ringedIds = null; // re-seed when it is back, so nothing from the gap rings late
+      return;
+    }
+    if (this._ringSkip > 0) { this._ringSkip -= 1; return; } // backing off after errors
+    this._ringBusy = true;
+    try {
+      const events = await this.plugin.client.cameraGetEvents(this.mac, { sinceMs: 5 * 60 * 1000, count: 10 });
+      // Events change after they appear (a press starts as motion), so judge each
+      // by its current type.
+      const rings = events.filter((event) => event.type === "DOORBELL_RANG");
+      if (this._ringedIds === null) {
+        // Presses already in the list when we start are history. Going by event id,
+        // not by comparing Wyze's timestamps with this host's clock, keeps this
+        // right when the host clock is off.
+        this._ringedIds = new Set(rings.map((event) => event.id));
+      } else {
+        for (const event of rings) {
+          if (this._ringedIds.has(event.id)) continue;
+          this._ringedIds.add(event.id);
+          this._cameraController?.ringDoorbell();
+          this.plugin.log(`[Camera] ${this.display_name}: doorbell pressed`);
+        }
+      }
+      // An event that has left the look-back window can't come back: forget it.
+      const current = new Set(events.map((event) => event.id));
+      for (const id of this._ringedIds) if (!current.has(id)) this._ringedIds.delete(id);
+      this._ringFailures = 0;
+    } catch (err) {
+      // Back off (5 s, 10 s, 20 s ... about a minute) so a failing Wyze doesn't
+      // get hammered, or slow the main refresh that shares the same client.
+      this._ringFailures += 1;
+      this._ringSkip = Math.min(2 ** (this._ringFailures - 1) - 1, DOORBELL_MAX_BACKOFF_TICKS);
+      this.plugin.log.debug?.(`[Camera] ${this.display_name}: doorbell event check failed: ${err.message}`);
+      if (this._ringFailures === 5) {
+        this.plugin.log.warn?.(`[Camera] ${this.display_name}: doorbell presses can't be read from Wyze right now (${err.message}); retrying`);
+      }
+    } finally {
+      this._ringBusy = false;
+    }
+  }
+
+  // Stop live streams so the camera isn't left with a dead viewer (shutdown).
+  stopStreams() {
+    clearInterval(this._ringTimer);
+    this._ringTimer = null;
+    this._streamingDelegate?.stopAll();
+  }
+
+  // Privacy switch — added for cameras that can be powered off. Legacy fallback
+  // covers cameras that were paired before we started naming the service
+  // "<name> Privacy" (used to be just the camera name).
+  _setupPrivacySwitch() {
+    // The Doorbell v2 can't be powered off through Wyze's API: the camera keeps
+    // running whatever we send. A switch that looks like it turned the front-door
+    // camera off while it keeps recording is worse than none, so don't offer one,
+    // and drop the one a cached accessory may still carry.
+    if (this.plugin.client?.cameraSupportsPowerControl?.(this.product_model) === false) {
+      const stale = this.homeKitAccessory.getServiceById?.(Service.Switch, "Privacy");
+      if (stale) this.homeKitAccessory.removeService(stale);
+      this.privacySwitch = null;
+      return;
+    }
+
+    this.privacySwitch = this._getOrAddService({
+      ServiceType: Service.Switch,
+      subtype: "Privacy",
+      defaultName: `${this.display_name} Privacy`,
+      legacyLookup: () => this.homeKitAccessory.getService(this.display_name),
+      label: "Privacy Switch",
+    });
+    this.privacySwitch
+      .getCharacteristic(Characteristic.On)
+      .onGet(this.handleOnGetPrivacySwitch.bind(this))
+      .onSet(this.handleOnSetPrivacySwitch.bind(this));
+  }
+
   // ---- HomeKit camera controller -------------------------------------------
 
   _setupCameraController() {
     const { hap } = require("../types");
     if (!hap?.CameraController) return; // unit-test environments
 
-    const delegate = new WyzeCameraStreamingDelegate(this);
+    // Cameras with a doorbell button get HomeKit's DoorbellController (a
+    // CameraController plus a Doorbell service) so the Home app can ring.
+    const isDoorbell = !!this.plugin.client?.cameraIsDoorbell?.(this.product_model) && !!hap.DoorbellController;
 
-    const controller = new hap.CameraController({
+    const delegate = new WyzeCameraStreamingDelegate(this);
+    this._streamingDelegate = delegate;
+
+    const controller = new (isDoorbell ? hap.DoorbellController : hap.CameraController)({
       cameraStreamCount: 2,
       delegate,
       streamingOptions: {
         supportedCryptoSuites: [hap.SRTPCryptoSuites.AES_CM_128_HMAC_SHA1_80],
         video: {
-          resolutions: [
-            [1920, 1080, 30],
-            [1280, 720, 30],
-            [1280, 720, 15],
-            [640, 360, 30],
-            [640, 360, 15],
-            [320, 240, 15],
-          ],
+          resolutions: NATIVE_STREAM_RESOLUTIONS[this.product_model] ?? DEFAULT_STREAM_RESOLUTIONS,
           codec: {
             profiles: [hap.H264Profile.BASELINE, hap.H264Profile.MAIN],
             levels: [hap.H264Level.LEVEL3_1, hap.H264Level.LEVEL4_0],
@@ -237,6 +333,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     });
 
     this.homeKitAccessory.configureController(controller);
+    this._cameraController = controller;
+    if (isDoorbell) this._startRingWatch();
 
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
@@ -283,19 +381,11 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     // Newer cameras (Floodlight Pro, Battery Cam Pro, OG, Pan v4) report state
     // through the devicemgmt API, not property IDs.
     if (this.plugin.client.cameraUsesDeviceMgmt(this.product_model)) {
-      return this._refreshFromDeviceMgmt();
+      return this._refreshFromDeviceMgmt(device);
     }
 
     if (!this.cameraAccessoryAttached()) {
-      // Privacy-only path — no extra API call, just read the bulk-list field.
-      const powerSwitch = device.device_params?.power_switch;
-      this.power_switch = powerSwitch;
-      this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(powerSwitch);
-      this.persistState({ power_switch: powerSwitch });
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(
-          `[Camera] ${this.mac} (${this.display_name}): privacy ${powerSwitch ? "on" : "off"}`
-        );
+      this._applyBulkPower(device);
       return;
     }
 
@@ -333,7 +423,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
         case "P3": // Privacy
           this.on = property.value;
           this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(this.on);
-          summary.push(`privacy=${this.on ? "on" : "off"}`);
+          summary.push(`power=${this.on ? "on" : "off"}`);
           break;
         case "P5": // Available
           this.available = property.value;
@@ -403,7 +493,19 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     markServiceOnline(this.motionDetectionSwitch, online);
   }
 
-  async _refreshFromDeviceMgmt() {
+  // Privacy-only path: no extra API call, just read the bulk-list field.
+  _applyBulkPower(device) {
+    const powerSwitch = device.device_params?.power_switch;
+    this.power_switch = powerSwitch;
+    this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(powerSwitch);
+    this.persistState({ power_switch: powerSwitch });
+    if (this.plugin.config.pluginLoggingEnabled)
+      this.plugin.log(
+        `[Camera] ${this.mac} (${this.display_name}): camera power ${powerSwitch ? "on" : "off"}`
+      );
+  }
+
+  async _refreshFromDeviceMgmt(device) {
     let state;
     try {
       state = await this.plugin.client.cameraGetDeviceMgmtState(this.mac, this.product_model);
@@ -411,6 +513,12 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this.plugin.log.error(
         `[Camera] devicemgmt state failed for ${this.display_name}: ${err.message}`
       );
+      if (device && !this.cameraAccessoryAttached()) {
+        // Privacy-only: the bulk list already carries power_switch, which is all
+        // beta.2 ever read, so keep working from it instead of going inactive.
+        this._applyBulkPower(device);
+        return;
+      }
       this._markServicesOnline(false);
       return;
     }
@@ -422,7 +530,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this.on = flag(state.on);
       this.power_switch = this.on;
       this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(this.on);
-      summary.push(`privacy=${this.on ? "on" : "off"}`);
+      summary.push(`power=${this.on ? "on" : "off"}`);
     }
     if (state.siren !== undefined && this._isInConfig("sirenAccessory")) {
       this.siren = flag(state.siren);

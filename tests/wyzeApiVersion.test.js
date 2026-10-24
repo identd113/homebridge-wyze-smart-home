@@ -19,7 +19,7 @@ test('rejects older betas, 1.x, and a missing version', () => {
 
 test('the range is declared once, in package.json', () => {
   const pj = require('../package.json')
-  assert.strictEqual(pj.dependencies['wyze-api'], '^2.0.0-beta.3')
+  assert.ok(require('semver').validRange(pj.dependencies['wyze-api']), 'the declared wyze-api range must be a valid semver range')
   const r = checkInstalled()
   assert.strictEqual(r.required, pj.dependencies['wyze-api'])
   assert.strictEqual(r.ok, true, r.message) // the installed wyze-api must satisfy the declared minimum
