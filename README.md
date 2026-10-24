@@ -37,7 +37,6 @@ After you have done that if you feel like my work has been valuable to you I wel
 - Cam Pan v4 (on/off, Siren, Spotlight, state; new in 2.0.0-beta.3, not yet verified on hardware)
 - Bulb Cam (light; new in 2.0.0-beta.3, not yet verified on hardware)
 - Cam Doorbell v2 (HomeKit doorbell: press notification, snapshots and live view with audio at 640x480; new in 2.0.0-beta.3). There is no Privacy switch for it: Wyze doesn't let the doorbell be powered off through its API. The press comes from Wyze's cloud event list, so it can arrive a few seconds after the button is pressed. Turn on notifications for the doorbell in the Home app.
-
 - Outdoor Cam, Outdoor Cam 2
 - Wall Switch
 - Home Monitoring System (HMS)
