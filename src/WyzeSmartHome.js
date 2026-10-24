@@ -501,7 +501,9 @@ module.exports = class WyzeSmartHome {
       const isCamera = accessoryClass === WyzeCamera
       const homeKitAccessory = this.createHomeKitAccessory(
         device,
-        isCamera ? Categories?.CAMERA : undefined,
+        isCamera
+          ? (this.client.cameraIsDoorbell?.(device.product_model) ? Categories?.VIDEO_DOORBELL : Categories?.CAMERA)
+          : undefined,
         isCamera
       )
       accessory = new accessoryClass(this, homeKitAccessory)

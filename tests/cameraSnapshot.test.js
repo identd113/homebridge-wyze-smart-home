@@ -115,3 +115,11 @@ test('stopAll stops every live stream and forgets the sessions', () => {
   assert.deepStrictEqual(stopped, ['a'])
   assert.strictEqual(delegate._sessions.size, 0)
 })
+
+test('a stream start that never settles stops counting as active after a minute', () => {
+  const { delegate } = make(async () => Buffer.from('jpg'))
+  delegate._sessions.set('s1', { starting: true, startingSince: Date.now() })
+  assert.strictEqual(delegate._streamActive(), true)
+  delegate._sessions.set('s1', { starting: true, startingSince: Date.now() - 61000 })
+  assert.strictEqual(delegate._streamActive(), false)
+})

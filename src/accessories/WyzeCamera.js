@@ -227,7 +227,11 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   }
 
   async _checkRing() {
-    if (this._ringBusy || this.cameraOnline === false) return;
+    if (this._ringBusy) return;
+    if (this.cameraOnline === false) {
+      this._ringedIds = null; // re-seed when it is back, so nothing from the gap rings late
+      return;
+    }
     if (this._ringSkip > 0) { this._ringSkip -= 1; return; } // backing off after errors
     this._ringBusy = true;
     try {

@@ -28,7 +28,7 @@
           "password": {
             "title": "Password",
             "type": "string",
-            "format": "password",
+            "x-schema-form": { "type": "password" },
             "description": "Your Wyze account password."
           },
           "keyId": {
@@ -39,7 +39,7 @@
           "apiKey": {
             "title": "API Key",
             "type": "string",
-            "format": "password",
+            "x-schema-form": { "type": "password" },
             "description": "API Key from the official Wyze portal."
           },
           "mfaCode": {
@@ -50,7 +50,7 @@
           "totpSecret": {
             "title": "Authenticator-app 2FA Secret",
             "type": "string",
-            "format": "password",
+            "x-schema-form": { "type": "password" },
             "description": "Recommended if your Wyze account uses an authenticator app for 2-factor auth. Enter the base32 key shown next to the QR code during 2FA setup (spaces and dashes are fine); a fresh code is generated at every login. Takes precedence over the 2FA/MFA Code. Treat it like your password."
           },
           "secretsFile": {

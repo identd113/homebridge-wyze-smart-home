@@ -27,7 +27,7 @@ test('schema uses required arrays, not draft-3 per-property booleans', () => {
 
 test('secret fields are masked in the settings UI', () => {
   const auth = schema.schema.properties.auth.properties
-  for (const k of ['password', 'apiKey', 'totpSecret']) assert.strictEqual(auth[k].format, 'password', k)
+  for (const k of ['password', 'apiKey', 'totpSecret']) assert.deepStrictEqual(auth[k]['x-schema-form'], { type: 'password' }, k)
 })
 
 test('getClient trims whitespace around keyId and apiKey', () => {

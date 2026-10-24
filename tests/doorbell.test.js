@@ -137,3 +137,15 @@ test('stopStreams stops the doorbell poll timer', () => {
   acc.stopStreams()
   assert.strictEqual(acc._ringTimer, null)
 })
+
+test('a press made while the camera was offline is not announced late once it is back', async () => {
+  let events = []
+  const { acc } = ringer('HL_DB2', async () => events)
+  await acc._checkRing() // seed
+  acc.cameraOnline = false
+  events = [press('during-gap', 'DOORBELL_RANG', 30000)]
+  await acc._checkRing() // skipped, and the seed is dropped
+  acc.cameraOnline = true
+  await acc._checkRing() // re-seeds from the current list
+  assert.strictEqual(acc._cameraController.rings, undefined)
+})

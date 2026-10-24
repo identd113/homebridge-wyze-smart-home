@@ -4,6 +4,7 @@ const nodeCrypto = require("crypto");
 const axios = require("axios");
 
 const SNAPSHOT_CACHE_MS = 10_000;
+const STREAM_START_TIMEOUT_MS = 60_000; // a start that has not settled by then no longer counts as active
 
 class WyzeCameraStreamingDelegate {
   constructor(camera) {
@@ -23,7 +24,8 @@ class WyzeCameraStreamingDelegate {
   // count, or snapshots would be blocked until Homebridge restarts.
   _streamActive() {
     for (const session of this._sessions.values()) {
-      if (session.streamHandle || session.starting) return true;
+      if (session.streamHandle) return true;
+      if (session.starting && Date.now() - session.startingSince < STREAM_START_TIMEOUT_MS) return true;
     }
     return false;
   }
@@ -182,6 +184,7 @@ class WyzeCameraStreamingDelegate {
       // wyze-api when the stream claims the camera, so there is nothing to wait for.)
       const token = (session.startToken = (session.startToken ?? 0) + 1);
       session.starting = true;
+      session.startingSince = Date.now();
       (async () => {
         try {
           const handle = await this.camera.plugin.client.startCameraHKStream(
