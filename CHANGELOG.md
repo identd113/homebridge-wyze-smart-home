@@ -27,6 +27,7 @@ Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/jfarme
 - Pasted 2FA values are cleaned and validated (spaces, newlines, dashes, quotes and `otpauth://` links are handled); a malformed `totpSecret` or `mfaCode` gives a clear login error.
 - **Fatal startup problems no longer crash or damage the bridge**: a missing `username`, or an installed wyze-api older than the declared minimum, logs one `[FATAL]` error (for example "Cannot log in to Wyze: no username specified") and leaves the platform idle. Cached accessories are left untouched, so nothing is removed from HomeKit.
 - Publish workflows now verify a published wyze-api satisfies that range, instead of reading the submodule version and rewriting the dependency. Release wyze-api to npm first.
+- **Settings screen no longer shows "Config validation failed"**: `config.schema.json` now uses `required` lists (JSON Schema draft 7) instead of per-field booleans. Password, API Key and Authenticator-app 2FA Secret are masked in the settings screen, and whitespace pasted around the Key ID or API Key is trimmed.
 - Added tests: wyze-api version check and a guard that every wyze-api method the plugin calls exists in the installed wyze-api (`npm test`).
 - Updated the `wyze-api` submodule to 2.0.0-beta.3.
 

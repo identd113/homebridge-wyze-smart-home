@@ -6,53 +6,51 @@
   "footerDisplay": "[Documentation & troubleshooting on GitHub](https://github.com/jfarmer08/homebridge-wyze-smart-home).",
   "schema": {
     "type": "object",
+    "required": ["name"],
     "properties": {
       "name": {
         "title": "Plugin Name",
         "type": "string",
-        "default": "Wyze",
-        "required": true
+        "default": "Wyze"
       },
 
       "auth": {
         "type": "object",
         "title": "Account",
+        "required": ["username", "password", "keyId", "apiKey"],
         "properties": {
           "username": {
             "title": "Email Address",
             "type": "string",
-            "required": true,
             "format": "email",
             "description": "The email address used for your Wyze account."
           },
           "password": {
             "title": "Password",
             "type": "string",
-            "required": true,
+            "format": "password",
             "description": "Your Wyze account password."
           },
           "keyId": {
             "title": "Key ID",
             "type": "string",
-            "required": true,
             "description": "API Key ID from the official Wyze portal: https://developer-api-console.wyze.com"
           },
           "apiKey": {
             "title": "API Key",
             "type": "string",
-            "required": true,
+            "format": "password",
             "description": "API Key from the official Wyze portal."
           },
           "mfaCode": {
             "title": "2FA/MFA Code",
             "type": "string",
-            "required": false,
             "description": "Only required if your Wyze account has 2-factor authentication enabled. Enter the current code from your authenticator app."
           },
           "totpSecret": {
             "title": "Authenticator-app 2FA Secret",
             "type": "string",
-            "required": false,
+            "format": "password",
             "description": "Recommended if your Wyze account uses an authenticator app for 2-factor auth. Enter the base32 key shown next to the QR code during 2FA setup (spaces and dashes are fine); a fresh code is generated at every login. Takes precedence over the 2FA/MFA Code. Treat it like your password."
           },
           "secretsFile": {
@@ -95,11 +93,11 @@
         "items": {
           "type": "object",
           "title": "Camera",
+          "required": ["mac"],
           "properties": {
             "mac": {
               "title": "MAC Address",
               "type": "string",
-              "required": true,
               "placeholder": "AA:BB:CC:DD:EE:FF",
               "description": "MAC address of the Wyze camera (find it in the Wyze app under device info)."
             },

@@ -167,8 +167,9 @@ module.exports = class WyzeSmartHome {
       password: this.config.password,
       mfaCode: this.config.mfaCode,
       totpSecret: this.config.totpSecret,
-      keyId: this.config.keyId,
-      apiKey: this.config.apiKey,
+      // Stray whitespace from copy/paste is never part of a developer key
+      keyId: typeof this.config.keyId === 'string' ? this.config.keyId.trim() : this.config.keyId,
+      apiKey: typeof this.config.apiKey === 'string' ? this.config.apiKey.trim() : this.config.apiKey,
       //Logging — the API uses its own @ptkdev/logger for colored
       // terminal output. logLevel filters that output; apiLogEnabled is
       // the legacy true/false toggle (true → debug, false → info).
