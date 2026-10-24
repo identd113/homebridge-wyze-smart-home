@@ -353,7 +353,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this.persistState({ power_switch: powerSwitch });
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(
-          `[Camera] ${this.mac} (${this.display_name}): privacy ${powerSwitch ? "on" : "off"}`
+          `[Camera] ${this.mac} (${this.display_name}): camera power ${powerSwitch ? "on" : "off"}`
         );
       return;
     }
