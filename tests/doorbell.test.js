@@ -51,12 +51,21 @@ test('a doorbell model gets a DoorbellController, other cameras a CameraControll
   assert.strictEqual(camera.acc._ringTimer, undefined)
 })
 
-test('a press rings once, not again on later polls', async () => {
-  let events = [press('e1', 'DOORBELL_RANG')]
-  const { acc, logged } = make('HL_DB2', async () => events)
-  acc._cameraController = new FakeDoorbellController()
-  acc._ringedIds = new Set()
-  acc._ringWatchStartedAt = Date.now() - 60000
+function ringer (model, getEvents) {
+  const made = make(model, getEvents)
+  made.acc._cameraController = new FakeDoorbellController()
+  made.acc._ringedIds = null
+  made.acc._ringFailures = 0
+  made.acc._ringSkip = 0
+  return made
+}
+
+test('presses already in the list at startup are history; a later press rings once', async () => {
+  let events = [press('old', 'DOORBELL_RANG', 60000)]
+  const { acc, logged } = ringer('HL_DB2', async () => events)
+  await acc._checkRing() // seeds from the existing list
+  assert.strictEqual(acc._cameraController.rings, undefined)
+  events = [press('new', 'DOORBELL_RANG'), press('old', 'DOORBELL_RANG', 60000)]
   await acc._checkRing()
   await acc._checkRing()
   assert.strictEqual(acc._cameraController.rings, 1)
@@ -64,11 +73,10 @@ test('a press rings once, not again on later polls', async () => {
 })
 
 test('a press that begins as motion rings when it is flipped to "Doorbell rang"', async () => {
-  let events = [press('e1', 'MOTION')]
-  const { acc } = make('HL_DB2', async () => events)
-  acc._cameraController = new FakeDoorbellController()
-  acc._ringedIds = new Set()
-  acc._ringWatchStartedAt = Date.now() - 60000
+  let events = []
+  const { acc } = ringer('HL_DB2', async () => events)
+  await acc._checkRing() // seed (empty)
+  events = [press('e1', 'MOTION')]
   await acc._checkRing()
   assert.strictEqual(acc._cameraController.rings, undefined, 'plain motion must not ring')
   events = [press('e1', 'DOORBELL_RANG')]
@@ -76,26 +84,50 @@ test('a press that begins as motion rings when it is flipped to "Doorbell rang"'
   assert.strictEqual(acc._cameraController.rings, 1)
 })
 
-test('presses from before the plugin started, or long ago, do not ring', async () => {
-  const { acc } = make('HL_DB2', async () => [press('old', 'DOORBELL_RANG', 60000), press('ancient', 'DOORBELL_RANG', 10 * 60000)])
-  acc._cameraController = new FakeDoorbellController()
-  acc._ringedIds = new Set()
-  acc._ringWatchStartedAt = Date.now() - 1000 // started after both
+test('ring detection does not depend on the host clock matching Wyze', async () => {
+  // Wyze timestamps three hours in the past, as if the host clock were far ahead.
+  let events = []
+  const { acc } = ringer('HL_DB2', async () => events)
   await acc._checkRing()
+  events = [press('e1', 'DOORBELL_RANG', 3 * 3600 * 1000)]
+  await acc._checkRing()
+  assert.strictEqual(acc._cameraController.rings, 1)
+})
+
+test('ids that left the look-back window are forgotten, so the set cannot grow forever', async () => {
+  let events = [press('a', 'DOORBELL_RANG'), press('b', 'DOORBELL_RANG')]
+  const { acc } = ringer('HL_DB2', async () => events)
+  await acc._checkRing()
+  assert.deepStrictEqual([...acc._ringedIds].sort(), ['a', 'b'])
+  events = [press('b', 'DOORBELL_RANG')]
+  await acc._checkRing()
+  assert.deepStrictEqual([...acc._ringedIds], ['b'])
+})
+
+test('an event-list failure does not throw or ring, backs off, and recovers', async () => {
+  let fail = false
+  let calls = 0
+  const { acc } = ringer('HL_DB2', async () => { calls += 1; if (fail) throw new Error('503'); return [] })
+  await acc._checkRing() // seed
+  fail = true
+  await acc._checkRing()
+  assert.strictEqual(acc._ringFailures, 1)
+  const afterFirstFailure = calls
+  // later ticks are skipped while backing off
+  acc._ringSkip = 3
+  for (let i = 0; i < 3; i += 1) await acc._checkRing()
+  assert.strictEqual(calls, afterFirstFailure, 'no requests while backing off')
+  fail = false
+  await acc._checkRing()
+  assert.strictEqual(acc._ringFailures, 0)
   assert.strictEqual(acc._cameraController.rings, undefined)
 })
 
-test('an event-list failure does not throw or ring, and polling continues', async () => {
-  let fail = true
-  const { acc } = make('HL_DB2', async () => { if (fail) throw new Error('503'); return [press('e1', 'DOORBELL_RANG')] })
-  acc._cameraController = new FakeDoorbellController()
-  acc._ringedIds = new Set()
-  acc._ringWatchStartedAt = Date.now() - 60000
-  await acc._checkRing()
-  assert.strictEqual(acc._cameraController.rings, undefined)
-  fail = false
-  await acc._checkRing()
-  assert.strictEqual(acc._cameraController.rings, 1)
+test('repeated failures lengthen the back-off up to a cap', async () => {
+  const { acc } = ringer('HL_DB2', async () => { throw new Error('503') })
+  const skips = []
+  for (let i = 0; i < 8; i += 1) { acc._ringSkip = 0; await acc._checkRing(); skips.push(acc._ringSkip) }
+  assert.deepStrictEqual(skips, [0, 1, 3, 7, 12, 12, 12, 12])
 })
 
 test('stopStreams stops the doorbell poll timer', () => {

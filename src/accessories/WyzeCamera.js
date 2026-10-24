@@ -23,7 +23,7 @@ const NATIVE_STREAM_RESOLUTIONS = {
 // as a motion event and is flipped to "Doorbell rang" a few seconds later. Poll
 // often enough that the Home app rings promptly; each press rings once.
 const DOORBELL_POLL_MS = 5000;
-const DOORBELL_MAX_AGE_MS = 3 * 60 * 1000; // a press older than this is history
+const DOORBELL_MAX_BACKOFF_TICKS = 12; // ~1 minute between tries while Wyze keeps failing
 
 module.exports = class WyzeCamera extends WyzeAccessory {
 
@@ -219,28 +219,48 @@ module.exports = class WyzeCamera extends WyzeAccessory {
 
   _startRingWatch() {
     if (this._ringTimer) return;
-    this._ringedIds = new Set();
-    this._ringWatchStartedAt = Date.now();
+    this._ringedIds = null; // seeded by the first successful poll
+    this._ringFailures = 0;
+    this._ringSkip = 0;
     this._ringTimer = setInterval(() => this._checkRing(), DOORBELL_POLL_MS);
     this._ringTimer.unref?.();
   }
 
   async _checkRing() {
     if (this._ringBusy || this.cameraOnline === false) return;
+    if (this._ringSkip > 0) { this._ringSkip -= 1; return; } // backing off after errors
     this._ringBusy = true;
     try {
       const events = await this.plugin.client.cameraGetEvents(this.mac, { sinceMs: 5 * 60 * 1000, count: 10 });
-      for (const event of events) {
-        // Events change after they appear, so judge each by its current type.
-        if (event.type !== "DOORBELL_RANG" || this._ringedIds.has(event.id)) continue;
-        this._ringedIds.add(event.id);
-        // Presses from before we started watching, or long ago, are history.
-        if (event.time < this._ringWatchStartedAt || Date.now() - event.time > DOORBELL_MAX_AGE_MS) continue;
-        this._cameraController?.ringDoorbell();
-        this.plugin.log(`[Camera] ${this.display_name}: doorbell pressed`);
+      // Events change after they appear (a press starts as motion), so judge each
+      // by its current type.
+      const rings = events.filter((event) => event.type === "DOORBELL_RANG");
+      if (this._ringedIds === null) {
+        // Presses already in the list when we start are history. Going by event id,
+        // not by comparing Wyze's timestamps with this host's clock, keeps this
+        // right when the host clock is off.
+        this._ringedIds = new Set(rings.map((event) => event.id));
+      } else {
+        for (const event of rings) {
+          if (this._ringedIds.has(event.id)) continue;
+          this._ringedIds.add(event.id);
+          this._cameraController?.ringDoorbell();
+          this.plugin.log(`[Camera] ${this.display_name}: doorbell pressed`);
+        }
       }
+      // An event that has left the look-back window can't come back: forget it.
+      const current = new Set(events.map((event) => event.id));
+      for (const id of this._ringedIds) if (!current.has(id)) this._ringedIds.delete(id);
+      this._ringFailures = 0;
     } catch (err) {
+      // Back off (5 s, 10 s, 20 s ... about a minute) so a failing Wyze doesn't
+      // get hammered, or slow the main refresh that shares the same client.
+      this._ringFailures += 1;
+      this._ringSkip = Math.min(2 ** (this._ringFailures - 1) - 1, DOORBELL_MAX_BACKOFF_TICKS);
       this.plugin.log.debug?.(`[Camera] ${this.display_name}: doorbell event check failed: ${err.message}`);
+      if (this._ringFailures === 5) {
+        this.plugin.log.warn?.(`[Camera] ${this.display_name}: doorbell presses can't be read from Wyze right now (${err.message}); retrying`);
+      }
     } finally {
       this._ringBusy = false;
     }
@@ -392,7 +412,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
         case "P3": // Privacy
           this.on = property.value;
           this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(this.on);
-          summary.push(`privacy=${this.on ? "on" : "off"}`);
+          summary.push(`power=${this.on ? "on" : "off"}`);
           break;
         case "P5": // Available
           this.available = property.value;
@@ -481,7 +501,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this.on = flag(state.on);
       this.power_switch = this.on;
       this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(this.on);
-      summary.push(`privacy=${this.on ? "on" : "off"}`);
+      summary.push(`power=${this.on ? "on" : "off"}`);
     }
     if (state.siren !== undefined && this._isInConfig("sirenAccessory")) {
       this.siren = flag(state.siren);

@@ -18,6 +18,16 @@ class WyzeCameraStreamingDelegate {
     this._snapshotInFlight = null; // shared by concurrent snapshot requests
   }
 
+  // A stream is active only once it has started (or is starting). A session HomeKit
+  // prepared but never started, or one left over after a failed start, must not
+  // count, or snapshots would be blocked until Homebridge restarts.
+  _streamActive() {
+    for (const session of this._sessions.values()) {
+      if (session.streamHandle || session.starting) return true;
+    }
+    return false;
+  }
+
   // Stop every live stream (Homebridge is shutting down).
   stopAll() {
     for (const session of this._sessions.values()) {
@@ -40,16 +50,6 @@ class WyzeCameraStreamingDelegate {
     // (every few seconds when the camera tile is visible).
     if (this._snapshotCache && this._snapshotCache.expiresAt > Date.now()) {
       callback(undefined, this._snapshotCache.buffer);
-      return;
-    }
-
-    // A camera serves one WebRTC session at a time: a snapshot capture and a
-    // live stream started together knock each other out (seen on the Doorbell
-    // v2). While a stream is active, show the last picture instead of opening
-    // another session.
-    if (this._sessions.size > 0) {
-      if (this._lastSnapshot) callback(undefined, this._lastSnapshot);
-      else callback(new Error("Live stream in progress"));
       return;
     }
 
@@ -92,6 +92,16 @@ class WyzeCameraStreamingDelegate {
           `[Camera] [Snapshot] Cloud thumb failed for ${this.camera.display_name}: ${err.message} — falling back to capture`
         );
       }
+    }
+
+    // A camera serves one WebRTC session at a time: a capture and a live stream
+    // started together knock each other out (seen on the Doorbell v2). While a
+    // stream is active, show the last picture instead of opening another session.
+    // (Only the WebRTC capture below is affected; the cloud thumbnail above is a
+    // plain HTTP fetch.)
+    if (this._streamActive()) {
+      if (this._lastSnapshot) return this._lastSnapshot;
+      throw new Error("Live stream in progress");
     }
 
     // Last resort: full WebRTC capture. Slow, so we cache the result.
@@ -167,10 +177,13 @@ class WyzeCameraStreamingDelegate {
       if (!session) return;
       session.streamHandle?.stop();
       session.streamHandle = null;
+      // A quick RECONFIGURE after a START must not start a second stream: only the
+      // latest request keeps its handle. (A snapshot capture in flight is ended by
+      // wyze-api when the stream claims the camera, so there is nothing to wait for.)
+      const token = (session.startToken = (session.startToken ?? 0) + 1);
+      session.starting = true;
       (async () => {
         try {
-          // Don't start while a snapshot capture still holds the camera's session.
-          await this._snapshotInFlight?.catch(() => {});
           const handle = await this.camera.plugin.client.startCameraHKStream(
             this.camera.mac,
             this.camera.product_model,
@@ -194,8 +207,9 @@ class WyzeCameraStreamingDelegate {
                 : null,
             }
           );
-          // The session may have been torn down while we were awaiting.
-          if (this._sessions.get(sessionKey) === session) {
+          // The session may have been torn down, or superseded by a newer START or
+          // RECONFIGURE, while we were awaiting.
+          if (this._sessions.get(sessionKey) === session && session.startToken === token) {
             session.streamHandle = handle;
           } else {
             handle?.stop();
@@ -204,6 +218,8 @@ class WyzeCameraStreamingDelegate {
           this.camera.plugin.log.error(
             `[Camera] [Stream] Failed for ${this.camera.display_name}: ${err.message}`
           );
+        } finally {
+          if (session.startToken === token) session.starting = false;
         }
       })();
     } else if (request.type === StreamRequestTypes.STOP) {

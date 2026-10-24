@@ -458,6 +458,11 @@ module.exports = class WyzeSmartHome {
 
     const removedAccessories = this.accessories.filter(a => !foundAccessories.includes(a))
     if (removedAccessories.length > 0) {
+      // A camera that is filtered out or leaves the account must stop its live
+      // streams and its doorbell poll, or both keep running unseen.
+      for (const a of removedAccessories) {
+        try { a.stopStreams?.() } catch (_) { /* best effort */ }
+      }
       // External (camera) accessories aren't registered with the bridge, so
       // they can't be unregistered here. They have to be removed manually
       // from the Home app — same behavior as homebridge-camera-ffmpeg /

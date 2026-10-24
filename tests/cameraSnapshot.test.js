@@ -44,7 +44,7 @@ test('no capture is started while a live stream is active; the last picture is s
   const { delegate } = make(async () => { calls += 1; return Buffer.from('jpg') })
   await snap(delegate) // one good picture
   delegate._snapshotCache = null // expired
-  delegate._sessions.set('s1', {})
+  delegate._sessions.set('s1', { streamHandle: { stop () {} } })
   const r = await snap(delegate)
   assert.strictEqual(calls, 1)
   assert.strictEqual(r.buf.toString(), 'jpg')
@@ -53,22 +53,57 @@ test('no capture is started while a live stream is active; the last picture is s
 test('while streaming with no earlier picture the request fails fast instead of opening a second session', async () => {
   let calls = 0
   const { delegate } = make(async () => { calls += 1; return Buffer.from('jpg') })
-  delegate._sessions.set('s1', {})
+  delegate._sessions.set('s1', { streamHandle: { stop () {} } })
   const r = await snap(delegate)
   assert.ok(r.err)
   assert.strictEqual(calls, 0)
 })
 
-test('a stream start waits for a capture that is already in flight', async () => {
-  const { delegate, events } = make(async () => { await tick(30); return Buffer.from('jpg') })
-  const pending = snap(delegate) // capture begins before the stream is prepared
-  await tick(5)
+test('a session HomeKit prepared but never started does not block snapshots', async () => {
+  let calls = 0
+  const { delegate } = make(async () => { calls += 1; return Buffer.from('jpg') })
+  delegate._sessions.set('s1', {}) // prepared, no START (or a failed start)
+  const r = await snap(delegate)
+  assert.strictEqual(calls, 1)
+  assert.strictEqual(r.buf.toString(), 'jpg')
+})
+
+test('the cloud thumbnail is still served during a live stream (it is plain HTTP)', async () => {
+  const axios = require('axios')
+  const orig = axios.get
+  axios.get = async () => ({ data: Buffer.from('thumb') })
+  try {
+    let calls = 0
+    const { delegate } = make(async () => { calls += 1; return Buffer.from('jpg') })
+    delegate.camera.device = { device_params: { camera_thumbnails: [{ url: 'https://example.invalid/t.jpg' }] } }
+    delegate._sessions.set('s1', { streamHandle: { stop () {} } })
+    const r = await snap(delegate)
+    assert.strictEqual(r.buf.toString(), 'thumb')
+    assert.strictEqual(calls, 0)
+  } finally {
+    axios.get = orig
+  }
+})
+
+test('a quick RECONFIGURE after START keeps only the latest stream and stops the other', async () => {
+  const handles = []
+  const { delegate } = make(async () => Buffer.from('jpg'))
+  delegate.camera.plugin.client.startCameraHKStream = async () => {
+    const handle = { stopped: false, stop () { this.stopped = true } }
+    handles.push(handle)
+    await tick(handles.length === 1 ? 40 : 5) // the first start is slow
+    return handle
+  }
   const sessionID = Buffer.from('s1')
   delegate._sessions.set(sessionID.toString('hex'), { localRtpPort: 1 })
   delegate.handleStreamRequest({ type: 'start', sessionID, video: {} }, () => {})
-  await pending
-  await tick(20)
-  assert.deepStrictEqual(events, ['capture', 'stream'])
+  delegate.handleStreamRequest({ type: 'reconfigure', sessionID, video: {} }, () => {})
+  await tick(80)
+  const session = delegate._sessions.get(sessionID.toString('hex'))
+  assert.strictEqual(handles.length, 2)
+  assert.strictEqual(handles[0].stopped, true, 'the superseded start must be stopped, not leaked')
+  assert.strictEqual(session.streamHandle, handles[1])
+  assert.strictEqual(session.starting, false)
 })
 
 test('stopAll stops every live stream and forgets the sessions', () => {
