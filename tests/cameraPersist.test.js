@@ -98,3 +98,22 @@ test('a devicemgmt state failure marks every camera service offline', async () =
   await acc._refreshFromDeviceMgmt()
   assert.deepStrictEqual(calls, [false])
 })
+
+test('a devicemgmt read failure on a privacy-only camera keeps working from the bulk power_switch, as beta.2 did', async () => {
+  const acc = Object.create(WyzeCamera.prototype)
+  const privacy = []
+  const offline = []
+  acc.homeKitAccessory = { context: { mac: 'AA', product_model: 'LD_CFP' }, displayName: 'Floodlight' }
+  acc._markServicesOnline = (online) => offline.push(online)
+  acc.privacySwitch = { getCharacteristic: () => ({ updateValue: (v) => privacy.push(v) }) }
+  acc.cameraAccessoryAttached = () => false
+  acc.persistState = () => {}
+  acc.plugin = {
+    config: {},
+    log: Object.assign(() => {}, { error: () => {} }),
+    client: { cameraGetDeviceMgmtState: async () => { throw new Error('503') } }
+  }
+  await acc._refreshFromDeviceMgmt({ device_params: { power_switch: 1 } })
+  assert.deepStrictEqual(privacy, [1])
+  assert.deepStrictEqual(offline, [], 'must not mark the camera inactive')
+})

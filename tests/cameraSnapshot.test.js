@@ -123,3 +123,20 @@ test('a stream start that never settles stops counting as active after a minute'
   delegate._sessions.set('s1', { starting: true, startingSince: Date.now() - 61000 })
   assert.strictEqual(delegate._streamActive(), false)
 })
+
+test('a stream handle that reports itself dead no longer blocks WebRTC snapshots', async () => {
+  let calls = 0
+  const { delegate } = make(async () => { calls += 1; return Buffer.from('jpg') })
+  delegate._sessions.set('s1', { streamHandle: { stop () {}, isAlive: () => false } })
+  const r = await snap(delegate)
+  assert.strictEqual(calls, 1)
+  assert.strictEqual(r.buf.toString(), 'jpg')
+  // and one that is alive (or has no isAlive, like an older wyze-api) still does
+  delegate._snapshotCache = null
+  delegate._sessions.set('s1', { streamHandle: { stop () {}, isAlive: () => true } })
+  await snap(delegate)
+  assert.strictEqual(calls, 1)
+  delegate._sessions.set('s1', { streamHandle: { stop () {} } })
+  await snap(delegate)
+  assert.strictEqual(calls, 1)
+})

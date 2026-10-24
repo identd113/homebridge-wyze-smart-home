@@ -381,19 +381,11 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     // Newer cameras (Floodlight Pro, Battery Cam Pro, OG, Pan v4) report state
     // through the devicemgmt API, not property IDs.
     if (this.plugin.client.cameraUsesDeviceMgmt(this.product_model)) {
-      return this._refreshFromDeviceMgmt();
+      return this._refreshFromDeviceMgmt(device);
     }
 
     if (!this.cameraAccessoryAttached()) {
-      // Privacy-only path — no extra API call, just read the bulk-list field.
-      const powerSwitch = device.device_params?.power_switch;
-      this.power_switch = powerSwitch;
-      this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(powerSwitch);
-      this.persistState({ power_switch: powerSwitch });
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(
-          `[Camera] ${this.mac} (${this.display_name}): camera power ${powerSwitch ? "on" : "off"}`
-        );
+      this._applyBulkPower(device);
       return;
     }
 
@@ -501,7 +493,19 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     markServiceOnline(this.motionDetectionSwitch, online);
   }
 
-  async _refreshFromDeviceMgmt() {
+  // Privacy-only path: no extra API call, just read the bulk-list field.
+  _applyBulkPower(device) {
+    const powerSwitch = device.device_params?.power_switch;
+    this.power_switch = powerSwitch;
+    this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(powerSwitch);
+    this.persistState({ power_switch: powerSwitch });
+    if (this.plugin.config.pluginLoggingEnabled)
+      this.plugin.log(
+        `[Camera] ${this.mac} (${this.display_name}): camera power ${powerSwitch ? "on" : "off"}`
+      );
+  }
+
+  async _refreshFromDeviceMgmt(device) {
     let state;
     try {
       state = await this.plugin.client.cameraGetDeviceMgmtState(this.mac, this.product_model);
@@ -509,6 +513,12 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this.plugin.log.error(
         `[Camera] devicemgmt state failed for ${this.display_name}: ${err.message}`
       );
+      if (device && !this.cameraAccessoryAttached()) {
+        // Privacy-only: the bulk list already carries power_switch, which is all
+        // beta.2 ever read, so keep working from it instead of going inactive.
+        this._applyBulkPower(device);
+        return;
+      }
       this._markServicesOnline(false);
       return;
     }

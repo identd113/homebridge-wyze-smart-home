@@ -24,7 +24,9 @@ class WyzeCameraStreamingDelegate {
   // count, or snapshots would be blocked until Homebridge restarts.
   _streamActive() {
     for (const session of this._sessions.values()) {
-      if (session.streamHandle) return true;
+      // A handle that reports itself dead (reconnecting gave up) is not streaming, even
+      // when HomeKit never sent a STOP for it.
+      if (session.streamHandle && session.streamHandle.isAlive?.() !== false) return true;
       if (session.starting && Date.now() - session.startingSince < STREAM_START_TIMEOUT_MS) return true;
     }
     return false;
