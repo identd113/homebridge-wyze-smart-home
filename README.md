@@ -16,6 +16,10 @@ If you like what I have done here and want to help I would recommend that you fi
 
 After you have done that if you feel like my work has been valuable to you I welcome your support through Paypal, Venmo or Cash App.
 
+## Requirements
+- Node.js 22 or newer (2.0.0-beta.3 and later). Homebridge 2.x already requires it; on Homebridge 1.x, update Node first.
+- The plugin installs the matching `wyze-api` automatically and checks its version at startup. If the version is wrong, or no Wyze `username` is configured, the log shows a `[FATAL]` message and the plugin stays idle without removing your cached accessories.
+
 ## Supported Devices
 - Light Bulb (White, White V2)
 - Light Strips (Light Strip, Light Strip Pro)
@@ -30,6 +34,8 @@ After you have done that if you feel like my work has been valuable to you I wel
 - Lock Bolt v2 / Palm Lock (Battery / Door Status / Control)
 - Camera v1, v2, v3, v3 Pro, v4 (on/off, Siren, Floodlight, Garage Door)
 - Cam Pan, Pan v2, Pan v3 (on/off, Siren)
+- Cam Pan v4 (on/off, Siren, Spotlight, state; new in 2.0.0-beta.3, not yet verified on hardware)
+- Bulb Cam (light; new in 2.0.0-beta.3, not yet verified on hardware)
 - Outdoor Cam, Outdoor Cam 2
 - Wall Switch
 - Home Monitoring System (HMS)
@@ -45,7 +51,7 @@ The following Wyze products are recognized by the plugin but have no HomeKit sup
 - Sprinkler Controller
 
 The following newer Wyze products have no model codes in the plugin yet:
-- Cam Pan v4, Bulb Cam, Window Cam, Battery Video Doorbell, Duo Cam Doorbell
+- Window Cam, Battery Video Doorbell, Duo Cam Doorbell
 - Lamp Socket / Lamp Socket v2, Night Light, Surge Protector
 
 The following Wyze products are not applicable to HomeKit:
