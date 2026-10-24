@@ -38,7 +38,6 @@ After you have done that if you feel like my work has been valuable to you I wel
 - Bulb Cam (light; new in 2.0.0-beta.3, not yet verified on hardware)
 - Cam Doorbell v2 (HomeKit doorbell: press notification, snapshots and live view with audio at 640x480; new in 2.0.0-beta.3). There is no Privacy switch for it: Wyze doesn't let the doorbell be powered off through its API. The press comes from Wyze's cloud event list, so it can arrive a few seconds after the button is pressed. Turn on notifications for the doorbell in the Home app.
 
-> **Motion and doorbell events come from Wyze's cloud event list, which is plan-limited.** Cameras without a Wyze plan record at most one motion event about every 5 minutes (and no person/vehicle tags); a doorbell without a plan may also miss a press that lands inside that cooldown. Live view and snapshots are not affected.
 - Outdoor Cam, Outdoor Cam 2
 - Wall Switch
 - Home Monitoring System (HMS)
@@ -64,7 +63,7 @@ For more information about our version updates, please check our [change log](CH
 
 ## Configuration
 
-Use the settings UI in Homebridge Config UI X to configure your Wyze account, or manually add the following to the platforms section of your config file:
+Use the settings UI in Homebridge Config UI X to configure your Wyze account, or add the following to the platforms section of your config file:
 
 ```js
 {
@@ -72,26 +71,36 @@ Use the settings UI in Homebridge Config UI X to configure your Wyze account, or
     {
       "platform": "WyzeSmartHome",
       "name": "Wyze",
-      "username": "YOUR_EMAIL",
-      "password": "YOUR_PASSWORD",
-      "keyId": "",
-      "apiKey": "",
-      "hms": false,
-      "lowBatteryPercentage": 30,
-      "filterDeviceTypeList": ["OutdoorPlug","Plug"],
-      "filterByMacAddressList": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
-      "garageDoorAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
-      "spotLightAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
-      "floodLightAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
-      "sirenAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
-      "notificationAccessory": ["MAC_ADDRESS_1","MAC_ADDRESS_2"],
-      "securityRefreshInterval": 10000
+      "auth": {
+        "username": "YOUR_EMAIL",
+        "password": "YOUR_PASSWORD",
+        "keyId": "YOUR_KEY_ID",
+        "apiKey": "YOUR_API_KEY",
+        "totpSecret": ""
+      },
+      "polling": {
+        "refreshInterval": 30000,
+        "lowBatteryPercentage": 30
+      },
+      "cameras": [
+        {
+          "mac": "MAC_ADDRESS_1",
+          "name": "Garage cam",
+          "garage": true,
+          "siren": true
+        }
+      ],
+      "hms": { "enabled": false },
+      "excludes": { "macs": ["MAC_ADDRESS_2"], "types": ["Plug"] },
+      "logging": { "level": "info" }
     }
   ]
 }
 ```
 
-Supported devices will be discovered and added to Homebridge automatically.
+Supported devices will be discovered and added to Homebridge automatically. Each entry under `cameras` can add extra switches to that camera: `garage`, `spotlight`, `floodlight`, `siren`, `notifications` and `motionDetection`. Cameras not listed there get only the camera and its Privacy switch (the Doorbell v2 has no Privacy switch).
+
+The older flat format (`username`, `password`, `keyId`, `apiKey`, `filterByMacAddressList`, `garageDoorAccessory`, ...) is still accepted. On first start Homebridge converts it to the format above and keeps a copy of your old file next to it as `config.json.pre-2.0.bak`. Instead of putting credentials in `config.json` you can point `auth.secretsFile` at a private JSON file or use the `WYZE_*` environment variables.
 
 ### Required Fields
 
@@ -107,6 +116,8 @@ You should receive an email that a new API key has been generated.
 Once you have the API key, you can use it in your script to get the access token and refresh token.
 
 ### Optional Fields
+
+These use the flat option names; in the nested format above they live under `auth`, `polling`, `hms`, `logging` and so on (the settings UI shows where).
 
 * **`totpSecret`** &ndash; Recommended if your Wyze account uses an authenticator app for 2-factor authentication. Enter the base32 key Wyze shows next to the QR code when you set up 2FA ("can't scan? enter this key"). The plugin generates a fresh code on every login, so it keeps working when Wyze forces a re-login. Treat it like your password. Takes precedence over `mfaCode`. Authenticator apps only, not SMS.
 * **`mfaCode`** &ndash; Only required if your Wyze account has 2-factor authentication enabled (authenticator-app/TOTP only). Enter the current code from your authenticator app. This code rotates every 30 seconds, so it must be current at the moment Homebridge logs in - if login fails because the code expired, update this value and restart Homebridge.
@@ -127,6 +138,19 @@ Once you have the API key, you can use it in your script to get the access token
 * **`lowBatteryPercentage`** &ndash; Defines when to show devices with low battery (e.g., `"lowBatteryPercentage": 30`). Defaults to 30%.
 * **`securityRefreshInterval`** &ndash; How often (in milliseconds) to fast-poll lock devices (Wyze Lock, Lock Bolt v2, Palm Lock) for state changes independently of the main refresh cycle (e.g., `"securityRefreshInterval": 10000`). Defaults to 10 seconds.
 * **`pluginLoggingEnabled`** &ndash; Enables additional plugin-level debug logging, including lock fast-poll summaries. Defaults to false.
+
+## Cameras and doorbells
+
+- **Pairing.** Cameras are separate HomeKit accessories, not part of the bridge. When a camera is discovered, Homebridge's log prints its own setup code ("Please add [Camera name] manually in the Home app"); add each one in the Home app with that code. A camera that is newly recognised after an update (Cam Pan v4, Bulb Cam, Floodlight v2, Doorbell v2) shows up the same way and needs pairing once. Nothing already paired changes.
+- **Live view, snapshots and audio** come from Wyze over WebRTC. A Wyze camera serves **one viewer at a time**, so opening the same camera in the Wyze app, or in a second Home app view, may interrupt the stream. While a live view is open, the tile keeps showing the last snapshot. Audio only arrives if the camera's microphone is switched on in the Wyze app.
+- **Doorbell v2** is a HomeKit doorbell: a press rings the Home app (turn on notifications for it in the Home app). The plugin looks for presses in Wyze's cloud event list every 5 seconds, so the ring can arrive a few seconds late. Its picture is 640x480 (4:3) at 15 frames per second. Wyze doesn't let the doorbell be powered off through its API, so it has no Privacy switch.
+- **Wyze plan limit.** Motion and doorbell events come from Wyze's cloud event list, which depends on your plan: cameras without a Wyze plan record at most one motion event about every 5 minutes (and no person/vehicle tags), and a doorbell without a plan may also miss a press that lands inside that cooldown. Live view and snapshots are not affected.
+
+## Upgrading
+
+- **From 2.0.0-beta.2:** nothing in your config needs to change. Update Node.js to 22 or newer first. Newly recognised cameras need pairing (see above).
+- **From 0.5.x or 1.x:** your flat config is converted on first start (see Configuration). Update Node.js to 22 or newer first.
+- If the installed `wyze-api` is older than this plugin needs, the log shows one `[FATAL]` line and the plugin stays inactive without removing your paired accessories.
 
 ## Other Info
 
