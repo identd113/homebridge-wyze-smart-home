@@ -36,6 +36,7 @@ After you have done that if you feel like my work has been valuable to you I wel
 - Cam Pan, Pan v2, Pan v3 (on/off, Siren)
 - Cam Pan v4 (on/off, Siren, Spotlight, state; new in 2.0.0-beta.3, not yet verified on hardware)
 - Bulb Cam (light; new in 2.0.0-beta.3, not yet verified on hardware)
+- Cam Doorbell v2 (camera tile with snapshots and live view at 640x480, privacy switch; new in 2.0.0-beta.3, controls not yet verified on hardware, no doorbell-press event)
 - Outdoor Cam, Outdoor Cam 2
 - Wall Switch
 - Home Monitoring System (HMS)
