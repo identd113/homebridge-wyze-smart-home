@@ -149,3 +149,27 @@ test('a press made while the camera was offline is not announced late once it is
   await acc._checkRing() // re-seeds from the current list
   assert.strictEqual(acc._cameraController.rings, undefined)
 })
+
+test('a camera that cannot be powered off gets no Privacy switch, and a leftover one is removed', () => {
+  const { acc } = make('HL_DB2', async () => [])
+  acc.plugin.client.cameraSupportsPowerControl = (m) => m !== 'HL_DB2'
+  const removed = []
+  const stale = { stale: true }
+  acc.homeKitAccessory.getServiceById = () => stale
+  acc.homeKitAccessory.removeService = (s) => removed.push(s)
+  acc.privacySwitch = { was: 'set' }
+  acc._setupPrivacySwitch()
+  assert.strictEqual(acc.privacySwitch, null)
+  assert.deepStrictEqual(removed, [stale])
+})
+
+test('a camera that can be powered off still gets its Privacy switch', () => {
+  const { acc } = make('WYZE_CAKP2JFUS', async () => [])
+  acc.plugin.client.cameraSupportsPowerControl = () => true
+  let added = 0
+  const fakeChar = { onGet () { return this }, onSet () { return this } }
+  acc._getOrAddService = () => { added += 1; return { getCharacteristic: () => fakeChar } }
+  acc._setupPrivacySwitch()
+  assert.strictEqual(added, 1)
+  assert.ok(acc.privacySwitch)
+})

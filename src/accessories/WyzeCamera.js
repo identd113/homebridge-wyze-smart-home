@@ -54,20 +54,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
 
     if (!Object.values(enums.CameraModels).includes(this.product_model)) return;
 
-    // Privacy switch — always added for cameras. Legacy fallback covers
-    // cameras that were paired before we started naming the service
-    // "<name> Privacy" (used to be just the camera name).
-    this.privacySwitch = this._getOrAddService({
-      ServiceType: Service.Switch,
-      subtype: "Privacy",
-      defaultName: `${this.display_name} Privacy`,
-      legacyLookup: () => this.homeKitAccessory.getService(this.display_name),
-      label: "Privacy Switch",
-    });
-    this.privacySwitch
-      .getCharacteristic(Characteristic.On)
-      .onGet(this.handleOnGetPrivacySwitch.bind(this))
-      .onSet(this.handleOnSetPrivacySwitch.bind(this));
+    this._setupPrivacySwitch();
 
     if (!this.cameraAccessoryAttached()) return;
 
@@ -275,6 +262,34 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     clearInterval(this._ringTimer);
     this._ringTimer = null;
     this._streamingDelegate?.stopAll();
+  }
+
+  // Privacy switch — added for cameras that can be powered off. Legacy fallback
+  // covers cameras that were paired before we started naming the service
+  // "<name> Privacy" (used to be just the camera name).
+  _setupPrivacySwitch() {
+    // The Doorbell v2 can't be powered off through Wyze's API: the camera keeps
+    // running whatever we send. A switch that looks like it turned the front-door
+    // camera off while it keeps recording is worse than none, so don't offer one,
+    // and drop the one a cached accessory may still carry.
+    if (this.plugin.client?.cameraSupportsPowerControl?.(this.product_model) === false) {
+      const stale = this.homeKitAccessory.getServiceById?.(Service.Switch, "Privacy");
+      if (stale) this.homeKitAccessory.removeService(stale);
+      this.privacySwitch = null;
+      return;
+    }
+
+    this.privacySwitch = this._getOrAddService({
+      ServiceType: Service.Switch,
+      subtype: "Privacy",
+      defaultName: `${this.display_name} Privacy`,
+      legacyLookup: () => this.homeKitAccessory.getService(this.display_name),
+      label: "Privacy Switch",
+    });
+    this.privacySwitch
+      .getCharacteristic(Characteristic.On)
+      .onGet(this.handleOnGetPrivacySwitch.bind(this))
+      .onSet(this.handleOnSetPrivacySwitch.bind(this));
   }
 
   // ---- HomeKit camera controller -------------------------------------------
