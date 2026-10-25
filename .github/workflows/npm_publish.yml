@@ -12,7 +12,6 @@
 #   * Version in package.json must NOT contain `-beta.`
 #   * Version must not already be on npm
 #   * NPM_TOKEN secret must be present and valid
-#   * Submodule must be checked out — workflow exits early if missing
 
 name: npm publish (stable)
 

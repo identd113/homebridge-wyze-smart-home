@@ -2,7 +2,7 @@
  * Per-accessory product-model lookups used by getAccessoryClass to route
  * a Wyze device to the right HomeKit accessory class.
  *
- * Source of truth lives in the wyze-api submodule
+ * Source of truth lives in the wyze-api package
  * (`WyzeAccessoryModels`). This module shallow-clones each map so the
  * plugin can extend them at runtime via `applyConfigOverrides()` —
  * useful when Wyze releases a new product code that hasn't been added

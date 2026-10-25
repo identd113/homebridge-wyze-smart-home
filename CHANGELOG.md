@@ -34,7 +34,7 @@ Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/jfarme
 - Publish workflows now verify a published wyze-api satisfies that range, instead of reading the submodule version and rewriting the dependency. Release wyze-api to npm first. The stable workflow only counts stable (non-prerelease) wyze-api versions, so a stable plugin can't ship depending on a beta.
 - **Settings screen no longer shows "Config validation failed"**: `config.schema.json` now uses `required` lists (JSON Schema draft 7) instead of per-field booleans. Password, API Key and Authenticator-app 2FA Secret are masked in the settings screen, and whitespace pasted around the Key ID or API Key is trimmed.
 - Added tests: wyze-api version check and a guard that every wyze-api method the plugin calls exists in the installed wyze-api (`npm test`).
-- Updated the `wyze-api` submodule to 2.0.0-beta.3.
+- Removed the `src/wyze-api` git submodule. `wyze-api` is now only an npm dependency, so a fresh clone no longer needs `git submodule update`. For local development, clone `wyze-api` next to this repository and run `npm run dev-link`.
 
 ### v2.0.0-beta.2
 

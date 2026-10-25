@@ -12,7 +12,7 @@
     "test": "node --test tests/*.test.js",
     "lint": "eslint src/**.js --max-warnings=0",
     "start": "hb-service run -P ../ -U ./ --stdout",
-    "dev-link": "cd src/wyze-api && npm link && cd ../.. && npm link wyze-api"
+    "dev-link": "npm link ../wyze-api"
   },
   "keywords": [
     "homebridge-plugin",

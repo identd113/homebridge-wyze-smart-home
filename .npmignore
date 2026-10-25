@@ -1,5 +1,3 @@
-# Dev-only submodule — release uses the wyze-api npm package instead
-src/wyze-api/
 
 # CI/CD and editor config
 .github/
