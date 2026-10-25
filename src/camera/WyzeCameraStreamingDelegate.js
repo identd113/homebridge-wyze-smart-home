@@ -4,6 +4,7 @@ const nodeCrypto = require("crypto");
 const axios = require("axios");
 
 const SNAPSHOT_CACHE_MS = 10_000;
+const STREAM_START_TIMEOUT_MS = 60_000; // a start that has not settled by then no longer counts as active
 
 class WyzeCameraStreamingDelegate {
   constructor(camera) {
@@ -14,6 +15,30 @@ class WyzeCameraStreamingDelegate {
     //                     streamHandle }
     this._sessions = new Map();
     this._snapshotCache = null; // { buffer, expiresAt }
+    this._lastSnapshot = null; // last good picture, shown while a live stream is running
+    this._snapshotInFlight = null; // shared by concurrent snapshot requests
+  }
+
+  // A stream is active only once it has started (or is starting). A session HomeKit
+  // prepared but never started, or one left over after a failed start, must not
+  // count, or snapshots would be blocked until Homebridge restarts.
+  _streamActive() {
+    for (const session of this._sessions.values()) {
+      // A handle that reports itself dead (reconnecting gave up) is not streaming, even
+      // when HomeKit never sent a STOP for it.
+      if (session.streamHandle && session.streamHandle.isAlive?.() !== false) return true;
+      if (session.starting && Date.now() - session.startingSince < STREAM_START_TIMEOUT_MS) return true;
+    }
+    return false;
+  }
+
+  // Stop every live stream (Homebridge is shutting down).
+  stopAll() {
+    for (const session of this._sessions.values()) {
+      try { session.streamHandle?.stop(); } catch (_) { /* already stopped */ }
+      session.streamHandle = null;
+    }
+    this._sessions.clear();
   }
 
   async handleSnapshotRequest(request, callback) {
@@ -32,6 +57,29 @@ class WyzeCameraStreamingDelegate {
       return;
     }
 
+    // Concurrent requests share one capture.
+    if (!this._snapshotInFlight) {
+      this._snapshotInFlight = this._fetchSnapshot().finally(() => {
+        this._snapshotInFlight = null;
+      });
+    }
+    try {
+      callback(undefined, await this._snapshotInFlight);
+    } catch (err) {
+      this.camera.plugin.log.error(
+        `[Camera] [Snapshot] Failed for ${this.camera.display_name}: ${err.message}`
+      );
+      callback(err);
+    }
+  }
+
+  async _fetchSnapshot() {
+    const remember = (buffer) => {
+      this._snapshotCache = { buffer, expiresAt: Date.now() + SNAPSHOT_CACHE_MS };
+      this._lastSnapshot = buffer;
+      return buffer;
+    };
+
     // Try the cloud thumbnail URL straight from the device payload we
     // already have cached on the accessory. Avoids re-fetching the entire
     // Wyze device list, which was the main source of "slow to respond".
@@ -42,10 +90,7 @@ class WyzeCameraStreamingDelegate {
           responseType: "arraybuffer",
           timeout: 4000,
         });
-        const buffer = Buffer.from(resp.data);
-        this._snapshotCache = { buffer, expiresAt: Date.now() + SNAPSHOT_CACHE_MS };
-        callback(undefined, buffer);
-        return;
+        return remember(Buffer.from(resp.data));
       } catch (err) {
         this.camera.plugin.log.warn?.(
           `[Camera] [Snapshot] Cloud thumb failed for ${this.camera.display_name}: ${err.message} — falling back to capture`
@@ -53,20 +98,22 @@ class WyzeCameraStreamingDelegate {
       }
     }
 
-    // Last resort: full WebRTC capture. Slow, so we cache the result.
-    try {
-      const result = await this.camera.plugin.client.getCameraSnapshotImage(
-        this.camera.mac,
-        { skipCloud: true }
-      );
-      this._snapshotCache = { buffer: result.buffer, expiresAt: Date.now() + SNAPSHOT_CACHE_MS };
-      callback(undefined, result.buffer);
-    } catch (err) {
-      this.camera.plugin.log.error(
-        `[Camera] [Snapshot] Failed for ${this.camera.display_name}: ${err.message}`
-      );
-      callback(err);
+    // A camera serves one WebRTC session at a time: a capture and a live stream
+    // started together knock each other out (seen on the Doorbell v2). While a
+    // stream is active, show the last picture instead of opening another session.
+    // (Only the WebRTC capture below is affected; the cloud thumbnail above is a
+    // plain HTTP fetch.)
+    if (this._streamActive()) {
+      if (this._lastSnapshot) return this._lastSnapshot;
+      throw new Error("Live stream in progress");
     }
+
+    // Last resort: full WebRTC capture. Slow, so we cache the result.
+    const result = await this.camera.plugin.client.getCameraSnapshotImage(
+      this.camera.mac,
+      { skipCloud: true }
+    );
+    return remember(result.buffer);
   }
 
   async prepareStream(request, callback) {
@@ -134,6 +181,12 @@ class WyzeCameraStreamingDelegate {
       if (!session) return;
       session.streamHandle?.stop();
       session.streamHandle = null;
+      // A quick RECONFIGURE after a START must not start a second stream: only the
+      // latest request keeps its handle. (A snapshot capture in flight is ended by
+      // wyze-api when the stream claims the camera, so there is nothing to wait for.)
+      const token = (session.startToken = (session.startToken ?? 0) + 1);
+      session.starting = true;
+      session.startingSince = Date.now();
       (async () => {
         try {
           const handle = await this.camera.plugin.client.startCameraHKStream(
@@ -159,8 +212,9 @@ class WyzeCameraStreamingDelegate {
                 : null,
             }
           );
-          // The session may have been torn down while we were awaiting.
-          if (this._sessions.get(sessionKey) === session) {
+          // The session may have been torn down, or superseded by a newer START or
+          // RECONFIGURE, while we were awaiting.
+          if (this._sessions.get(sessionKey) === session && session.startToken === token) {
             session.streamHandle = handle;
           } else {
             handle?.stop();
@@ -169,6 +223,8 @@ class WyzeCameraStreamingDelegate {
           this.camera.plugin.log.error(
             `[Camera] [Stream] Failed for ${this.camera.display_name}: ${err.message}`
           );
+        } finally {
+          if (session.startToken === token) session.starting = false;
         }
       })();
     } else if (request.type === StreamRequestTypes.STOP) {
