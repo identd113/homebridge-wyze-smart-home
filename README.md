@@ -15,6 +15,20 @@ If this plugin is useful to you, please look into supporting [Homebridge](https:
 
 Questions and bug reports: [open an issue](https://github.com/identd113/homebridge-wyze-smart-home/issues).
 
+## Thanks
+
+This plugin stands on other people's work:
+
+- [misenhower](https://github.com/misenhower) wrote the original [homebridge-wyze-connected-home](https://github.com/misenhower/homebridge-wyze-connected-home) plugin in 2020, where all of this started.
+- [jfarmer08](https://github.com/jfarmer08) built this plugin and its [wyze-api](https://github.com/identd113/wyze-api) library from 2022 and maintained them for years.
+- [SecKatie](https://github.com/SecKatie) maintains [wyzeapy](https://github.com/SecKatie/wyzeapy), the source of the newer camera calls (Pan v4, Floodlight Pro, Battery Cam Pro, OG).
+- [mrlt8](https://github.com/mrlt8) maintains [docker-wyze-bridge](https://github.com/mrlt8/docker-wyze-bridge), whose camera model research we compare against.
+- [shauntarves](https://github.com/shauntarves) wrote [wyze-sdk](https://github.com/shauntarves/wyze-sdk), a Python SDK we used for reference.
+- [JoshuaMulliken](https://github.com/JoshuaMulliken/ha-wyzeapi) and [noelportugal](https://github.com/noelportugal/wyze-node) for the Home Assistant integration and the Node library that inspired early work.
+- Everyone in [CONTRIBUTORS.md](CONTRIBUTORS.md) who fixed bugs and added devices.
+
+**Looking for Home Assistant?** Please check out SecKatie's [ha-wyzeapi](https://github.com/SecKatie/ha-wyzeapi) integration.
+
 ## Requirements
 - Node.js 22 or newer (2.0.0-beta.3 and later). Homebridge 2.x already requires it; on Homebridge 1.x, update Node first.
 - The plugin installs the matching `wyze-api` automatically and checks its version at startup. If the version is wrong, or no Wyze `username` is configured, the log shows a `[FATAL]` message and the plugin stays idle without removing your cached accessories.
@@ -155,9 +169,7 @@ Notes on cameras:
 
 </details>
 
-Not applicable to HomeKit, or not planned: Cordless Vacuum, Scales, Watch, Headphones, Air Purifier. [wyzeapy](https://github.com/SecKatie/wyzeapy) and [wyze-sdk](https://github.com/shauntarves/wyze-sdk) cover some of these if you want to build on them.
-
-Related projects we compare against: [SecKatie/wyzeapy](https://github.com/SecKatie/wyzeapy) (Home Assistant; the source of the devicemgmt calls), [mrlt8/docker-wyze-bridge](https://github.com/mrlt8/docker-wyze-bridge) (camera streaming over TUTK/RTSP), [shauntarves/wyze-sdk](https://github.com/shauntarves/wyze-sdk) (Python SDK).
+Not applicable to HomeKit, or not planned: Cordless Vacuum, Scales, Watch, Headphones, Air Purifier.
 
 For more information about our version updates, please check our [change log](CHANGELOG.md).
 
@@ -279,14 +291,3 @@ Each row can be checked against the repository (commit) or the npm registry (rel
 | 2026-08-29 | `2.0.0-beta.2` | npm |
 
 Dates for a README entry show when a device was documented, which can be later than when it first worked.
-
-## Other Info
-
-Special thanks to the following projects for reference and inspiration:
-
-- [ha-wyzeapi](https://github.com/JoshuaMulliken/ha-wyzeapi), a Wyze integration for Home Assistant.
-- [wyze-node](https://github.com/noelportugal/wyze-node), a Node library for the Wyze API.
-
-Thanks to [misenhower](https://github.com/misenhower/homebridge-wyze-connected-home) for the original Wyze Homebridge plugin, and thanks to all [contributors](CONTRIBUTORS.md) who have volunteered their time to help fix bugs and add support for more devices and features.
-
-This plugin is an actively maintained fork of misenhower's original [Wyze Homebridge Plugin](https://github.com/misenhower/homebridge-wyze-connected-home) project.
