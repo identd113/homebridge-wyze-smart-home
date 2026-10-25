@@ -2,8 +2,8 @@
   "pluginAlias": "WyzeSmartHome",
   "pluginType": "platform",
   "singular": true,
-  "headerDisplay": "Wyze plug-in for Homebridge — control Wyze devices via the unofficial API. Wyze can change or revoke access at any time. If this plugin is useful to you, [donations](https://www.paypal.com/paypalme/AllenFarmer) help fund hardware for adding new device support.",
-  "footerDisplay": "[Documentation & troubleshooting on GitHub](https://github.com/jfarmer08/homebridge-wyze-smart-home).",
+  "headerDisplay": "Wyze plug-in for Homebridge — control Wyze devices via the unofficial API. Wyze can change or revoke access at any time.",
+  "footerDisplay": "[Documentation & troubleshooting on GitHub](https://github.com/identd113/homebridge-wyze-smart-home).",
   "schema": {
     "type": "object",
     "required": ["name"],

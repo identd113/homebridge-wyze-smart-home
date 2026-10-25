@@ -4,9 +4,10 @@ Thanks to everyone who has contributed to this project.
 
 ## Current Project (homebridge-wyze-smart-home)
 
-- [jfarmer08](https://github.com/jfarmer08) — Project maintainer
+- [identd113](https://github.com/identd113) — Project maintainer
+- [jfarmer08](https://github.com/jfarmer08) — Author of homebridge-wyze-smart-home (2022 to 2026)
+- [misenhower](https://github.com/misenhower) — Author of the original homebridge-wyze-connected-home plugin
 - [carTloyal123](https://github.com/carTloyal123) — Carson Loyal
-- [identd113](https://github.com/identd113)
 - [zswuwing](https://github.com/zswuwing)
 - [Tyler Matthews](https://github.com/tmatthews)
 - [DiscoveryOV](https://github.com/DiscoveryOV)
