@@ -2,6 +2,7 @@ const fs = require('fs')
 const path = require('path')
 const { homebridge, Accessory, UUIDGen, Categories } = require('./types')
 const enums = require('./enums')
+const wyzeApiVersion = require('./wyzeApiVersion')
 const { OutdoorPlugModels, PlugModels, CommonModels, CameraModels, LeakSensorModels,
   TemperatureHumidityModels, LockModels, LockBoltV2Models, MotionSensorModels, ContactSensorModels, LightModels,
   LightStripModels, MeshLightModels, ThermostatModels, ThermostatRoomSensor, S1GatewayModels,
@@ -121,6 +122,23 @@ module.exports = class WyzeSmartHome {
       )
     }
 
+    // Fatal startup problems: log once and leave the platform inert. Cached
+    // accessories are left alone (see configureAccessory) so a config or
+    // version problem never removes paired accessories from HomeKit.
+    const apiCheck = wyzeApiVersion.checkInstalled()
+    const username = typeof this.config.username === 'string' ? this.config.username.trim() : ''
+    const fatal = !apiCheck.ok
+      ? apiCheck.message
+      : !username
+          ? 'Cannot log in to Wyze: no username specified. Add your Wyze account email to the plugin config ("username") and restart Homebridge.'
+          : null
+    if (fatal) {
+      this.log.error(`[FATAL] ${fatal}`)
+      this.disabled = true
+      this.accessories = []
+      return
+    }
+
     this.client = this.getClient()
 
     this.accessories = []
@@ -136,6 +154,16 @@ module.exports = class WyzeSmartHome {
     })
 
     this.api.on('didFinishLaunching', this.didFinishLaunching.bind(this))
+    this.api.on('shutdown', () => this.shutdown())
+  }
+
+  // Close live camera sessions cleanly: a camera that is left with a dead viewer
+  // (a restart used to abandon them) can refuse the next one for a while.
+  shutdown() {
+    for (const accessory of this.accessories ?? []) {
+      try { accessory.stopStreams?.() } catch (_) { /* best effort */ }
+    }
+    return this.client?.closeAllCameraSessions?.().catch(() => {})
   }
 
   static register() {
@@ -148,8 +176,10 @@ module.exports = class WyzeSmartHome {
       username: this.config.username,
       password: this.config.password,
       mfaCode: this.config.mfaCode,
-      keyId: this.config.keyId,
-      apiKey: this.config.apiKey,
+      totpSecret: this.config.totpSecret,
+      // Stray whitespace from copy/paste is never part of a developer key
+      keyId: typeof this.config.keyId === 'string' ? this.config.keyId.trim() : this.config.keyId,
+      apiKey: typeof this.config.apiKey === 'string' ? this.config.apiKey.trim() : this.config.apiKey,
       //Logging — the API uses its own @ptkdev/logger for colored
       // terminal output. logLevel filters that output; apiLogEnabled is
       // the legacy true/false toggle (true → debug, false → info).
@@ -428,6 +458,11 @@ module.exports = class WyzeSmartHome {
 
     const removedAccessories = this.accessories.filter(a => !foundAccessories.includes(a))
     if (removedAccessories.length > 0) {
+      // A camera that is filtered out or leaves the account must stop its live
+      // streams and its doorbell poll, or both keep running unseen.
+      for (const a of removedAccessories) {
+        try { a.stopStreams?.() } catch (_) { /* best effort */ }
+      }
       // External (camera) accessories aren't registered with the bridge, so
       // they can't be unregistered here. They have to be removed manually
       // from the Home app — same behavior as homebridge-camera-ffmpeg /
@@ -466,7 +501,9 @@ module.exports = class WyzeSmartHome {
       const isCamera = accessoryClass === WyzeCamera
       const homeKitAccessory = this.createHomeKitAccessory(
         device,
-        isCamera ? Categories?.CAMERA : undefined,
+        isCamera
+          ? (this.client.cameraIsDoorbell?.(device.product_model) ? Categories?.VIDEO_DOORBELL : Categories?.CAMERA)
+          : undefined,
         isCamera
       )
       accessory = new accessoryClass(this, homeKitAccessory)
@@ -571,6 +608,10 @@ module.exports = class WyzeSmartHome {
 
   // Homebridge calls this method on boot to reinitialize previously-discovered devices
   configureAccessory(homeKitAccessory) {
+    // Platform disabled by a fatal startup error: leave cached accessories
+    // untouched (neither set up nor unregistered) so nothing is lost.
+    if (this.disabled) return
+
     // Make sure we haven't set up this accessory already
     let accessory = this.accessories.find(a => a.homeKitAccessory === homeKitAccessory)
     if (accessory) {
