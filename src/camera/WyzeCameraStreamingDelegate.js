@@ -111,7 +111,7 @@ class WyzeCameraStreamingDelegate {
     // Last resort: full WebRTC capture. Slow, so we cache the result.
     const result = await this.camera.plugin.client.getCameraSnapshotImage(
       this.camera.mac,
-      { skipCloud: true }
+      { skipCloud: true, label: this.camera.display_name }
     );
     return remember(result.buffer);
   }
@@ -207,6 +207,7 @@ class WyzeCameraStreamingDelegate {
               audioSrtpSalt: session.audioSrtpSalt,
               audioSsrc: session.audioSsrc,
               bitrate: request.video?.max_bit_rate ?? 300,
+              label: this.camera.display_name,
               logger: this.camera.plugin.config.pluginLoggingEnabled
                 ? this.camera.plugin.log
                 : null,
