@@ -4,6 +4,11 @@ const nodeCrypto = require("crypto");
 const axios = require("axios");
 
 const SNAPSHOT_CACHE_MS = 10_000;
+// A picture fetched at startup stays "fresh" this long, so the first time the Home app
+// opens a camera tile it gets an image at once instead of waiting for a capture.
+const SNAPSHOT_PREFETCH_MS = 60_000;
+// Cameras are prefetched one after another, never several at once.
+let prefetchQueue = Promise.resolve();
 const STREAM_START_TIMEOUT_MS = 60_000; // a start that has not settled by then no longer counts as active
 
 class WyzeCameraStreamingDelegate {
@@ -39,6 +44,36 @@ class WyzeCameraStreamingDelegate {
       session.streamHandle = null;
     }
     this._sessions.clear();
+  }
+
+  /**
+   * Fetch one picture ahead of time so the first Home app request is answered from the
+   * cache. Runs in the background, one camera at a time, and never throws: a camera
+   * that is offline, switched off or already streaming is skipped.
+   */
+  prefetchSnapshot() {
+    prefetchQueue = prefetchQueue.then(() => this._prefetchSnapshot()).catch(() => {});
+    return prefetchQueue;
+  }
+
+  async _prefetchSnapshot() {
+    const cam = this.camera;
+    const name = cam.display_name;
+    if (cam.cameraOnline === false) return cam.plugin.log.debug?.(`[Camera] [Snapshot] Skipping startup picture for ${name}: offline`);
+    if (cam.power_switch === 0) return cam.plugin.log.debug?.(`[Camera] [Snapshot] Skipping startup picture for ${name}: camera is off`);
+    if (this._streamActive() || this._snapshotCache) return;
+    try {
+      if (!this._snapshotInFlight) {
+        this._snapshotInFlight = this._fetchSnapshot().finally(() => {
+          this._snapshotInFlight = null;
+        });
+      }
+      const buffer = await this._snapshotInFlight;
+      if (this._snapshotCache?.buffer === buffer) this._snapshotCache.expiresAt = Date.now() + SNAPSHOT_PREFETCH_MS;
+      cam.plugin.log(`[Camera] [Snapshot] Startup picture ready for ${name} (${Math.round(buffer.length / 1024)} KB)`);
+    } catch (err) {
+      cam.plugin.log.warn?.(`[Camera] [Snapshot] Startup picture failed for ${name}: ${err.message}`);
+    }
   }
 
   async handleSnapshotRequest(request, callback) {

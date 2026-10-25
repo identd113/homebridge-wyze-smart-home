@@ -349,6 +349,10 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this._cameraControllerReady = true;
       try {
         this._setupCameraController();
+        // Have a picture ready for the first time the Home app asks. Delayed a few
+        // seconds so the first poll has settled the camera's online and power state.
+        const prefetch = setTimeout(() => this._streamingDelegate?.prefetchSnapshot?.(), 5000);
+        prefetch.unref?.();
       } catch (err) {
         this.plugin.log.error(
           `[Camera] _setupCameraController failed for ${this.display_name}: ${err.message}\n${err.stack}`
