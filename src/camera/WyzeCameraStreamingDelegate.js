@@ -144,10 +144,18 @@ class WyzeCameraStreamingDelegate {
     }
 
     // Last resort: full WebRTC capture. Slow, so we cache the result.
-    const result = await this.camera.plugin.client.getCameraSnapshotImage(
-      this.camera.mac,
-      { skipCloud: true, label: this.camera.display_name }
-    );
+    let result;
+    try {
+      result = await this.camera.plugin.client.getCameraSnapshotImage(
+        this.camera.mac,
+        { skipCloud: true, label: this.camera.display_name }
+      );
+    } catch (err) {
+      // A stream can claim the camera between the check above and this call (HomeKit asks
+      // for a tile picture just as a live view opens). Show the last picture instead of failing.
+      if (/live stream open/.test(err.message) && this._lastSnapshot) return this._lastSnapshot;
+      throw err;
+    }
     return remember(result.buffer);
   }
 

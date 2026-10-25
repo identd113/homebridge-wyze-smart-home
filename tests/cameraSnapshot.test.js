@@ -140,3 +140,23 @@ test('a stream handle that reports itself dead no longer blocks WebRTC snapshots
   await snap(delegate)
   assert.strictEqual(calls, 1)
 })
+
+test('a stream that claims the camera just before a capture does not fail the snapshot', async () => {
+  let calls = 0
+  const { delegate } = make(async () => {
+    calls += 1
+    if (calls === 1) return Buffer.from('first')
+    throw new Error('camera has a live stream open')
+  })
+  await snap(delegate) // one good picture
+  delegate._snapshotCache = null // let the next request try a fresh capture
+  const r = await snap(delegate)
+  assert.strictEqual(r.err, undefined)
+  assert.strictEqual(r.buf.toString(), 'first')
+})
+
+test('with no earlier picture, a refused capture is still an error', async () => {
+  const { delegate } = make(async () => { throw new Error('camera has a live stream open') })
+  const r = await snap(delegate)
+  assert.match(r.err.message, /live stream open/)
+})
