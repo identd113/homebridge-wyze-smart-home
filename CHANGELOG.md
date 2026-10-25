@@ -8,6 +8,34 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 ## Releases
 
+This plugin is built on the [wyze-api](https://github.com/jfarmer08/wyze-api) library. For API-level changes (login, 2FA, device commands), see the [wyze-api changelog](https://github.com/jfarmer08/wyze-api/blob/2.0.0/CHANGELOG.md).
+
+### v2.0.0-beta.3
+
+Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/jfarmer08/wyze-api/blob/2.0.0/CHANGELOG.md#v200-beta3)).
+
+- **Requires Node.js 22 or newer** (`engines.node` is now `^22 || ^24 || ^26`; Node 18 and 20 are no longer supported). Needed by the upgraded `werift` (`^0.25.1`), which fixes the known `ip`/`uuid` vulnerabilities. Homebridge 2.x already requires Node 22+; Homebridge 1.x users must be on Node 22 or newer to update.
+- **`totpSecret` option**: authenticator-app secret so the plugin generates a fresh 2FA code on every login (the typed `mfaCode` expires in 30s). Optional; existing configs are unaffected.
+- **2FA/MFA login restored** (TOTP authenticator apps only): `mfaCode` option added to the config schema and README. wyze-api had silently dropped MFA handling in Feb 2024. Not yet verified against a live 2FA account.
+- **Persisted-token loop fixed**: a stale/invalid saved token no longer permanently blocks re-login (fixes the "cannot find any devices" reports in #306 / #277).
+- Username validated up front; refresh timer fixed (was firing every ~2.9 minutes instead of every 48 hours); concurrent token refreshes are deduplicated.
+- **Minimum wyze-api version is declared once**: `dependencies.wyze-api` in `package.json` (now `^2.0.0-beta.3`). The plugin checks the installed wyze-api against that range at startup and logs a clear error instead of failing later with missing-method errors.
+- **Wyze Cam Pan v4 (`HL_PAN4`)** and **Bulb Cam (`HL_BC`) light control**: camera power, siren, spotlight, notifications and state now go through the right Wyze API for these models (ported from SecKatie/wyzeapy, via wyze-api). Cameras on the newer devicemgmt API (Floodlight Pro, Battery Cam Pro, OG, Pan v4) now also report their light, siren, motion and power state. Not yet verified on real hardware.
+- **New camera accessories can appear after updating**: Cam Pan v4, Bulb Cam, Floodlight v2 and the Doorbell v2 are now recognized, so if you own one, a new camera shows up in Homebridge's log with its own setup code and has to be paired in the Home app (cameras are separate HomeKit accessories). Nothing already paired changes. A `deviceTypeOverrides` entry you added for one of these is now redundant and is skipped.
+- **Wyze Cam Doorbell v2 (`HL_DB2`)** is now supported as a HomeKit doorbell: a button press rings the Home app (read from Wyze's cloud event list every 5 seconds, one ring per press), plus snapshots and live video with audio (its stream is 640x480 at 15 fps). It has no Privacy switch: Wyze ignores power-off for this model, so a switch would only look like it worked. The camera is advertised to HomeKit as 640x480 (4:3) instead of the default 16:9 sizes, so the Home app no longer letterboxes it. The doorbell-press event and power/siren controls are not verified yet.
+- Floodlight v2 (`HL_CFL2`) is recognized without a `deviceTypeOverrides` entry. Its light toggle (#264) is still unresolved.
+- **Fixed accessories not persisting after a camera is discovered on Homebridge 2.x** (#311): cameras are external accessories, and flushing their state through `updatePlatformAccessories()` made Homebridge fail to serialize the whole cache ("missing associated platform"), so every device discovered afterwards was recreated on each restart. Camera state is now kept in memory only. Thanks to the reporter for the diagnosis.
+- The camera refresh log line now says "camera power on/off" instead of "privacy on/off" (it reports `power_switch`, where on means the camera is running).
+- **Live streams are closed cleanly when Homebridge shuts down or restarts** (previously a restart abandoned open sessions, and a camera that serves one viewer at a time could refuse the next).
+- **Live view and snapshots no longer fight over a camera**: a camera serves one WebRTC session at a time, and the Home app's snapshot polling was opening a second session while a live stream started (seen on the Doorbell v2: the stream went idle and had to reconnect, and snapshots failed). Concurrent snapshot requests now share one capture, a snapshot shows the last picture while a live stream is running, and a stream waits for a capture already in flight.
+- Pan v4 and other devicemgmt cameras with only the privacy switch configured now read their power state from the devicemgmt API, and a devicemgmt failure marks every camera service inactive instead of only the privacy switch.
+- Pasted 2FA values are cleaned and validated (spaces, newlines, dashes, quotes and `otpauth://` links are handled); a malformed `totpSecret` or `mfaCode` gives a clear login error.
+- **Fatal startup problems no longer crash or damage the bridge**: a missing `username`, or an installed wyze-api older than the declared minimum, logs one `[FATAL]` error (for example "Cannot log in to Wyze: no username specified") and leaves the platform idle. Cached accessories are left untouched, so nothing is removed from HomeKit.
+- Publish workflows now verify a published wyze-api satisfies that range, instead of reading the submodule version and rewriting the dependency. Release wyze-api to npm first. The stable workflow only counts stable (non-prerelease) wyze-api versions, so a stable plugin can't ship depending on a beta.
+- **Settings screen no longer shows "Config validation failed"**: `config.schema.json` now uses `required` lists (JSON Schema draft 7) instead of per-field booleans. Password, API Key and Authenticator-app 2FA Secret are masked in the settings screen, and whitespace pasted around the Key ID or API Key is trimmed.
+- Added tests: wyze-api version check and a guard that every wyze-api method the plugin calls exists in the installed wyze-api (`npm test`).
+- Updated the `wyze-api` submodule to 2.0.0-beta.3.
+
 ### v2.0.0-beta.2
 
 Merges `main`'s unreleased 0.5.x hardening work (24 commits since the branches last synced at `412b891`) into the 2.0.0 line. Manual reconciliation across 18 conflicting files, not a mechanical merge — `main` and `2.0.0` had independently built overlapping features (most notably two separate Lock Bolt V2/Palm Lock implementations and two separate Thermostat fan/emheat/hold/kidlock implementations) that needed combining rather than picking one side.
