@@ -8,6 +8,7 @@
 
 [![homebridge-wyze-smart-home: Wyze Connected Home plugin for Homebridge](https://github.com/identd113/homebridge-wyze-smart-home/blob/main/logo.png?raw=true)](https://github.com/identd113/homebridge-wyze-smart-home)
 
+**[Project history](#history)** and **[timeline](#timeline)**: from misenhower's 2020 plugin to the current release.
 
 ## Support
 
