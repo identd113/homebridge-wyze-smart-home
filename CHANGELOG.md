@@ -8,11 +8,11 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 ## Releases
 
-This plugin is built on the [wyze-api](https://github.com/jfarmer08/wyze-api) library. For API-level changes (login, 2FA, device commands), see the [wyze-api changelog](https://github.com/jfarmer08/wyze-api/blob/2.0.0/CHANGELOG.md).
+This plugin is built on the [wyze-api](https://github.com/identd113/wyze-api) library. For API-level changes (login, 2FA, device commands), see the [wyze-api changelog](https://github.com/identd113/wyze-api/blob/main/CHANGELOG.md).
 
 ### v2.0.0-beta.3
 
-Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/jfarmer08/wyze-api/blob/2.0.0/CHANGELOG.md#v200-beta3)).
+Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/identd113/wyze-api/blob/main/CHANGELOG.md#v200-beta3)).
 
 - **Requires Node.js 22 or newer** (`engines.node` is now `^22 || ^24 || ^26`; Node 18 and 20 are no longer supported). Needed by the upgraded `werift` (`^0.25.1`), which fixes the known `ip`/`uuid` vulnerabilities. Homebridge 2.x already requires Node 22+; Homebridge 1.x users must be on Node 22 or newer to update.
 - **`totpSecret` option**: authenticator-app secret so the plugin generates a fresh 2FA code on every login (the typed `mfaCode` expires in 30s). Optional; existing configs are unaffected.
