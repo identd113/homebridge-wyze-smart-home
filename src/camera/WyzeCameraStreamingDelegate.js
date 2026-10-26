@@ -29,6 +29,8 @@ function pumpPictureQueue() {
 // How long an open connection (the "Quick Live View" setting) waits for the Home app to
 // ask for the camera again before it is closed. Each picture request renews it.
 const WARM_TTL_MS = 45_000;
+// A picture made from an open connection's latest keyframe is only used if that keyframe is younger than this.
+const WARM_MAX_PICTURE_AGE_MS = 6000;
 // A motion-triggered refresh is skipped if the last picture is newer than this.
 const MOTION_REFRESH_MIN_GAP_MS = 10_000;
 const STREAM_START_TIMEOUT_MS = 60_000; // a start that has not settled by then no longer counts as active
@@ -148,12 +150,16 @@ class WyzeCameraStreamingDelegate {
     if (reason === 'timer' && age < keepFreshMs / 4) return skip(`picture is only ${Math.round(age / 1000)} s old`)
     if (reason === 'motion' && age < MOTION_REFRESH_MIN_GAP_MS) return skip(`picture is only ${Math.round(age / 1000)} s old`)
     try {
+      const lastPicture = this._lastSnapshot
       if (!this._snapshotInFlight) {
         this._snapshotInFlight = this._fetchSnapshot().finally(() => {
           this._snapshotInFlight = null
         })
       }
       const buffer = await this._snapshotInFlight
+      // The same picture handed back (an open connection with nothing newer yet) is not a refresh:
+      // it must not delay the next one or be kept as fresh.
+      if (buffer === lastPicture && lastPicture) return skip('no newer picture yet')
       this._lastRefreshAt = Date.now()
       if (this._snapshotCache?.buffer === buffer) this._snapshotCache.expiresAt = Date.now() + keepFreshMs
       cam.plugin.log.debug?.(`[Camera] [Snapshot] Refreshed picture for ${name} (${reason}, ${Math.round(buffer.length / 1024)} KB)`)
@@ -181,7 +187,8 @@ class WyzeCameraStreamingDelegate {
   _noteViewer() {
     if (!this._warmEnabled()) return;
     const cam = this.camera;
-    if (cam.power_switch === 0 || cam.cameraOnline === false || this._streamActive()) return;
+    // A connection opened now would end a capture that is running on the camera; the next request (a few seconds later) opens it.
+    if (cam.power_switch === 0 || cam.cameraOnline === false || this._streamActive() || this._snapshotInFlight) return;
     const opening = !this._warmState();
     const ready = cam.plugin.client.cameraWarmUp(cam.mac, cam.product_model, { label: cam.display_name, ttlMs: WARM_TTL_MS });
     if (opening) {
@@ -268,7 +275,7 @@ class WyzeCameraStreamingDelegate {
           await Promise.race([this._warmOpening, new Promise((resolve) => setTimeout(resolve, 10_000))]);
         }
         const shot = await client.cameraWarmSnapshot(this.camera.mac);
-        if (shot?.buffer) return remember(shot.buffer);
+        if (shot?.buffer && !(shot.ageMs > WARM_MAX_PICTURE_AGE_MS)) return remember(shot.buffer);
       } catch (err) {
         this.camera.plugin.log.debug?.(`[Camera] [Warm] Picture from the open connection failed for ${this.camera.display_name}: ${err.message}`);
       }

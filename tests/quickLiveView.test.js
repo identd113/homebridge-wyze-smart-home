@@ -135,3 +135,32 @@ test('a battery camera never gets Quick Live View', async () => {
     assert.strictEqual(calls.warmUp.length, 0, model)
   }
 })
+
+// ---- found in review -----------------------------------------------------------------
+
+test('no connection is opened while a capture is running on the camera', async () => {
+  const { d, calls, request } = make()
+  d._lastSnapshot = Buffer.from('old')
+  d._snapshotInFlight = new Promise(() => {}) // a capture is in progress
+  d._snapshotCache = { buffer: Buffer.from('cached'), at: Date.now(), expiresAt: Date.now() + 30_000 }
+  await request()
+  assert.strictEqual(calls.warmUp.length, 0, 'it would end the capture')
+})
+
+test('a picture made from an old keyframe is not used as a new one', async () => {
+  const { d, calls, request } = make({ state: 'ready' })
+  d.camera.plugin.client.cameraWarmSnapshot = async () => { calls.warmSnapshot += 1; return { buffer: Buffer.from('old-keyframe'), ageMs: 12_000 } }
+  d._lastSnapshot = Buffer.from('last')
+  const r = await request()
+  assert.strictEqual(r.buf.toString(), 'last')
+  assert.strictEqual(d._snapshotCache?.buffer?.toString(), undefined, 'and it was not cached as fresh')
+})
+
+test('a refresh that gets the same old picture back does not count as a refresh', async () => {
+  const { d } = make({ state: 'ready', shot: null })
+  d._lastSnapshot = Buffer.from('last')
+  d._snapshotCache = { buffer: d._lastSnapshot, at: Date.now() - 30_000, expiresAt: Date.now() + 1000 }
+  await d.refreshSnapshot('timer', 60_000)
+  assert.strictEqual(d._lastRefreshAt, undefined, 'it stays due, so motion and the next timer slot are not skipped')
+  assert.ok(d._snapshotCache.expiresAt < Date.now() + 5000, 'and the stale picture is not kept fresh longer')
+})
