@@ -82,6 +82,9 @@ function cleanModel(raw) {
   return MODEL_PATTERN.test(value) ? value : null;
 }
 
+// Own keys only: a model code such as "constructor" must not match an inherited property.
+const has = (map, key) => Object.prototype.hasOwnProperty.call(map, key);
+
 const isRedacted = (value) => {
   const v = String(value).trim();
   return v === "" || /^(redacted|x+|\*+)$/i.test(v) || /^<.*>$/.test(v) || /^\[.*\]$/.test(v);
@@ -138,10 +141,10 @@ function triage(body, known) {
   if (!model) {
     problems.push("the model code is missing or is not a model code (letters, digits, `.`, `_` and `-` only)");
     labels.add("needs-info");
-  } else if (known.supported[model]) {
+  } else if (has(known.supported, model)) {
     status = "supported";
     labels.add("already-supported");
-  } else if (notApplicable[model]) {
+  } else if (has(notApplicable, model)) {
     status = "not-applicable";
     labels.add("not-applicable");
   } else {

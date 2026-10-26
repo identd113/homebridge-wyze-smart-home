@@ -284,7 +284,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   _startSnapshotRefresh() {
     if (this._refreshMember) return;
     const configured = this.plugin.config.snapshotRefreshSeconds;
-    const unset = configured === undefined || configured === null;
+    const unset = configured === undefined || configured === null || configured === "";
     // A battery camera is woken by every refresh: unless it was asked for, leave it out.
     if (unset && isBatteryCamera(this.product_model)) {
       this.plugin.log.debug?.(`[Camera] ${this.display_name}: battery camera, so its picture is not refreshed on a timer (only at startup and on motion)`);

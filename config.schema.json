@@ -231,10 +231,10 @@
           "snapshotRefreshSeconds": {
             "title": "Camera Picture Refresh (seconds)",
             "type": "integer",
-            "default": 30,
+            "placeholder": "30",
             "minimum": 0,
             "maximum": 3600,
-            "description": "How often each camera's picture in the Home app is refreshed. 0 turns it off. Each refresh is a short live connection, so a Wyze app view of the same camera may be interrupted."
+            "description": "How often each camera's picture in the Home app is refreshed. Leave empty for the default of 30. 0 turns it off. Each refresh is a short live connection, so a Wyze app view of the same camera may be interrupted."
           },
           "snapshotOnMotion": {
             "title": "Refresh the Picture on Motion",

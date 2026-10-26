@@ -145,3 +145,11 @@ test('run() labels the issue, creates missing labels, and posts one comment', as
   assert.strictEqual(calls.comments.length, 1)
   assert.match(calls.comments[0], /One other person has asked for this model too: #7\./, 'pull requests and the issue itself are not counted')
 })
+
+test('model codes that are Object.prototype names are new devices, not supported ones', () => {
+  for (const model of ['constructor', 'toString', 'hasOwnProperty', '__proto__']) {
+    const r = triage.triage(issue({ model, blob: blobFor(model) }), known)
+    assert.strictEqual(r.status, 'new', model)
+    assert.ok(!r.labels.includes('already-supported'), model)
+  }
+})
