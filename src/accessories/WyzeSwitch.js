@@ -81,6 +81,9 @@ module.exports = class WyzeSwitch extends WyzeAccessory {
         case "long_press_type":    this.long_press_type = value; break;
         case "switch-iot":         this.switch_iot = value; break;
         case "switch-power":
+          // A poll that lands before Wyze has applied our write would put the
+          // old state back and the tile would flick back and forth.
+          if (this.inCommandGrace()) break;
           this.switch_power = !!value;
           this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(this.switch_power);
           break;
@@ -120,6 +123,7 @@ module.exports = class WyzeSwitch extends WyzeAccessory {
     // poll would show a stale/reverted tile until the next refresh.
     this.switch_power = !!value;
     this.wallSwitch.getCharacteristic(Characteristic.On).updateValue(this.switch_power);
+    this.armCommandGrace(15000);
 
     const prefersIot = this.single_press_type == SinglePressType.IOT;
 
@@ -128,6 +132,7 @@ module.exports = class WyzeSwitch extends WyzeAccessory {
       : this.plugin.client.wallSwitchPower(this.mac, this.product_model, !!value);
 
     call.catch((error) => {
+      this.clearCommandGrace();
       this.plugin.log.error?.(
         `[Switch] Set failed for "${this.display_name} (${this.mac})": ${error.message || error}`
       );

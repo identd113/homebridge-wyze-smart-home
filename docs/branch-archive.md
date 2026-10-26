@@ -14,9 +14,13 @@ Old branches that were cleaned out of the repository, what each one held, and wh
 | `2.0.0-merge-main` | `11aa07d01` | 2026-08-06 | A parallel reconciliation of `main` (0.5.x) into the 2.0.0 line, with an audit pass | `2.x` took the same direction on its own. Three audit fixes were **not** carried over (below) |
 | `codex/add-dx_pvloc-...` (two branches), `pr/merge-main-into-2.0.0` | n/a | n/a | Nothing that `2.x` does not already have | Deleted without a tag |
 
-## Fixes on `2.0.0-merge-main` that `2.x` does not have
+## Fixes on `2.0.0-merge-main`
 
-Checked against `2.x` on 2026-10-26. None of these is a regression from beta.2.
+Checked against `2.x` on 2026-10-26. None was a regression from beta.2. Status:
+
+- 1 (nicknames): **ported in 2.0.0-beta.3**, with a test.
+- 2 (`WyzeSwitch` grace period): **ported in 2.0.0-beta.3**, with tests.
+- 3 (thermostat flag coercion): **not ported.** HomeKit already treats the string `"0"` as false for these switches (observed for another switch earlier; not tried on a thermostat).
 
 1. **Device nicknames are only sanitized once.** `sanitizeDeviceName()` runs when an accessory is created. `WyzeAccessory.update()` (every poll) writes the raw `device.nickname` into the HomeKit `Name` characteristic and the saved context, and some log lines print the raw nickname. A nickname with control characters or an oversized string passes through on every refresh after the first. Commit `1d88b26`.
 2. **`WyzeSwitch` has no command grace period.** Plugs, lights, mesh lights, locks and Home Monitoring arm a short window after a write so a poll cannot revert the tile before Wyze catches up. `WyzeSwitch` (wall switch and Palm) does not, so it can flicker back and forth after a toggle. Commit `57e2abf`.

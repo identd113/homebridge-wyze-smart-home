@@ -476,20 +476,21 @@ module.exports = class WyzeSmartHome {
   }
 
   async loadDevice(device, timestamp) {
+    const safeName = sanitizeDeviceName(device.nickname)
     const accessoryClass = this.getAccessoryClass(device.product_type, device.product_model, device.mac, device.nickname)
     if (!accessoryClass) {
       if (this.config.pluginLoggingEnabled && !this._knownUnsupported.has(device.mac)) {
         this._knownUnsupported.add(device.mac)
-        this.log(`[${device.product_type}] Unsupported device type: (Name: ${device.nickname}) (MAC: ${device.mac}) (Model: ${device.product_model})`)
+        this.log(`[${device.product_type}] Unsupported device type: (Name: ${safeName}) (MAC: ${device.mac}) (Model: ${device.product_model})`)
       }
       return
     }
     else if (this.config.filterByMacAddressList?.find(d => d === device.mac) || this.config.filterDeviceTypeList?.find(d => d === device.product_type)) {
-      if (this.config.pluginLoggingEnabled) this.log(`[${device.product_type}] Ignoring (${device.nickname}) (MAC: ${device.mac}) because it is in the Ignore Device list`)
+      if (this.config.pluginLoggingEnabled) this.log(`[${device.product_type}] Ignoring (${safeName}) (MAC: ${device.mac}) because it is in the Ignore Device list`)
       return
     }
     else if (device.product_type == 'S1Gateway' && !this.config.hmsEnabled) {
-      if (this.config.pluginLoggingEnabled) this.log(`[${device.product_type}] Ignoring (${device.nickname}) (MAC: ${device.mac}) because it is not enabled`)
+      if (this.config.pluginLoggingEnabled) this.log(`[${device.product_type}] Ignoring (${safeName}) (MAC: ${device.mac}) because it is not enabled`)
       return
     }
 
@@ -515,7 +516,7 @@ module.exports = class WyzeSmartHome {
       this.accessories.push(accessory)
     }
     accessory.update(device, timestamp).catch((err) => {
-      this.log.error(`[${device.product_type}] Unhandled error updating ${device.nickname}: ${err.message}\n${err.stack}`)
+      this.log.error(`[${device.product_type}] Unhandled error updating ${safeName}: ${err.message}\n${err.stack}`)
     })
 
     return accessory

@@ -12,7 +12,10 @@ This plugin is built on the [wyze-api](https://github.com/identd113/wyze-api) li
 
 ### v2.0.0-beta.3
 
-Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/identd113/wyze-api/blob/main/CHANGELOG.md#v200-beta3)).
+Pairs with `wyze-api@2.0.0-beta.4` ([wyze-api changes](https://github.com/identd113/wyze-api/blob/2.x/CHANGELOG.md)).
+
+- **Wall switches hold the state you just set.** A poll that arrived before Wyze had applied the change could flip the tile back and forth for a moment. Wall switches and Palm Locks now wait the same 15 seconds that plugs and lights do.
+- **Device names are cleaned on every refresh**, not only when the accessory is first created. Control characters and over-long names no longer reach the Home app or the log.
 
 - **Battery cameras and many cameras.** Battery-powered cameras (Cam Outdoor, Cam Outdoor v2, Battery Cam Pro) are not refreshed on a timer by default and never get Quick Live View, since a connection wakes them. With more cameras than can be captured in time, each is refreshed less often (the log says how often) instead of the plugin capturing nonstop.
 - **Pictures stay current.** Each camera's snapshot is refreshed every 30 seconds (the cameras take turns, evenly spaced across the 30 seconds, never at the same moment), and again as soon as Wyze's event list shows new motion (one shared request covers all the cameras, however many there are, every 10 seconds, or every 5 seconds when a doorbell is present; the doorbell's press check uses the same request), so the Home app tile is never stale. A motion picture goes ahead of the waiting refreshes, replaces that camera's own waiting refresh and resets its regular timer. A camera that is streaming, offline or switched off is skipped. Each refresh is a short live connection to the camera, so a Wyze app view open on the same camera may be interrupted; `snapshotRefreshSeconds` changes the interval (`0` turns it off) and `snapshotOnMotion: false` turns off the motion trigger.
