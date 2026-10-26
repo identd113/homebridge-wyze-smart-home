@@ -19,6 +19,7 @@ require('../src/types').update({
   platformAccessory: class {}
 })
 const Delegate = require('../src/camera/WyzeCameraStreamingDelegate')
+const tick = (ms = 5) => new Promise((resolve) => setTimeout(resolve, ms))
 const WyzeCamera = require('../src/accessories/WyzeCamera')
 
 function makeDelegate (name, capture, extra = {}) {
@@ -44,6 +45,7 @@ test('a refresh replaces the cached picture and keeps it fresh for the interval'
   await d.refreshSnapshot('timer', 60_000)
   assert.strictEqual(d._snapshotCache.buffer.toString(), 'pic1')
   d._snapshotCache.expiresAt = 0 // expired, as after the normal 10 s
+  d._lastRefreshAt = Date.now() - 31_000 // older than half an interval
   await d.refreshSnapshot('timer', 60_000)
   assert.strictEqual(d._snapshotCache.buffer.toString(), 'pic2')
   assert.ok(d._snapshotCache.expiresAt - Date.now() > 50_000)
@@ -67,14 +69,51 @@ test('a camera that is already waiting for a refresh is not queued twice', async
   assert.strictEqual(calls, 1)
 })
 
-test('a motion refresh right after another picture is skipped, a timer refresh is not', async () => {
+test('a motion refresh right after another picture is skipped', async () => {
   let calls = 0
   const d = makeDelegate('A', async () => { calls += 1; return Buffer.from(`p${calls}`) })
-  await d.refreshSnapshot('timer')
+  await d.refreshSnapshot('timer', 60_000)
   await d.refreshSnapshot('motion')
   assert.strictEqual(calls, 1, 'motion within 10 s of the last picture is skipped')
-  await d.refreshSnapshot('timer')
+  d._lastRefreshAt = Date.now() - 11_000
+  await d.refreshSnapshot('motion')
   assert.strictEqual(calls, 2)
+})
+
+test('a picture taken for motion resets the regular timer: the next slot is skipped', async () => {
+  let calls = 0
+  const d = makeDelegate('A', async () => { calls += 1; return Buffer.from(`p${calls}`) })
+  d._lastRefreshAt = Date.now() - 15_000 // motion picture 15 s ago, more than the 10 s gap
+  await d.refreshSnapshot('motion', 60_000)
+  assert.strictEqual(calls, 1)
+  d._lastRefreshAt = Date.now() - 5_000 // taken for motion 5 s ago
+  await d.refreshSnapshot('timer', 60_000)
+  assert.strictEqual(calls, 1, 'the regular refresh is skipped, the picture is recent')
+  d._lastRefreshAt = Date.now() - 20_000
+  await d.refreshSnapshot('timer', 60_000)
+  assert.strictEqual(calls, 2, 'and the one after that goes ahead')
+})
+
+test('motion goes ahead of waiting refreshes and replaces its own camera\'s waiting one', async () => {
+  const order = []
+  const slow = async () => { await tick(20); return Buffer.from('x') }
+  const mk = (name) => { const d = makeDelegate(name, async () => { order.push(name); return slow() }); return d }
+  const busy = mk('busy'); const a = mk('A'); const b = mk('B'); const c = mk('C')
+  const first = busy.refreshSnapshot('timer') // starts running at once
+  const jobs = [a.refreshSnapshot('timer'), b.refreshSnapshot('timer'), c.refreshSnapshot('timer')]
+  const m = c.refreshSnapshot('motion') // goes to the front, and C's waiting timer job is dropped
+  const m2 = c.refreshSnapshot('motion') // a second motion for C while one is waiting adds nothing
+  await Promise.all([first, ...jobs, m, m2])
+  assert.deepStrictEqual(order, ['busy', 'C', 'A', 'B'])
+})
+
+test('two motion refreshes for different cameras keep their order', async () => {
+  const order = []
+  const mk = (name) => makeDelegate(name, async () => { order.push(name); await tick(10); return Buffer.from('x') })
+  const running = mk('run'); const a = mk('A'); const b = mk('B'); const t = mk('T')
+  const all = [running.refreshSnapshot('timer'), t.refreshSnapshot('timer'), a.refreshSnapshot('motion'), b.refreshSnapshot('motion')]
+  await Promise.all(all)
+  assert.deepStrictEqual(order, ['run', 'A', 'B', 'T'])
 })
 
 test('a failed refresh never throws', async () => {

@@ -7,8 +7,24 @@ const SNAPSHOT_CACHE_MS = 10_000;
 // A picture fetched at startup stays "fresh" this long, so the first time the Home app
 // opens a camera tile it gets an image at once instead of waiting for a capture.
 const SNAPSHOT_PREFETCH_MS = 60_000;
-// Cameras are prefetched one after another, never several at once.
-let prefetchQueue = Promise.resolve();
+// Pictures are taken one camera at a time, never several at once. Jobs wait here:
+// motion refreshes first (oldest first), then regular refreshes and startup pictures.
+const pictureQueue = [];
+let pictureRunning = false;
+
+function pumpPictureQueue() {
+  if (pictureRunning) return;
+  const job = pictureQueue.shift();
+  if (!job) return;
+  pictureRunning = true;
+  job.run()
+    .catch(() => {})
+    .finally(() => {
+      pictureRunning = false;
+      job.resolve();
+      pumpPictureQueue();
+    });
+}
 // A motion-triggered refresh is skipped if the last picture is newer than this.
 const MOTION_REFRESH_MIN_GAP_MS = 10_000;
 const STREAM_START_TIMEOUT_MS = 60_000; // a start that has not settled by then no longer counts as active
@@ -54,8 +70,32 @@ class WyzeCameraStreamingDelegate {
    * that is offline, switched off or already streaming is skipped.
    */
   prefetchSnapshot() {
-    prefetchQueue = prefetchQueue.then(() => this._prefetchSnapshot()).catch(() => {});
-    return prefetchQueue;
+    return this._enqueuePicture("startup", () => this._prefetchSnapshot());
+  }
+
+  /**
+   * Queue one picture job for this camera and resolve when it has run (or been dropped).
+   * A motion job goes ahead of the regular jobs and replaces any job this camera already
+   * has waiting; any other job is dropped when this camera already has one waiting.
+   */
+  _enqueuePicture(reason, run) {
+    return new Promise((resolve) => {
+      const waiting = pictureQueue.filter((job) => job.delegate === this);
+      if (reason === "motion") {
+        if (waiting.some((job) => job.reason === "motion")) return resolve();
+        for (const job of waiting) {
+          pictureQueue.splice(pictureQueue.indexOf(job), 1);
+          job.resolve();
+        }
+        let at = 0;
+        while (at < pictureQueue.length && pictureQueue[at].reason === "motion") at += 1;
+        pictureQueue.splice(at, 0, { delegate: this, reason, run, resolve });
+      } else {
+        if (waiting.length > 0) return resolve();
+        pictureQueue.push({ delegate: this, reason, run, resolve });
+      }
+      pumpPictureQueue();
+    });
   }
 
   async _prefetchSnapshot() {
@@ -80,23 +120,25 @@ class WyzeCameraStreamingDelegate {
 
   /**
    * Replace the cached picture with a new one. `reason` is "timer" (the regular
-   * refresh) or "motion". Queued behind the other cameras, never throws, skips a
-   * camera that is offline, off or streaming, and never queues the same camera twice.
+   * refresh) or "motion". Queued behind the other cameras (a motion refresh goes ahead
+   * of them and replaces this camera's own waiting job), never throws, and skips a
+   * camera that is offline, off or streaming.
    * `keepFreshMs` is how long the Home app is served this picture without a new capture.
    */
-  refreshSnapshot (reason, keepFreshMs = SNAPSHOT_PREFETCH_MS) {
-    if (this._refreshPending) return prefetchQueue
-    this._refreshPending = true
-    prefetchQueue = prefetchQueue.then(() => this._refreshSnapshot(reason, keepFreshMs)).catch(() => {})
-    return prefetchQueue
+  refreshSnapshot (reason, keepFreshMs) {
+    if (keepFreshMs) this._keepFreshMs = keepFreshMs
+    return this._enqueuePicture(reason, () => this._refreshSnapshot(reason, this._keepFreshMs || SNAPSHOT_PREFETCH_MS))
   }
 
   async _refreshSnapshot (reason, keepFreshMs) {
-    this._refreshPending = false
     const cam = this.camera
     const name = cam.display_name
     if (cam.cameraOnline === false || cam.power_switch === 0 || this._streamActive()) return
-    if (reason === 'motion' && this._lastRefreshAt && Date.now() - this._lastRefreshAt < MOTION_REFRESH_MIN_GAP_MS) return
+    const age = this._lastRefreshAt ? Date.now() - this._lastRefreshAt : Infinity
+    // A picture taken for motion resets this camera's regular timer: its next slot is
+    // skipped when the picture is still younger than half a refresh interval.
+    if (reason === 'timer' && age < keepFreshMs / 4) return
+    if (reason === 'motion' && age < MOTION_REFRESH_MIN_GAP_MS) return
     try {
       if (!this._snapshotInFlight) {
         this._snapshotInFlight = this._fetchSnapshot().finally(() => {
