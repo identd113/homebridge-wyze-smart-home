@@ -133,12 +133,15 @@ class WyzeCameraStreamingDelegate {
   async _refreshSnapshot (reason, keepFreshMs) {
     const cam = this.camera
     const name = cam.display_name
-    if (cam.cameraOnline === false || cam.power_switch === 0 || this._streamActive()) return
+    const skip = (why) => cam.plugin.log.debug?.(`[Camera] [Snapshot] Skipped ${reason} refresh for ${name}: ${why}`)
+    if (cam.cameraOnline === false) return skip('offline')
+    if (cam.power_switch === 0) return skip('camera is off')
+    if (this._streamActive()) return skip('live stream open')
     const age = this._lastRefreshAt ? Date.now() - this._lastRefreshAt : Infinity
     // A picture taken for motion resets this camera's regular timer: its next slot is
     // skipped when the picture is still younger than half a refresh interval.
-    if (reason === 'timer' && age < keepFreshMs / 4) return
-    if (reason === 'motion' && age < MOTION_REFRESH_MIN_GAP_MS) return
+    if (reason === 'timer' && age < keepFreshMs / 4) return skip(`picture is only ${Math.round(age / 1000)} s old`)
+    if (reason === 'motion' && age < MOTION_REFRESH_MIN_GAP_MS) return skip(`picture is only ${Math.round(age / 1000)} s old`)
     try {
       if (!this._snapshotInFlight) {
         this._snapshotInFlight = this._fetchSnapshot().finally(() => {
