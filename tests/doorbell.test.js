@@ -53,103 +53,76 @@ test('a doorbell model gets a DoorbellController, other cameras a CameraControll
   camera.acc.stopStreams()
 })
 
-function ringer (model, getEvents) {
-  const made = make(model, getEvents)
+function ringer (model) {
+  const made = make(model, async () => [])
   made.acc._cameraController = new FakeDoorbellController()
   made.acc._ringedIds = null
-  made.acc._ringFailures = 0
-  made.acc._ringSkip = 0
+  made.acc._watchRing = true
+  made.acc._watchMotion = false
   return made
 }
 
-test('presses already in the list at startup are history; a later press rings once', async () => {
-  let events = [press('old', 'DOORBELL_RANG', 60000)]
-  const { acc, logged } = ringer('HL_DB2', async () => events)
-  await acc._checkRing() // seeds from the existing list
+test('presses already in the list at startup are history; a later press rings once', () => {
+  const { acc, logged } = ringer('HL_DB2')
+  acc._onEvents([press('old', 'DOORBELL_RANG', 60000)]) // seeds from the existing list
   assert.strictEqual(acc._cameraController.rings, undefined)
-  events = [press('new', 'DOORBELL_RANG'), press('old', 'DOORBELL_RANG', 60000)]
-  await acc._checkRing()
-  await acc._checkRing()
+  const events = [press('new', 'DOORBELL_RANG'), press('old', 'DOORBELL_RANG', 60000)]
+  acc._onEvents(events)
+  acc._onEvents(events)
   assert.strictEqual(acc._cameraController.rings, 1)
   assert.match(logged[0], /doorbell pressed/)
 })
 
-test('a press that begins as motion rings when it is flipped to "Doorbell rang"', async () => {
-  let events = []
-  const { acc } = ringer('HL_DB2', async () => events)
-  await acc._checkRing() // seed (empty)
-  events = [press('e1', 'MOTION')]
-  await acc._checkRing()
+test('a press that begins as motion rings when it is flipped to "Doorbell rang"', () => {
+  const { acc } = ringer('HL_DB2')
+  acc._onEvents([]) // seed (empty)
+  acc._onEvents([press('e1', 'MOTION')])
   assert.strictEqual(acc._cameraController.rings, undefined, 'plain motion must not ring')
-  events = [press('e1', 'DOORBELL_RANG')]
-  await acc._checkRing()
+  acc._onEvents([press('e1', 'DOORBELL_RANG')])
   assert.strictEqual(acc._cameraController.rings, 1)
 })
 
-test('ring detection does not depend on the host clock matching Wyze', async () => {
+test('ring detection does not depend on the host clock matching Wyze', () => {
   // Wyze timestamps three hours in the past, as if the host clock were far ahead.
-  let events = []
-  const { acc } = ringer('HL_DB2', async () => events)
-  await acc._checkRing()
-  events = [press('e1', 'DOORBELL_RANG', 3 * 3600 * 1000)]
-  await acc._checkRing()
+  const { acc } = ringer('HL_DB2')
+  acc._onEvents([])
+  acc._onEvents([press('e1', 'DOORBELL_RANG', 3 * 3600 * 1000)])
   assert.strictEqual(acc._cameraController.rings, 1)
 })
 
-test('ids that left the look-back window are forgotten, so the set cannot grow forever', async () => {
-  let events = [press('a', 'DOORBELL_RANG'), press('b', 'DOORBELL_RANG')]
-  const { acc } = ringer('HL_DB2', async () => events)
-  await acc._checkRing()
+test('ids that left the look-back window are forgotten, so the set cannot grow forever', () => {
+  const { acc } = ringer('HL_DB2')
+  acc._onEvents([press('a', 'DOORBELL_RANG'), press('b', 'DOORBELL_RANG')])
   assert.deepStrictEqual([...acc._ringedIds].sort(), ['a', 'b'])
-  events = [press('b', 'DOORBELL_RANG')]
-  await acc._checkRing()
+  acc._onEvents([press('b', 'DOORBELL_RANG')])
   assert.deepStrictEqual([...acc._ringedIds], ['b'])
 })
 
-test('an event-list failure does not throw or ring, backs off, and recovers', async () => {
-  let fail = false
-  let calls = 0
-  const { acc } = ringer('HL_DB2', async () => { calls += 1; if (fail) throw new Error('503'); return [] })
-  await acc._checkRing() // seed
-  fail = true
-  await acc._checkRing()
-  assert.strictEqual(acc._ringFailures, 1)
-  const afterFirstFailure = calls
-  // later ticks are skipped while backing off
-  acc._ringSkip = 3
-  for (let i = 0; i < 3; i += 1) await acc._checkRing()
-  assert.strictEqual(calls, afterFirstFailure, 'no requests while backing off')
-  fail = false
-  await acc._checkRing()
-  assert.strictEqual(acc._ringFailures, 0)
-  assert.strictEqual(acc._cameraController.rings, undefined)
-})
-
-test('repeated failures lengthen the back-off up to a cap', async () => {
-  const { acc } = ringer('HL_DB2', async () => { throw new Error('503') })
-  const skips = []
-  for (let i = 0; i < 8; i += 1) { acc._ringSkip = 0; await acc._checkRing(); skips.push(acc._ringSkip) }
-  assert.deepStrictEqual(skips, [0, 1, 3, 7, 12, 12, 12, 12])
-})
-
-test('stopStreams stops the doorbell poll timer', () => {
+test('the doorbell joins the shared event poll at its own faster rate, and leaves on shutdown', () => {
   const { acc } = make('HL_DB2', async () => [])
+  acc.mac = 'AA'
   acc._startEventWatch(true)
-  assert.ok(acc._ringTimer)
+  assert.strictEqual(acc._ringTimer, undefined, 'no poll of its own')
+  const poller = acc.plugin._motionPoller
+  assert.strictEqual(poller.members.length, 1)
+  assert.strictEqual(poller.beatMs, 5000)
   acc.stopStreams()
-  assert.strictEqual(acc._ringTimer, null)
+  assert.strictEqual(poller.members.length, 0)
+  assert.strictEqual(poller.timer, null)
 })
 
-test('a press made while the camera was offline is not announced late once it is back', async () => {
-  let events = []
-  const { acc } = ringer('HL_DB2', async () => events)
-  await acc._checkRing() // seed
-  acc.cameraOnline = false
-  events = [press('during-gap', 'DOORBELL_RANG', 30000)]
-  await acc._checkRing() // skipped, and the seed is dropped
-  acc.cameraOnline = true
-  await acc._checkRing() // re-seeds from the current list
+test('a press made while the camera was offline is not announced late once it is back', () => {
+  const { acc } = ringer('HL_DB2')
+  acc._onEvents([]) // seed
+  acc._motionMember = null
+  acc.mac = 'AA'
+  acc._startEventWatch(true)
+  const member = acc.plugin._motionPoller.members[0]
+  member.reset() // the poller does this for an offline camera, and the seed is dropped
+  acc._cameraController = new FakeDoorbellController()
+  member.onEvents([press('during-gap', 'DOORBELL_RANG', 30000)]) // re-seeds from the current list
   assert.strictEqual(acc._cameraController.rings, undefined)
+  acc.stopStreams()
 })
 
 test('a camera that cannot be powered off gets no Privacy switch, and a leftover one is removed', () => {

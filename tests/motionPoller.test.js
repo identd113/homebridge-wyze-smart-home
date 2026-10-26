@@ -80,3 +80,21 @@ test('removing the last camera stops the timer; a poll in progress is not double
   poller.remove(members[0])
   assert.strictEqual(poller.timer, null)
 })
+
+test('the beat follows the fastest camera, and every camera is read on each beat', async () => {
+  const calls = []
+  const client = { cameraGetEventsMulti: async (macs) => { calls.push(macs); return {} } }
+  const poller = new MotionPoller(client, { intervalMs: 10_000 })
+  const mk = (mac, everyMs) => ({ mac, everyMs, online: () => true, onEvents () {}, reset () {} })
+  const camera = mk('CAM', 10_000)
+  const doorbell = mk('DOOR', 5_000)
+  poller.add(camera)
+  assert.strictEqual(poller.beatMs, 10_000)
+  poller.add(doorbell)
+  assert.strictEqual(poller.beatMs, 5_000)
+  await poller.poll()
+  assert.deepStrictEqual(calls, [['CAM', 'DOOR']], 'one request names both cameras')
+  poller.remove(doorbell)
+  assert.strictEqual(poller.beatMs, 10_000)
+  poller.stop()
+})

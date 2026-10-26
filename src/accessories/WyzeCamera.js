@@ -30,7 +30,6 @@ const MOTION_POLL_MS = 10_000;
 // How often each camera's picture is refreshed by default; `snapshotRefreshSeconds` overrides it (0 = off).
 const SNAPSHOT_REFRESH_DEFAULT_S = 30;
 const SNAPSHOT_REFRESH_MIN_S = 10;
-const DOORBELL_MAX_BACKOFF_TICKS = 12; // ~1 minute between tries while Wyze keeps failing
 
 module.exports = class WyzeCamera extends WyzeAccessory {
 
@@ -211,32 +210,32 @@ module.exports = class WyzeCamera extends WyzeAccessory {
 
   // ---- Doorbell press -------------------------------------------------------
 
-  // A doorbell watches the cloud event list for presses; every camera also watches it
-  // for new motion, which takes a fresh picture. Either one needs the same poll.
+  // Every camera joins one shared check of the cloud event list: a single request covers
+  // all of them. A doorbell reads it for presses, and any camera reads it for new motion,
+  // which takes a fresh picture. With a doorbell present the whole list is read at the
+  // doorbell's faster rate, which costs no extra requests.
   _startEventWatch(isDoorbell) {
     this._watchRing = !!isDoorbell;
     this._watchMotion = this.plugin.config.snapshotOnMotion !== false;
     if (!this._watchRing && !this._watchMotion) return;
-    if (this._ringTimer || this._motionMember) return;
+    if (this._motionMember) return;
     this._ringedIds = null; // seeded by the first successful poll
     this._motionIds = null; // likewise
-    if (this._watchRing) {
-      // A doorbell press has to be seen within seconds, so it keeps a poll of its own.
-      this._ringFailures = 0;
-      this._ringSkip = 0;
-      this._ringTimer = setInterval(() => this._checkRing(), DOORBELL_POLL_MS);
-      this._ringTimer.unref?.();
-      return;
-    }
-    // Everything else shares one request for all the cameras.
     if (!this.plugin._motionPoller) this.plugin._motionPoller = new MotionPoller(this.plugin.client, { log: this.plugin.log });
     this._motionMember = {
       mac: this.mac,
+      everyMs: this._watchRing ? DOORBELL_POLL_MS : MOTION_POLL_MS,
       online: () => this.cameraOnline !== false,
-      onEvents: (events) => this._checkMotion(events),
-      reset: () => { this._motionIds = null; },
+      onEvents: (events) => this._onEvents(events),
+      // Offline: forget what has been seen, so nothing from the gap rings or refreshes late.
+      reset: () => { this._ringedIds = null; this._motionIds = null; },
     };
     this.plugin._motionPoller.add(this._motionMember);
+  }
+
+  _onEvents(events) {
+    if (this._watchRing) this._checkRings(events);
+    if (this._watchMotion) this._checkMotion(events);
   }
 
   // Keep the Home app's picture current: one new capture every `snapshotRefreshSeconds`
@@ -255,54 +254,26 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     this.plugin._refreshScheduler.add(this._refreshMember);
   }
 
-  async _checkRing() {
-    if (this._ringBusy) return;
-    if (this.cameraOnline === false) {
-      this._ringedIds = null; // re-seed when it is back, so nothing from the gap rings late
-      this._motionIds = null;
-      return;
+  _checkRings(events) {
+    // Events change after they appear (a press starts as motion), so judge each
+    // by its current type.
+    const rings = events.filter((event) => event.type === "DOORBELL_RANG");
+    if (this._ringedIds === null || this._ringedIds === undefined) {
+      // Presses already in the list when we start are history. Going by event id,
+      // not by comparing Wyze's timestamps with this host's clock, keeps this
+      // right when the host clock is off.
+      this._ringedIds = new Set(rings.map((event) => event.id));
+    } else {
+      for (const event of rings) {
+        if (this._ringedIds.has(event.id)) continue;
+        this._ringedIds.add(event.id);
+        this._cameraController?.ringDoorbell();
+        this.plugin.log(`[Camera] ${this.display_name}: doorbell pressed`);
+      }
     }
-    if (this._ringSkip > 0) { this._ringSkip -= 1; return; } // backing off after errors
-    this._ringBusy = true;
-    try {
-      const events = await this.plugin.client.cameraGetEvents(this.mac, { sinceMs: 5 * 60 * 1000, count: 10 });
-      // Events change after they appear (a press starts as motion), so judge each
-      // by its current type.
-      const rings = events.filter((event) => event.type === "DOORBELL_RANG");
-      if (this._watchMotion) this._checkMotion(events);
-      if (this._watchRing === false) {
-        this._ringFailures = 0;
-        return;
-      }
-      if (this._ringedIds === null) {
-        // Presses already in the list when we start are history. Going by event id,
-        // not by comparing Wyze's timestamps with this host's clock, keeps this
-        // right when the host clock is off.
-        this._ringedIds = new Set(rings.map((event) => event.id));
-      } else {
-        for (const event of rings) {
-          if (this._ringedIds.has(event.id)) continue;
-          this._ringedIds.add(event.id);
-          this._cameraController?.ringDoorbell();
-          this.plugin.log(`[Camera] ${this.display_name}: doorbell pressed`);
-        }
-      }
-      // An event that has left the look-back window can't come back: forget it.
-      const current = new Set(events.map((event) => event.id));
-      for (const id of this._ringedIds) if (!current.has(id)) this._ringedIds.delete(id);
-      this._ringFailures = 0;
-    } catch (err) {
-      // Back off (5 s, 10 s, 20 s ... about a minute) so a failing Wyze doesn't
-      // get hammered, or slow the main refresh that shares the same client.
-      this._ringFailures += 1;
-      this._ringSkip = Math.min(2 ** (this._ringFailures - 1) - 1, DOORBELL_MAX_BACKOFF_TICKS);
-      this.plugin.log.debug?.(`[Camera] ${this.display_name}: doorbell event check failed: ${err.message}`);
-      if (this._ringFailures === 5) {
-        this.plugin.log.warn?.(`[Camera] ${this.display_name}: doorbell presses can't be read from Wyze right now (${err.message}); retrying`);
-      }
-    } finally {
-      this._ringBusy = false;
-    }
+    // An event that has left the look-back window can't come back: forget it.
+    const current = new Set(events.map((event) => event.id));
+    for (const id of this._ringedIds) if (!current.has(id)) this._ringedIds.delete(id);
   }
 
   // A new event in the cloud list (motion, a press, ...) means something just happened in
@@ -320,8 +291,6 @@ module.exports = class WyzeCamera extends WyzeAccessory {
 
   // Stop live streams so the camera isn't left with a dead viewer (shutdown).
   stopStreams() {
-    clearInterval(this._ringTimer);
-    this._ringTimer = null;
     if (this._motionMember) this.plugin._motionPoller?.remove(this._motionMember);
     this._motionMember = null;
     if (this._refreshMember) this.plugin._refreshScheduler?.remove(this._refreshMember);

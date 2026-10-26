@@ -159,13 +159,12 @@ test('cameras without a doorbell join one shared motion poll; snapshotOnMotion: 
   assert.strictEqual(off.acc.plugin._motionPoller, undefined)
 })
 
-test('a camera without a doorbell never rings on a motion event', async () => {
+test('a camera without a doorbell never rings on a motion event', () => {
   const { acc } = makeCamera({})
   acc._cameraController = { ringDoorbell: () => { throw new Error('should not ring') } }
-  acc.plugin.client.cameraGetEvents = async () => [{ id: 'e', type: 'DOORBELL_RANG' }]
   acc._startEventWatch(false)
-  await acc._checkRing()
-  await acc._checkRing()
+  acc._onEvents([{ id: 'e', type: 'DOORBELL_RANG' }])
+  acc._onEvents([{ id: 'e2', type: 'DOORBELL_RANG' }])
   acc.stopStreams()
 })
 
