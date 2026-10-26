@@ -189,7 +189,7 @@ class WyzeCameraStreamingDelegate {
     } catch (err) {
       // A stream can claim the camera between the check above and this call (HomeKit asks
       // for a tile picture just as a live view opens). Show the last picture instead of failing.
-      if (/live stream open/.test(err.message) && this._lastSnapshot) return this._lastSnapshot;
+      if (/live stream/.test(err.message) && this._lastSnapshot) return this._lastSnapshot;
       throw err;
     }
     return remember(result.buffer);

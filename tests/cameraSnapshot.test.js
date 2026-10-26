@@ -155,6 +155,20 @@ test('a stream that claims the camera just before a capture does not fail the sn
   assert.strictEqual(r.buf.toString(), 'first')
 })
 
+test('a capture cut short because a live stream took the camera also shows the last picture', async () => {
+  let calls = 0
+  const { delegate } = make(async () => {
+    calls += 1
+    if (calls === 1) return Buffer.from('first')
+    throw new Error('capture ended early: the camera was needed for a live stream')
+  })
+  await snap(delegate)
+  delegate._snapshotCache = null
+  const r = await snap(delegate)
+  assert.strictEqual(r.err, undefined)
+  assert.strictEqual(r.buf.toString(), 'first')
+})
+
 test('with no earlier picture, a refused capture is still an error', async () => {
   const { delegate } = make(async () => { throw new Error('camera has a live stream open') })
   const r = await snap(delegate)
