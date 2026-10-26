@@ -68,6 +68,8 @@ Open a group to see its models.
 
 Notes on cameras:
 - Wyze cameras serve **one live viewer at a time**. The plugin closes each stream cleanly and shows the last snapshot while a stream is open.
+- **Audio** depends on the camera. Check that its microphone is on in the Wyze app. One of our Cam v3 units stayed silent in HomeKit even though the Wyze app played its sound, and we have not found why; the plugin then carries on with video only. Other cameras (the Doorbell v2, another Cam v3) work.
+- **Pictures** are refreshed every 30 seconds and when Wyze reports new motion (`snapshotRefreshSeconds`, `snapshotOnMotion`). Each refresh is a short live connection, so a Wyze app view of the same camera may be interrupted.
 - The Doorbell v2 press arrives from Wyze's cloud event list, so it can lag a few seconds. Turn on notifications for the doorbell in the Home app.
 - Extra switches (`garage`, `spotlight`, `floodlight`, `siren`, `notifications`, `motionDetection`) are set per camera under `cameras` in the config.
 - Cam Pan v4 and Bulb Cam come from [SecKatie/wyzeapy](https://github.com/SecKatie/wyzeapy) and have not been tried on hardware here yet.
