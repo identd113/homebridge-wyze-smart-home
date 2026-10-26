@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting this. The more of the form you fill in, the faster it can be fixed.
+        Thanks for reporting this. The more of the form you fill in, the faster it can be fixed. This also covers the `wyze-api` library the plugin is built on: problems with login, the Wyze API or camera streaming belong here too.
 
         **Logs and config contain details that identify you or your network** (device names, MAC and IP addresses, your Wi-Fi name, your Wyze email). Please replace those with `REDACTED` before you paste. Never post your password, API key or tokens.
 
