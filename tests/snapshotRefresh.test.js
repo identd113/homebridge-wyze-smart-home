@@ -216,3 +216,19 @@ test('preparing a stream asks wyze-api to fetch the camera connection details ah
   await new Promise((resolve) => d.prepareStream(request, () => resolve()))
   assert.deepStrictEqual(asked, [['MAC1', 'WYZE_CAKP2JFUS']])
 })
+
+test('a battery camera is left out of the timed refresh unless it was asked for', () => {
+  const unset = makeCamera({}, 'WVOD1')
+  unset.acc.product_model = 'WVOD1'
+  unset.acc._startSnapshotRefresh()
+  assert.strictEqual(unset.acc.plugin._refreshScheduler, undefined, 'a refresh would wake it every 30 s')
+  const asked = makeCamera({ snapshotRefreshSeconds: 120 }, 'WVOD1')
+  asked.acc.product_model = 'WVOD1'
+  asked.acc._startSnapshotRefresh()
+  assert.strictEqual(asked.acc.plugin._refreshScheduler.intervalMs, 120_000)
+  const mains = makeCamera({})
+  mains.acc.product_model = 'WYZE_CAKP2JFUS'
+  mains.acc._startSnapshotRefresh()
+  assert.strictEqual(mains.acc.plugin._refreshScheduler.intervalMs, 30_000)
+  for (const c of [asked, mains]) c.acc.stopStreams()
+})

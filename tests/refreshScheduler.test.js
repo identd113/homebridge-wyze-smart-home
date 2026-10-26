@@ -58,3 +58,38 @@ test('adding the same camera twice does not duplicate it', () => {
   assert.strictEqual(s.members.length, 1)
   s.stop()
 })
+
+test('with too many cameras to refresh in time, each is refreshed less often, and that is said once', async () => {
+  const lines = []
+  const s = new RefreshScheduler(30_000, { log: (m) => lines.push(m), announceDelayMs: 5 })
+  const members = Array.from({ length: 20 }, (_, i) => member(`C${i}`, []))
+  members.forEach((m) => s.add(m))
+  await new Promise((resolve) => setTimeout(resolve, 30))
+  s.stop()
+  assert.strictEqual(s.stepMs, 5000, 'one capture every 5 s at most, not every 1.5 s')
+  assert.strictEqual(s.effectiveIntervalMs, 100_000, '20 cameras x 5 s')
+  assert.strictEqual(lines.length, 1, 'said once, not at each camera that joined')
+  assert.match(lines[0], /20 cameras cannot all be refreshed every 30 s.*every 100 s instead/)
+})
+
+test('with three cameras nothing changes: every 30 s each, one every 10 s, no message', () => {
+  const lines = []
+  const log = []
+  const s = new RefreshScheduler(30_000, { log: (m) => lines.push(m) })
+  ;['A', 'B', 'C'].forEach((n) => s.add(member(n, log)))
+  s.stop()
+  assert.strictEqual(s.stepMs, 10_000)
+  assert.strictEqual(s.effectiveIntervalMs, 30_000)
+  assert.strictEqual(lines.length, 0)
+  s._tick()
+  assert.strictEqual(log[0][2], 60_000, 'a picture stays fresh for two refreshes')
+})
+
+test('the freshness window follows the slower rate when there are many cameras', () => {
+  const log = []
+  const s = new RefreshScheduler(30_000)
+  Array.from({ length: 20 }, (_, i) => member(`C${i}`, log)).forEach((m) => s.add(m))
+  s.stop()
+  s._tick()
+  assert.strictEqual(log[0][2], 200_000)
+})

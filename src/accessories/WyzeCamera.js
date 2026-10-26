@@ -4,6 +4,7 @@ const enums = require("../enums");
 const WyzeCameraStreamingDelegate = require("../camera/WyzeCameraStreamingDelegate");
 const RefreshScheduler = require("../camera/refreshScheduler");
 const MotionPoller = require("../camera/motionPoller");
+const { isBatteryCamera } = require("../camera/batteryModels");
 const { markServiceOnline } = require("./offlineIndicator");
 
 // Sizes advertised to HomeKit. The video is passed through unscaled, so these
@@ -244,12 +245,18 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   _startSnapshotRefresh() {
     if (this._refreshMember) return;
     const configured = this.plugin.config.snapshotRefreshSeconds;
-    const seconds = configured === undefined || configured === null ? SNAPSHOT_REFRESH_DEFAULT_S : Number(configured);
+    const unset = configured === undefined || configured === null;
+    // A battery camera is woken by every refresh: unless it was asked for, leave it out.
+    if (unset && isBatteryCamera(this.product_model)) {
+      this.plugin.log.debug?.(`[Camera] ${this.display_name}: battery camera, so its picture is not refreshed on a timer (only at startup and on motion)`);
+      return;
+    }
+    const seconds = unset ? SNAPSHOT_REFRESH_DEFAULT_S : Number(configured);
     if (!(seconds > 0) || !this._streamingDelegate) return;
     const ms = Math.max(seconds, SNAPSHOT_REFRESH_MIN_S) * 1000;
     // One scheduler for the whole platform takes the cameras in turn, evenly spaced,
     // so they never refresh at the same moment.
-    if (!this.plugin._refreshScheduler) this.plugin._refreshScheduler = new RefreshScheduler(ms);
+    if (!this.plugin._refreshScheduler) this.plugin._refreshScheduler = new RefreshScheduler(ms, { log: this.plugin.log });
     this._refreshMember = this._streamingDelegate;
     this.plugin._refreshScheduler.add(this._refreshMember);
   }

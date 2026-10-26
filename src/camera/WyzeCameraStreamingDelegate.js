@@ -2,6 +2,7 @@
 
 const nodeCrypto = require("crypto");
 const axios = require("axios");
+const { isBatteryCamera } = require("./batteryModels");
 
 const SNAPSHOT_CACHE_MS = 10_000;
 // A picture fetched at startup stays "fresh" this long, so the first time the Home app
@@ -165,6 +166,7 @@ class WyzeCameraStreamingDelegate {
 
   _warmEnabled() {
     return this.camera.plugin.config.warmLiveView === true
+      && !isBatteryCamera(this.camera.product_model) // a held connection would drain the battery
       && typeof this.camera.plugin.client?.cameraWarmUp === 'function';
   }
 

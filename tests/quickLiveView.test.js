@@ -126,3 +126,12 @@ test('preparing a stream does not fetch connection details when a connection is 
   assert.strictEqual(asked.length, 0)
   assert.strictEqual(calls.warmUp.length, 0)
 })
+
+test('a battery camera never gets Quick Live View', async () => {
+  for (const model of ['WVOD1', 'HL_WCO2', 'AN_RSCW']) {
+    const { d, calls, request } = make({ extra: { product_model: model } })
+    d._lastSnapshot = Buffer.from('old')
+    await request()
+    assert.strictEqual(calls.warmUp.length, 0, model)
+  }
+})
