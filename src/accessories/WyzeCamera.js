@@ -34,6 +34,8 @@ const SNAPSHOT_REFRESH_MIN_S = 10;
 // Floodlight accessories (device parameter `dongle_product_model`) that get a light switch on
 // their own. HL_CFL is the Cam v3 floodlight, seen on a real Back Yard Cam.
 const FLOODLIGHT_DONGLE_MODELS = new Set(["HL_CFL"]);
+// Wyze sends on/off properties as strings ("1" on, "2" or "0" off), and any non-empty string is truthy.
+const isOn = (v) => v === 1 || v === "1" || v === true;
 
 module.exports = class WyzeCamera extends WyzeAccessory {
 
@@ -74,7 +76,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this.garageDoorService = this._getOrAddService({
         ServiceType: Service.GarageDoorOpener,
         subtype: "GarageDoor",
-        defaultName: `${this.display_name} Garage Door`,
+        defaultName: "Garage Door",
         label: "Garage Door",
       });
       this.garageDoorService
@@ -94,7 +96,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this.spotLightService = this._getOrAddService({
         ServiceType: Service.Lightbulb,
         subtype: "Spotlight",
-        defaultName: `${this.display_name} Spotlight`,
+        defaultName: "Spotlight",
         label: "Spotlight",
       });
       this.spotLightService
@@ -112,7 +114,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this.sirenSwitch = this._getOrAddService({
         ServiceType: Service.Switch,
         subtype: "Siren",
-        defaultName: `${this.display_name} Siren`,
+        defaultName: "Siren",
         legacyLookup: () => this.homeKitAccessory.getService(`${this.display_name} Siren`),
         label: "Siren",
       });
@@ -126,7 +128,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this.notificationSwitch = this._getOrAddService({
         ServiceType: Service.Switch,
         subtype: "Notification",
-        defaultName: `${this.display_name} Notifications`,
+        defaultName: "Notifications",
         legacyLookup: () =>
           this.homeKitAccessory.getService(`${this.display_name} Notification`),
         label: "Notifications",
@@ -148,7 +150,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this.motionDetectionSwitch = this._getOrAddService({
         ServiceType: Service.Switch,
         subtype: "MotionDetection",
-        defaultName: `${this.display_name} Motion Detection`,
+        defaultName: "Motion Detection",
         legacyLookup: () =>
           this.homeKitAccessory.getService(`${this.display_name} Motion Detection`),
         label: "Motion Detection",
@@ -209,7 +211,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     this.floodLightService = this._getOrAddService({
       ServiceType: Service.Lightbulb,
       subtype: "FloodLight",
-      defaultName: `${this.display_name} Floodlight`,
+      defaultName: "Floodlight",
       label: "Floodlight",
     });
     this.floodLightService
@@ -360,7 +362,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     this.privacySwitch = this._getOrAddService({
       ServiceType: Service.Switch,
       subtype: "Privacy",
-      defaultName: `${this.display_name} Privacy`,
+      defaultName: "Privacy",
       legacyLookup: () => this.homeKitAccessory.getService(this.display_name),
       label: "Privacy Switch",
     });
@@ -502,13 +504,13 @@ module.exports = class WyzeCamera extends WyzeAccessory {
           if (this._isInConfig("notificationAccessory")) {
             this.notification = property.value;
             this.notificationSwitch?.getCharacteristic(Characteristic.On).updateValue(this.notification);
-            summary.push(`notifications=${this.notification ? "on" : "off"}`);
+            summary.push(`notifications=${isOn(this.notification) ? "on" : "off"}`);
           }
           break;
         case "P3": // Privacy
           this.on = property.value;
           this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(this.on);
-          summary.push(`power=${this.on ? "on" : "off"}`);
+          summary.push(`power=${isOn(this.on) ? "on" : "off"}`);
           break;
         case "P5": // Available
           this.available = property.value;
@@ -517,13 +519,13 @@ module.exports = class WyzeCamera extends WyzeAccessory {
           if (this._isInConfig("sirenAccessory")) {
             this.siren = property.value;
             this.sirenSwitch?.getCharacteristic(Characteristic.On).updateValue(this.siren);
-            summary.push(`siren=${this.siren ? "on" : "off"}`);
+            summary.push(`siren=${isOn(this.siren) ? "on" : "off"}`);
           }
           break;
         case "P1056": // Spotlight / Floodlight (same PID — covers both)
           if (this._lightConfigured()) {
             this._setLightState(property.value);
-            summary.push(`light=${this.floodLight ? "on" : "off"}`);
+            summary.push(`light=${isOn(this.floodLight) ? "on" : "off"}`);
           }
           break;
         case "P1301": // Garage Door
@@ -542,7 +544,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
             this.motionDetectionSwitch
               ?.getCharacteristic(Characteristic.On)
               .updateValue(this.motionDetection);
-            summary.push(`motion=${this.motionDetection ? "on" : "off"}`);
+            summary.push(`motion=${isOn(this.motionDetection) ? "on" : "off"}`);
           }
           break;
         }

@@ -53,20 +53,23 @@ function makeDetecting (dongle) {
   acc.homeKitAccessory = { context: { mac: 'AA', product_model: 'WYZE_CAKP2JFUS' }, displayName: 'Back Yard Cam' }
   acc.plugin = { config: {} }
   const handlers = []
+  const names = []
   acc._getOrAddService = (spec) => {
     handlers.push(spec.subtype)
+    names.push(spec.defaultName)
     const characteristic = { onGet: () => characteristic, onSet: () => characteristic }
     return { getCharacteristic: () => characteristic }
   }
   const device = { device_params: { dongle_product_model: dongle } }
-  return { acc, device, handlers }
+  return { acc, device, handlers, names }
 }
 
 test('a camera with a floodlight accessory gets the light switch without being listed', () => {
-  const { acc, device, handlers } = makeDetecting('HL_CFL')
+  const { acc, device, handlers, names } = makeDetecting('HL_CFL')
   assert.strictEqual(acc.cameraAccessoryAttached(), false)
   acc._detectFloodlightDongle(device)
   assert.deepStrictEqual(handlers, ['FloodLight'])
+  assert.deepStrictEqual(names, ['Floodlight'], 'named for what it does, not after the camera or its room')
   assert.strictEqual(acc.homeKitAccessory.context.floodlightDongle, true)
   assert.strictEqual(acc.cameraAccessoryAttached(), true, 'its properties are read from now on')
   assert.strictEqual(acc._lightConfigured(), true)
