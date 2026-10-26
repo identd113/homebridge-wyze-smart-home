@@ -61,6 +61,10 @@ const ADVANCED_KEYS = [
   "dangerouslyAllowCustomBaseUrls",
   "authBaseUrl",
   "apiBaseUrl",
+  // Camera pictures and live view (see the README).
+  "snapshotRefreshSeconds",
+  "snapshotOnMotion",
+  "warmLiveView",
 ];
 
 function isPlainObject(v) {

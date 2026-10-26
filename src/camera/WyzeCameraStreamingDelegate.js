@@ -25,6 +25,9 @@ function pumpPictureQueue() {
       pumpPictureQueue();
     });
 }
+// How long an open connection (the "Quick Live View" setting) waits for the Home app to
+// ask for the camera again before it is closed. Each picture request renews it.
+const WARM_TTL_MS = 45_000;
 // A motion-triggered refresh is skipped if the last picture is newer than this.
 const MOTION_REFRESH_MIN_GAP_MS = 10_000;
 const STREAM_START_TIMEOUT_MS = 60_000; // a start that has not settled by then no longer counts as active
@@ -57,6 +60,7 @@ class WyzeCameraStreamingDelegate {
 
   // Stop every live stream (Homebridge is shutting down).
   stopAll() {
+    try { this.camera.plugin.client?.cameraWarmDown?.(this.camera.mac); } catch (_) { /* shutting down */ }
     for (const session of this._sessions.values()) {
       try { session.streamHandle?.stop(); } catch (_) { /* already stopped */ }
       session.streamHandle = null;
@@ -157,6 +161,34 @@ class WyzeCameraStreamingDelegate {
     }
   }
 
+  // ---- Quick Live View: an open connection while the Home app is looking ----------------
+
+  _warmEnabled() {
+    return this.camera.plugin.config.warmLiveView === true
+      && typeof this.camera.plugin.client?.cameraWarmUp === 'function';
+  }
+
+  _warmState() {
+    return this._warmEnabled() ? this.camera.plugin.client.cameraWarmState?.(this.camera.mac) ?? null : null;
+  }
+
+  _warmReady() {
+    return this._warmState() === 'ready';
+  }
+
+  _noteViewer() {
+    if (!this._warmEnabled()) return;
+    const cam = this.camera;
+    if (cam.power_switch === 0 || cam.cameraOnline === false || this._streamActive()) return;
+    const opening = !this._warmState();
+    const ready = cam.plugin.client.cameraWarmUp(cam.mac, cam.product_model, { label: cam.display_name, ttlMs: WARM_TTL_MS });
+    if (opening) {
+      cam.plugin.log.debug?.(`[Camera] [Warm] Opening a connection to ${cam.display_name}: the Home app is looking at it`);
+      this._warmOpening = ready;
+      ready.then((ok) => cam.plugin.log.debug?.(`[Camera] [Warm] ${cam.display_name}: ${ok ? 'connection ready' : 'could not open a connection'}`)).catch(() => {});
+    }
+  }
+
   async handleSnapshotRequest(request, callback) {
     // Skip the slow live-capture fallback if we already know the camera is
     // offline — otherwise HomeKit waits for the full WebRTC timeout and
@@ -166,10 +198,19 @@ class WyzeCameraStreamingDelegate {
       return;
     }
 
+    // The Home app asks for a picture while a camera tile is on screen: with Quick Live View
+    // on, that is the moment to open the connection a live view would need.
+    this._noteViewer();
+
     // Serve from cache when fresh — HomeKit polls snapshots aggressively
-    // (every few seconds when the camera tile is visible).
-    if (this._snapshotCache && this._snapshotCache.expiresAt > Date.now()) {
-      callback(undefined, this._snapshotCache.buffer);
+    // (every few seconds when the camera tile is visible). While a connection is open
+    // pictures come cheaply from it, so they are kept fresher than the regular refresh gives.
+    const cache = this._snapshotCache;
+    const cacheFresh = cache && (this._warmReady()
+      ? Date.now() - (cache.at || 0) < SNAPSHOT_CACHE_MS
+      : cache.expiresAt > Date.now());
+    if (cacheFresh) {
+      callback(undefined, cache.buffer);
       return;
     }
 
@@ -191,7 +232,7 @@ class WyzeCameraStreamingDelegate {
 
   async _fetchSnapshot() {
     const remember = (buffer) => {
-      this._snapshotCache = { buffer, expiresAt: Date.now() + SNAPSHOT_CACHE_MS };
+      this._snapshotCache = { buffer, at: Date.now(), expiresAt: Date.now() + SNAPSHOT_CACHE_MS };
       this._lastSnapshot = buffer;
       return buffer;
     };
@@ -212,6 +253,25 @@ class WyzeCameraStreamingDelegate {
           `[Camera] [Snapshot] Cloud thumb failed for ${this.camera.display_name}: ${err.message} — falling back to capture`
         );
       }
+    }
+
+    // An open connection (Quick Live View) makes the picture from its latest keyframe. While
+    // it is still connecting, or has no keyframe yet, another session cannot be opened on the
+    // camera: wait for it, or show the last picture.
+    const warmState = this._warmState();
+    if (warmState) {
+      const client = this.camera.plugin.client;
+      try {
+        if (warmState === 'connecting' && !this._lastSnapshot && this._warmOpening) {
+          await Promise.race([this._warmOpening, new Promise((resolve) => setTimeout(resolve, 10_000))]);
+        }
+        const shot = await client.cameraWarmSnapshot(this.camera.mac);
+        if (shot?.buffer) return remember(shot.buffer);
+      } catch (err) {
+        this.camera.plugin.log.debug?.(`[Camera] [Warm] Picture from the open connection failed for ${this.camera.display_name}: ${err.message}`);
+      }
+      if (this._lastSnapshot) return this._lastSnapshot;
+      throw new Error('Live view is starting');
     }
 
     // A camera serves one WebRTC session at a time: a capture and a live stream
@@ -245,7 +305,7 @@ class WyzeCameraStreamingDelegate {
     // HomeKit starts the stream a moment after preparing it: ask Wyze for the camera's
     // connection details now, so that round trip is not part of the wait. Skipped when a
     // live stream is already running (a second one could not use it).
-    if (!this._streamActive()) {
+    if (!this._streamActive() && !this._warmState()) {
       try { this.camera.plugin.client.prefetchCameraConnection?.(this.camera.mac, this.camera.product_model); } catch (_) { /* optional speed-up */ }
     }
     const { localRtpPort, localAudioRtpPort, videoSsrc, audioSsrc, localAddress } =

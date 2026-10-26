@@ -228,6 +228,26 @@
         "type": "object",
         "title": "Advanced",
         "properties": {
+          "snapshotRefreshSeconds": {
+            "title": "Camera Picture Refresh (seconds)",
+            "type": "integer",
+            "default": 30,
+            "minimum": 0,
+            "maximum": 3600,
+            "description": "How often each camera's picture in the Home app is refreshed. 0 turns it off. Each refresh is a short live connection, so a Wyze app view of the same camera may be interrupted."
+          },
+          "snapshotOnMotion": {
+            "title": "Refresh the Picture on Motion",
+            "type": "boolean",
+            "default": true,
+            "description": "Take a new picture as soon as Wyze reports motion on a camera."
+          },
+          "warmLiveView": {
+            "title": "Quick Live View",
+            "type": "boolean",
+            "default": false,
+            "description": "While the Home app is looking at a camera, open a connection to it ahead of time (kept about 45 seconds) so live view starts almost at once and the picture stays fresh. While it is open the Wyze app cannot watch that camera."
+          },
           "deviceTypeOverrides": {
             "title": "Device Type Overrides",
             "type": "object",
