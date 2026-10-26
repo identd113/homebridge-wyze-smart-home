@@ -12,7 +12,7 @@ This plugin is built on the [wyze-api](https://github.com/identd113/wyze-api) li
 
 ### v2.0.0-beta.3
 
-Pairs with `wyze-api@2.0.0-beta.4` ([wyze-api changes](https://github.com/identd113/wyze-api/blob/2.x/CHANGELOG.md)). Requires Node.js 22 or newer.
+Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/identd113/wyze-api/blob/2.x/CHANGELOG.md)). Requires Node.js 22 or newer.
 
 **Before you update**
 - **Node.js 22 or newer is required** (`engines.node` is now `^22 || ^24 || ^26`; Node 18 and 20 are no longer supported). The upgraded `werift` (`^0.25.1`) needs it and fixes the known `ip`/`uuid` vulnerabilities. Homebridge 2.x already requires Node 22+; Homebridge 1.x users must be on Node 22 or newer.
@@ -62,7 +62,7 @@ Pairs with `wyze-api@2.0.0-beta.4` ([wyze-api changes](https://github.com/identd
 - The README configuration section now lists required and optional fields with their defaults and example values.
 
 **Under the hood**
-- The minimum wyze-api version is declared once, in `package.json` (`^2.0.0-beta.4`). The plugin checks the installed wyze-api against it at startup and logs a clear error instead of failing later. The publish workflows check that a published wyze-api satisfies it, and the stable workflow counts only stable versions.
+- The minimum wyze-api version is declared once, in `package.json` (`^2.0.0-beta.3`). The plugin checks the installed wyze-api against it at startup and logs a clear error instead of failing later. The publish workflows check that a published wyze-api satisfies it, and the stable workflow counts only stable versions.
 - Removed the `src/wyze-api` git submodule. `wyze-api` is only an npm dependency now; for local development, clone it next to this repository and run `npm run dev-link`.
 - New tests: the wyze-api version check, a guard that every wyze-api method the plugin calls exists, the camera light and name logic, config migration, the thermostat humidity tile, wall-switch grace and the issue triage.
 
