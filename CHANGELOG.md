@@ -12,41 +12,59 @@ This plugin is built on the [wyze-api](https://github.com/identd113/wyze-api) li
 
 ### v2.0.0-beta.3
 
-Pairs with `wyze-api@2.0.0-beta.4` ([wyze-api changes](https://github.com/identd113/wyze-api/blob/2.x/CHANGELOG.md)).
+Pairs with `wyze-api@2.0.0-beta.4` ([wyze-api changes](https://github.com/identd113/wyze-api/blob/2.x/CHANGELOG.md)). Requires Node.js 22 or newer.
 
-- **Wall switches hold the state you just set.** A poll that arrived before Wyze had applied the change could flip the tile back and forth for a moment. Wall switches and Palm Locks now wait the same 15 seconds that plugs and lights do.
-- **Device names are cleaned on every refresh**, not only when the accessory is first created. Control characters and over-long names no longer reach the Home app or the log.
-
-- **Battery cameras and many cameras.** Battery-powered cameras (Cam Outdoor, Cam Outdoor v2, Battery Cam Pro) are not refreshed on a timer by default and never get Quick Live View, since a connection wakes them. With more cameras than can be captured in time, each is refreshed less often (the log says how often) instead of the plugin capturing nonstop.
-- **Pictures stay current.** Each camera's snapshot is refreshed every 30 seconds (the cameras take turns, evenly spaced across the 30 seconds, never at the same moment), and again as soon as Wyze's event list shows new motion (one shared request covers all the cameras, however many there are, every 10 seconds, or every 5 seconds when a doorbell is present; the doorbell's press check uses the same request), so the Home app tile is never stale. A motion picture goes ahead of the waiting refreshes, replaces that camera's own waiting refresh and resets its regular timer. A camera that is streaming, offline or switched off is skipped. Each refresh is a short live connection to the camera, so a Wyze app view open on the same camera may be interrupted; `snapshotRefreshSeconds` changes the interval (`0` turns it off) and `snapshotOnMotion: false` turns off the motion trigger.
-- **Fewer requests.** A picture capture no longer re-downloads the whole device list to find the camera's model (the plugin passes it), which removes about 6 `get_object_list` requests a minute with three cameras.
-- **Quick Live View (setting `advanced.warmLiveView`, off by default).** While the Home app is looking at a camera the plugin opens a connection to it ahead of time (about 45 seconds, renewed by each picture request). A live view then starts almost at once, and pictures are made from the open connection's latest keyframe, so they stay fresh without extra sessions. While it is open the Wyze app cannot watch that camera.
-- **Faster live view start.** Preparing a stream now fetches the camera's connection details straight away (HomeKit starts the stream a moment later), and the stream start keeps the camera's first keyframe instead of asking for another. Each live stream logs a debug `timing:` line showing where the time went.
-- **A picture is ready at startup.** A few seconds after Homebridge starts, each camera fetches one snapshot (one camera at a time, in the background), so the first time the Home app opens a tile it shows an image at once. Cameras that are offline, switched off or already streaming are skipped. A failure is logged and never stops startup.
-- **Floodlight switch for floodlight cameras.** A camera with a Wyze floodlight accessory (a Cam v3 with the floodlight) gets a Floodlight switch on its own, with no entry under `cameras`. The `spotlight` and `floodlight` switches now both follow the camera's light.
-- **Camera switches are named for what they do.** New Privacy, Spotlight, Floodlight, Siren, Notifications, Motion Detection and Garage Door switches are named just that, without the camera's name in front (the Home app adds the room). Switches you already have keep their names.
+**Before you update**
+- **Node.js 22 or newer is required** (`engines.node` is now `^22 || ^24 || ^26`; Node 18 and 20 are no longer supported). The upgraded `werift` (`^0.25.1`) needs it and fixes the known `ip`/`uuid` vulnerabilities. Homebridge 2.x already requires Node 22+; Homebridge 1.x users must be on Node 22 or newer.
+- **New cameras can appear.** Cam Pan v4, Bulb Cam, Floodlight v2 and the Doorbell v2 are now recognized. If you own one, a new camera shows up in the Homebridge log with its own setup code and has to be paired in the Home app (cameras are separate HomeKit accessories). Nothing already paired changes. A `deviceTypeOverrides` entry you added for one of these is now redundant and is skipped.
 - **Config upgrade keeps `securityRefreshInterval`** and the app-identity options when a flat config is converted.
-- **Requires Node.js 22 or newer** (`engines.node` is now `^22 || ^24 || ^26`; Node 18 and 20 are no longer supported). Needed by the upgraded `werift` (`^0.25.1`), which fixes the known `ip`/`uuid` vulnerabilities. Homebridge 2.x already requires Node 22+; Homebridge 1.x users must be on Node 22 or newer to update.
-- **`totpSecret` option**: authenticator-app secret so the plugin generates a fresh 2FA code on every login (the typed `mfaCode` expires in 30s). Optional; existing configs are unaffected.
-- **2FA/MFA login restored** (TOTP authenticator apps only): `mfaCode` option added to the config schema and README. wyze-api had silently dropped MFA handling in Feb 2024. Not yet verified against a live 2FA account.
-- **Persisted-token loop fixed**: a stale/invalid saved token no longer permanently blocks re-login (fixes the "cannot find any devices" reports in #306 / #277).
-- Username validated up front; refresh timer fixed (was firing every ~2.9 minutes instead of every 48 hours); concurrent token refreshes are deduplicated.
-- **Minimum wyze-api version is declared once**: `dependencies.wyze-api` in `package.json` (now `^2.0.0-beta.3`). The plugin checks the installed wyze-api against that range at startup and logs a clear error instead of failing later with missing-method errors.
-- **Wyze Cam Pan v4 (`HL_PAN4`)** and **Bulb Cam (`HL_BC`) light control**: camera power, siren, spotlight, notifications and state now go through the right Wyze API for these models (ported from SecKatie/wyzeapy, via wyze-api). Cameras on the newer devicemgmt API (Floodlight Pro, Battery Cam Pro, OG, Pan v4) now also report their light, siren, motion and power state. Not yet verified on real hardware.
-- **New camera accessories can appear after updating**: Cam Pan v4, Bulb Cam, Floodlight v2 and the Doorbell v2 are now recognized, so if you own one, a new camera shows up in Homebridge's log with its own setup code and has to be paired in the Home app (cameras are separate HomeKit accessories). Nothing already paired changes. A `deviceTypeOverrides` entry you added for one of these is now redundant and is skipped.
-- **Wyze Cam Doorbell v2 (`HL_DB2`)** is now supported as a HomeKit doorbell: a button press rings the Home app (read from Wyze's cloud event list every 5 seconds, one ring per press), plus snapshots and live video with audio (its stream is 640x480 at 15 fps). It has no Privacy switch: Wyze ignores power-off for this model, so a switch would only look like it worked. The camera is advertised to HomeKit as 640x480 (4:3) instead of the default 16:9 sizes, so the Home app no longer letterboxes it. The doorbell-press event and power/siren controls are not verified yet.
-- Floodlight v2 (`HL_CFL2`) is recognized without a `deviceTypeOverrides` entry. Its light toggle (#264) is still unresolved.
-- **Fixed accessories not persisting after a camera is discovered on Homebridge 2.x** (#311): cameras are external accessories, and flushing their state through `updatePlatformAccessories()` made Homebridge fail to serialize the whole cache ("missing associated platform"), so every device discovered afterwards was recreated on each restart. Camera state is now kept in memory only. Thanks to the reporter for the diagnosis.
-- The camera refresh log line now says "camera power on/off" instead of "privacy on/off" (it reports `power_switch`, where on means the camera is running).
-- **Live streams are closed cleanly when Homebridge shuts down or restarts** (previously a restart abandoned open sessions, and a camera that serves one viewer at a time could refuse the next).
-- **Live view and snapshots no longer fight over a camera**: a camera serves one WebRTC session at a time, and the Home app's snapshot polling was opening a second session while a live stream started (seen on the Doorbell v2: the stream went idle and had to reconnect, and snapshots failed). Concurrent snapshot requests now share one capture, a snapshot shows the last picture while a live stream is running, and a stream waits for a capture already in flight.
-- Pan v4 and other devicemgmt cameras with only the privacy switch configured now read their power state from the devicemgmt API, and a devicemgmt failure marks every camera service inactive instead of only the privacy switch.
-- Pasted 2FA values are cleaned and validated (spaces, newlines, dashes, quotes and `otpauth://` links are handled); a malformed `totpSecret` or `mfaCode` gives a clear login error.
-- **Fatal startup problems no longer crash or damage the bridge**: a missing `username`, or an installed wyze-api older than the declared minimum, logs one `[FATAL]` error (for example "Cannot log in to Wyze: no username specified") and leaves the platform idle. Cached accessories are left untouched, so nothing is removed from HomeKit.
-- Publish workflows now verify a published wyze-api satisfies that range, instead of reading the submodule version and rewriting the dependency. Release wyze-api to npm first. The stable workflow only counts stable (non-prerelease) wyze-api versions, so a stable plugin can't ship depending on a beta.
-- **Settings screen no longer shows "Config validation failed"**: `config.schema.json` now uses `required` lists (JSON Schema draft 7) instead of per-field booleans. Password, API Key and Authenticator-app 2FA Secret are masked in the settings screen, and whitespace pasted around the Key ID or API Key is trimmed.
-- Added tests: wyze-api version check and a guard that every wyze-api method the plugin calls exists in the installed wyze-api (`npm test`).
-- Removed the `src/wyze-api` git submodule. `wyze-api` is now only an npm dependency, so a fresh clone no longer needs `git submodule update`. For local development, clone `wyze-api` next to this repository and run `npm run dev-link`.
+
+**New devices**
+- **Wyze Cam Doorbell v2 (`HL_DB2`)** as a HomeKit doorbell: a button press rings the Home app (read from Wyze's cloud event list every 5 seconds, one ring per press), plus snapshots and live video with audio (its stream is 640x480 at 15 fps, so it is advertised as 4:3 and the Home app no longer letterboxes it). It has no Privacy switch, because Wyze ignores power-off for this model. The doorbell-press event and the power and siren controls are not verified yet.
+- **Wyze Cam Pan v4 (`HL_PAN4`)** and **Bulb Cam (`HL_BC`) light control**: power, siren, spotlight, notifications and state go through the right Wyze API for these models (ported from SecKatie/wyzeapy, via wyze-api). Not yet verified on real hardware.
+- **Cameras on the newer devicemgmt API** (Floodlight Pro, Battery Cam Pro, OG, Pan v4) now report their light, siren, motion and power state, and Pan v4 and similar cameras with only the privacy switch configured read their power state from that API.
+- **Floodlight v2 (`HL_CFL2`)** is recognized without a `deviceTypeOverrides` entry. Its light toggle (#264) is still unresolved.
+
+**Camera switches and tiles**
+- **A Floodlight switch appears by itself** on a camera with a Wyze floodlight accessory (a Cam v3 with the floodlight). No entry under `cameras` is needed. The `spotlight` and `floodlight` switches both follow the camera's light, including changes made in the Wyze app.
+- **Switches are named for what they do**: Privacy, Spotlight, Floodlight, Siren, Notifications, Motion Detection and Garage Door, without the camera's name in front (the Home app adds the room). Switches you already have keep their names.
+- **The thermostat has its humidity tile again**, as a separate Humidity Sensor, as in 0.5.x.
+
+**Camera pictures and live view**
+- **Pictures stay current.** Each camera's snapshot is refreshed every 30 seconds (the cameras take turns, evenly spaced, never at the same moment), and again as soon as Wyze's event list shows new motion. One shared request covers all the cameras every 10 seconds, or every 5 seconds when a doorbell is present, and the doorbell press check uses the same request. A motion picture goes ahead of the waiting refreshes and resets that camera's regular timer.
+- **A picture is ready at startup.** A few seconds after Homebridge starts, each camera fetches one snapshot (one at a time, in the background), so the first time the Home app opens a tile it shows an image. Offline, switched-off and streaming cameras are skipped. A failure is logged and never stops startup.
+- **Quick Live View** (`advanced.warmLiveView`, off by default). While the Home app is looking at a camera the plugin opens a connection ahead of time (about 45 seconds, renewed by each picture request), so a live view starts almost at once and pictures come from the open connection's latest keyframe. While it is open the Wyze app cannot watch that camera.
+- **Faster live view start.** Preparing a stream fetches the camera's connection details straight away, and the stream start keeps the camera's first keyframe instead of asking for another. Each live stream logs a debug `timing:` line.
+- **Battery cameras and many cameras.** Battery-powered cameras (Cam Outdoor, Cam Outdoor v2, Battery Cam Pro) are not refreshed on a timer by default and never get Quick Live View, since a connection wakes them. With more cameras than can be captured in time, each is refreshed less often (the log says how often) instead of the plugin capturing nonstop.
+- **Fewer requests.** A picture capture no longer downloads the whole device list to find the camera's model, which removes about 6 `get_object_list` requests a minute with three cameras.
+- **Live view and snapshots no longer fight over a camera.** A camera serves one WebRTC session at a time. Concurrent snapshot requests now share one capture, a snapshot shows the last picture while a live stream is running, and a stream waits for a capture already in flight.
+- **Live streams close cleanly** when Homebridge shuts down or restarts, so a camera is not left holding the old viewer.
+- Camera log lines carry the camera's name, and the camera refresh line says "camera power on/off" instead of "privacy on/off".
+
+**Login and 2FA**
+- **`totpSecret` option**: the authenticator-app secret, so the plugin generates a fresh 2FA code on every login (a typed `mfaCode` expires in 30 seconds). Optional; existing configs are unaffected.
+- **2FA login restored** (authenticator apps only): `mfaCode` is back in the config schema and README. wyze-api had dropped it in Feb 2024. Not yet verified against a live 2FA account.
+- Pasted 2FA values are cleaned and checked (spaces, newlines, dashes, quotes and `otpauth://` links are handled), and a malformed value gives a clear login error.
+- **Fixed the stuck re-login loop**: a stale saved token no longer blocks logging in again (the "cannot find any devices" reports in #306 and #277). The refresh timer, which fired every ~2.9 minutes instead of every 48 hours, is fixed, and concurrent refreshes are combined.
+
+**Fixes**
+- **Wall switches and Palm Locks hold the state you just set.** A poll that arrived before Wyze had applied the change could flip the tile back and forth; they now wait 15 seconds like plugs and lights.
+- **Device names are cleaned on every refresh**, not only when the accessory is created. Control characters and over-long names no longer reach the Home app or the log.
+- **Accessories now persist after a camera is discovered on Homebridge 2.x** (#311). Cameras are external accessories, and saving their state made Homebridge fail to write the whole cache, so every device found afterwards was recreated on each restart. Thanks to the reporter for the diagnosis.
+- **Fatal startup problems no longer crash or damage the bridge.** A missing `username`, or an installed wyze-api older than the declared minimum, logs one `[FATAL]` error and leaves the platform idle. Cached accessories are left alone, so nothing is removed from HomeKit.
+- **The settings screen no longer shows "Config validation failed".** Password, API Key and the 2FA secret are masked, and whitespace pasted around the Key ID or API Key is trimmed. The picture refresh field has no default in the screen, so battery cameras stay off the timer unless you set it.
+- A devicemgmt failure marks every camera service inactive, not only the privacy switch.
+- Quieter default log: per-request lines from wyze-api are at `debug`.
+
+**Reporting problems and new devices**
+- **Issue forms** for bugs, feature requests, questions and new devices. The new-device form asks for the model code and the device information from the debug log, and a script labels each issue (`new device`, `model:<code>`, the kind of device), skips devices that cannot work in HomeKit (scales, headphones, chime boxes), asks for redaction when a device name, IP address, Wi-Fi name or MAC is left in, and counts repeat requests for the same model.
+- Library problems (wyze-api) are reported in this repository too.
+- The README configuration section now lists required and optional fields with their defaults and example values.
+
+**Under the hood**
+- The minimum wyze-api version is declared once, in `package.json` (`^2.0.0-beta.4`). The plugin checks the installed wyze-api against it at startup and logs a clear error instead of failing later. The publish workflows check that a published wyze-api satisfies it, and the stable workflow counts only stable versions.
+- Removed the `src/wyze-api` git submodule. `wyze-api` is only an npm dependency now; for local development, clone it next to this repository and run `npm run dev-link`.
+- New tests: the wyze-api version check, a guard that every wyze-api method the plugin calls exists, the camera light and name logic, config migration, the thermostat humidity tile, wall-switch grace and the issue triage.
 
 ### v2.0.0-beta.2
 
