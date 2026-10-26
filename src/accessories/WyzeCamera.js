@@ -31,6 +31,9 @@ const MOTION_POLL_MS = 10_000;
 // How often each camera's picture is refreshed by default; `snapshotRefreshSeconds` overrides it (0 = off).
 const SNAPSHOT_REFRESH_DEFAULT_S = 30;
 const SNAPSHOT_REFRESH_MIN_S = 10;
+// Floodlight accessories (device parameter `dongle_product_model`) that get a light switch on
+// their own. HL_CFL is the Cam v3 floodlight, seen on a real Back Yard Cam.
+const FLOODLIGHT_DONGLE_MODELS = new Set(["HL_CFL"]);
 
 module.exports = class WyzeCamera extends WyzeAccessory {
 
@@ -100,18 +103,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
         .onSet(this.handleOnSetSpotlight.bind(this));
     }
 
-    if (this._isInConfig("floodLightAccessory")) {
-      this.floodLightEnabled = true;
-      this.floodLightService = this._getOrAddService({
-        ServiceType: Service.Lightbulb,
-        subtype: "FloodLight",
-        defaultName: `${this.display_name} Floodlight`,
-        label: "Floodlight",
-      });
-      this.floodLightService
-        .getCharacteristic(Characteristic.On)
-        .onGet(this.handleOnGetFloodlight.bind(this))
-        .onSet(this.handleOnSetFloodlight.bind(this));
+    if (this._isInConfig("floodLightAccessory") || this._hasFloodlightDongle()) {
+      this._setupFloodlight();
     }
 
     if (this._isInConfig("sirenAccessory")) {
@@ -190,7 +183,39 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   // The spotlight and floodlight switches are one light (property P1056), so either
   // setting needs the camera's light state.
   _lightConfigured() {
-    return this._isInConfig("spotLightAccessory") || this._isInConfig("floodLightAccessory");
+    return (
+      this._isInConfig("spotLightAccessory") ||
+      this._isInConfig("floodLightAccessory") ||
+      this._hasFloodlightDongle()
+    );
+  }
+
+  // A camera with a floodlight accessory plugged in gets its light as a switch without
+  // being listed in the config. Wyze reports the accessory as a device parameter; the
+  // result is remembered so the switch is set up again from the cache on a restart.
+  _hasFloodlightDongle() {
+    return Boolean(this.homeKitAccessory.context.floodlightDongle);
+  }
+
+  _detectFloodlightDongle(device) {
+    if (this._hasFloodlightDongle()) return;
+    if (!FLOODLIGHT_DONGLE_MODELS.has(device?.device_params?.dongle_product_model)) return;
+    this.homeKitAccessory.context.floodlightDongle = true;
+    this._setupFloodlight();
+  }
+
+  _setupFloodlight() {
+    this.floodLightEnabled = true;
+    this.floodLightService = this._getOrAddService({
+      ServiceType: Service.Lightbulb,
+      subtype: "FloodLight",
+      defaultName: `${this.display_name} Floodlight`,
+      label: "Floodlight",
+    });
+    this.floodLightService
+      .getCharacteristic(Characteristic.On)
+      .onGet(this.handleOnGetFloodlight.bind(this))
+      .onSet(this.handleOnSetFloodlight.bind(this));
   }
 
   _setLightState(value) {
@@ -399,6 +424,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   // ---- Update cycle ---------------------------------------------------------
 
   async updateCharacteristics(device) {
+    this._detectFloodlightDongle(device);
+
     if (!this._cameraControllerReady) {
       this._cameraControllerReady = true;
       try {
@@ -730,6 +757,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this._isInConfig("spotLightAccessory") ||
       this._isInConfig("sirenAccessory") ||
       this._isInConfig("floodLightAccessory") ||
+      this._hasFloodlightDongle() ||
       this._isInConfig("notificationAccessory") ||
       this._isInConfig("motionDetectionAccessory")
     );

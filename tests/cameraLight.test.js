@@ -47,3 +47,48 @@ test('a camera with neither switch has no light to track', () => {
   const { acc } = make({ spotLightAccessory: ['BB'] })
   assert.strictEqual(acc._lightConfigured(), false)
 })
+
+function makeDetecting (dongle) {
+  const acc = Object.create(WyzeCamera.prototype)
+  acc.homeKitAccessory = { context: { mac: 'AA', product_model: 'WYZE_CAKP2JFUS' }, displayName: 'Back Yard Cam' }
+  acc.plugin = { config: {} }
+  const handlers = []
+  acc._getOrAddService = (spec) => {
+    handlers.push(spec.subtype)
+    const characteristic = { onGet: () => characteristic, onSet: () => characteristic }
+    return { getCharacteristic: () => characteristic }
+  }
+  const device = { device_params: { dongle_product_model: dongle } }
+  return { acc, device, handlers }
+}
+
+test('a camera with a floodlight accessory gets the light switch without being listed', () => {
+  const { acc, device, handlers } = makeDetecting('HL_CFL')
+  assert.strictEqual(acc.cameraAccessoryAttached(), false)
+  acc._detectFloodlightDongle(device)
+  assert.deepStrictEqual(handlers, ['FloodLight'])
+  assert.strictEqual(acc.homeKitAccessory.context.floodlightDongle, true)
+  assert.strictEqual(acc.cameraAccessoryAttached(), true, 'its properties are read from now on')
+  assert.strictEqual(acc._lightConfigured(), true)
+})
+
+test('the switch is set up once, and a camera without the accessory gets none', () => {
+  const { acc, device, handlers } = makeDetecting('HL_CFL')
+  acc._detectFloodlightDongle(device)
+  acc._detectFloodlightDongle(device)
+  assert.strictEqual(handlers.length, 1)
+
+  for (const dongle of ['', undefined, 'SOMETHING_ELSE']) {
+    const none = makeDetecting(dongle)
+    none.acc._detectFloodlightDongle(none.device)
+    assert.deepStrictEqual(none.handlers, [])
+    assert.strictEqual(none.acc.cameraAccessoryAttached(), false)
+  }
+})
+
+test('a detected floodlight is remembered, so a restart sets the switch up from the cache', () => {
+  const { acc } = makeDetecting('')
+  acc.homeKitAccessory.context.floodlightDongle = true
+  assert.strictEqual(acc._hasFloodlightDongle(), true)
+  assert.strictEqual(acc.cameraAccessoryAttached(), true)
+})
