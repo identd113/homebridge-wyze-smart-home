@@ -10,6 +10,8 @@
 
 **[Project history](#history)** and **[timeline](#timeline)**: from misenhower's 2020 plugin to the current release.
 
+> **Coming soon:** gun safe support.
+
 ## Support
 
 If this plugin is useful to you, please look into supporting [Homebridge](https://github.com/sponsors/homebridge) first. None of this could happen without them.
