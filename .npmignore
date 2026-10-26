@@ -14,3 +14,4 @@ package-lock.json
 # Local working notes and tests are not part of the package
 testing/
 tests/
+docs/
