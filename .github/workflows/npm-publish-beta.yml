@@ -10,6 +10,10 @@
 #   * Verifies a published wyze-api satisfies that range before publishing,
 #     so the api must be released to npm first.
 #
+# Publishing is staged: the workflow runs `npm stage publish` with a stage-only
+# token, and the release goes public only after the maintainer approves it on
+# npmjs.com with 2FA (or `npm stage approve <id>`).
+#
 # Users on `npm install homebridge-wyze-smart-home` keep getting
 # `latest` — `beta` releases are only seen by users who explicitly opt
 # in with `npm install homebridge-wyze-smart-home@beta`.
@@ -74,7 +78,7 @@ jobs:
       - name: Ensure NPM_TOKEN is configured
         run: |
           if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "NPM_TOKEN secret is missing."
+            echo "NPM_TOKEN secret is missing. Add a granular stage-only npm token for this package (npm token create --packages-and-scopes-permission read-write-stage-only); approve the staged release on npmjs.com."
             exit 1
           fi
         env:
@@ -91,6 +95,7 @@ jobs:
             exit 1
           fi
           echo "Publishing homebridge-wyze-smart-home@$VERSION to beta tag"
-      - run: npm publish --access public --tag beta
+      - name: Stage the release (approve it on npmjs.com to publish)
+        run: npm install -g npm@^11.15.0 && npm stage publish --access public --tag beta
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
