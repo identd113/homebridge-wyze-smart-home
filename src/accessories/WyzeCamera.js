@@ -23,6 +23,11 @@ const NATIVE_STREAM_RESOLUTIONS = {
 // as a motion event and is flipped to "Doorbell rang" a few seconds later. Poll
 // often enough that the Home app rings promptly; each press rings once.
 const DOORBELL_POLL_MS = 5000;
+// Cameras without a doorbell button are checked for motion this often.
+const MOTION_POLL_MS = 10_000;
+// How often each camera's picture is refreshed by default; `snapshotRefreshSeconds` overrides it (0 = off).
+const SNAPSHOT_REFRESH_DEFAULT_S = 30;
+const SNAPSHOT_REFRESH_MIN_S = 10;
 const DOORBELL_MAX_BACKOFF_TICKS = 12; // ~1 minute between tries while Wyze keeps failing
 
 module.exports = class WyzeCamera extends WyzeAccessory {
@@ -204,19 +209,40 @@ module.exports = class WyzeCamera extends WyzeAccessory {
 
   // ---- Doorbell press -------------------------------------------------------
 
-  _startRingWatch() {
+  // A doorbell watches the cloud event list for presses; every camera also watches it
+  // for new motion, which takes a fresh picture. Either one needs the same poll.
+  _startEventWatch(isDoorbell) {
+    this._watchRing = !!isDoorbell;
+    this._watchMotion = this.plugin.config.snapshotOnMotion !== false;
+    if (!this._watchRing && !this._watchMotion) return;
     if (this._ringTimer) return;
     this._ringedIds = null; // seeded by the first successful poll
+    this._motionIds = null; // likewise
     this._ringFailures = 0;
     this._ringSkip = 0;
-    this._ringTimer = setInterval(() => this._checkRing(), DOORBELL_POLL_MS);
+    this._ringTimer = setInterval(() => this._checkRing(), this._watchRing ? DOORBELL_POLL_MS : MOTION_POLL_MS);
     this._ringTimer.unref?.();
+  }
+
+  // Keep the Home app's picture current: one new capture every `snapshotRefreshSeconds`
+  // (default 30, 0 turns it off). Each capture opens a short WebRTC session, so the
+  // delegate skips a camera that is streaming, offline or off.
+  _startSnapshotRefresh() {
+    if (this._refreshTimer) return;
+    const configured = this.plugin.config.snapshotRefreshSeconds;
+    const seconds = configured === undefined || configured === null ? SNAPSHOT_REFRESH_DEFAULT_S : Number(configured);
+    if (!(seconds > 0)) return;
+    const ms = Math.max(seconds, SNAPSHOT_REFRESH_MIN_S) * 1000;
+    // Home app requests are served from the cache for two intervals, so a tile never opens a session of its own.
+    this._refreshTimer = setInterval(() => this._streamingDelegate?.refreshSnapshot?.("timer", ms * 2), ms);
+    this._refreshTimer.unref?.();
   }
 
   async _checkRing() {
     if (this._ringBusy) return;
     if (this.cameraOnline === false) {
       this._ringedIds = null; // re-seed when it is back, so nothing from the gap rings late
+      this._motionIds = null;
       return;
     }
     if (this._ringSkip > 0) { this._ringSkip -= 1; return; } // backing off after errors
@@ -226,6 +252,11 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       // Events change after they appear (a press starts as motion), so judge each
       // by its current type.
       const rings = events.filter((event) => event.type === "DOORBELL_RANG");
+      if (this._watchMotion) this._checkMotion(events);
+      if (this._watchRing === false) {
+        this._ringFailures = 0;
+        return;
+      }
       if (this._ringedIds === null) {
         // Presses already in the list when we start are history. Going by event id,
         // not by comparing Wyze's timestamps with this host's clock, keeps this
@@ -257,10 +288,25 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     }
   }
 
+  // A new event in the cloud list (motion, a press, ...) means something just happened in
+  // front of the camera: take a new picture. The first poll only records what is already there.
+  _checkMotion(events) {
+    const ids = new Set(events.map((event) => event.id));
+    const previous = this._motionIds;
+    this._motionIds = ids;
+    if (previous === null || previous === undefined) return;
+    if (events.some((event) => !previous.has(event.id))) {
+      this.plugin.log.debug?.(`[Camera] ${this.display_name}: new motion, refreshing the picture`);
+      this._streamingDelegate?.refreshSnapshot?.("motion");
+    }
+  }
+
   // Stop live streams so the camera isn't left with a dead viewer (shutdown).
   stopStreams() {
     clearInterval(this._ringTimer);
     this._ringTimer = null;
+    clearInterval(this._refreshTimer);
+    this._refreshTimer = null;
     this._streamingDelegate?.stopAll();
   }
 
@@ -334,7 +380,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
 
     this.homeKitAccessory.configureController(controller);
     this._cameraController = controller;
-    if (isDoorbell) this._startRingWatch();
+    this._startEventWatch(isDoorbell);
+    this._startSnapshotRefresh();
 
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(

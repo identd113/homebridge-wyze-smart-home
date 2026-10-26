@@ -48,7 +48,10 @@ test('a doorbell model gets a DoorbellController, other cameras a CameraControll
   const camera = make('WYZE_CAKP2JFUS', async () => [])
   camera.acc._setupCameraController()
   assert.ok(!(camera.acc._cameraController instanceof FakeDoorbellController))
-  assert.strictEqual(camera.acc._ringTimer, undefined)
+  // A camera without a doorbell only watches for motion; it never rings.
+  assert.strictEqual(camera.acc._watchRing, false)
+  clearInterval(camera.acc._ringTimer)
+  clearInterval(camera.acc._refreshTimer)
 })
 
 function ringer (model, getEvents) {
@@ -132,7 +135,7 @@ test('repeated failures lengthen the back-off up to a cap', async () => {
 
 test('stopStreams stops the doorbell poll timer', () => {
   const { acc } = make('HL_DB2', async () => [])
-  acc._startRingWatch()
+  acc._startEventWatch(true)
   assert.ok(acc._ringTimer)
   acc.stopStreams()
   assert.strictEqual(acc._ringTimer, null)

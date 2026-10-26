@@ -9,6 +9,8 @@ const SNAPSHOT_CACHE_MS = 10_000;
 const SNAPSHOT_PREFETCH_MS = 60_000;
 // Cameras are prefetched one after another, never several at once.
 let prefetchQueue = Promise.resolve();
+// A motion-triggered refresh is skipped if the last picture is newer than this.
+const MOTION_REFRESH_MIN_GAP_MS = 10_000;
 const STREAM_START_TIMEOUT_MS = 60_000; // a start that has not settled by then no longer counts as active
 
 class WyzeCameraStreamingDelegate {
@@ -73,6 +75,40 @@ class WyzeCameraStreamingDelegate {
       cam.plugin.log(`[Camera] [Snapshot] Startup picture ready for ${name} (${Math.round(buffer.length / 1024)} KB)`);
     } catch (err) {
       cam.plugin.log.warn?.(`[Camera] [Snapshot] Startup picture failed for ${name}: ${err.message}`);
+    }
+  }
+
+  /**
+   * Replace the cached picture with a new one. `reason` is "timer" (the regular
+   * refresh) or "motion". Queued behind the other cameras, never throws, skips a
+   * camera that is offline, off or streaming, and never queues the same camera twice.
+   * `keepFreshMs` is how long the Home app is served this picture without a new capture.
+   */
+  refreshSnapshot (reason, keepFreshMs = SNAPSHOT_PREFETCH_MS) {
+    if (this._refreshPending) return prefetchQueue
+    this._refreshPending = true
+    prefetchQueue = prefetchQueue.then(() => this._refreshSnapshot(reason, keepFreshMs)).catch(() => {})
+    return prefetchQueue
+  }
+
+  async _refreshSnapshot (reason, keepFreshMs) {
+    this._refreshPending = false
+    const cam = this.camera
+    const name = cam.display_name
+    if (cam.cameraOnline === false || cam.power_switch === 0 || this._streamActive()) return
+    if (reason === 'motion' && this._lastRefreshAt && Date.now() - this._lastRefreshAt < MOTION_REFRESH_MIN_GAP_MS) return
+    try {
+      if (!this._snapshotInFlight) {
+        this._snapshotInFlight = this._fetchSnapshot().finally(() => {
+          this._snapshotInFlight = null
+        })
+      }
+      const buffer = await this._snapshotInFlight
+      this._lastRefreshAt = Date.now()
+      if (this._snapshotCache?.buffer === buffer) this._snapshotCache.expiresAt = Date.now() + keepFreshMs
+      cam.plugin.log.debug?.(`[Camera] [Snapshot] Refreshed picture for ${name} (${reason}, ${Math.round(buffer.length / 1024)} KB)`)
+    } catch (err) {
+      cam.plugin.log.debug?.(`[Camera] [Snapshot] Refresh failed for ${name} (${reason}): ${err.message}`)
     }
   }
 
