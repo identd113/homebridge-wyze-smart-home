@@ -187,6 +187,18 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     return Boolean(this.plugin.config[key]?.includes(this.mac));
   }
 
+  // The spotlight and floodlight switches are one light (property P1056), so either
+  // setting needs the camera's light state.
+  _lightConfigured() {
+    return this._isInConfig("spotLightAccessory") || this._isInConfig("floodLightAccessory");
+  }
+
+  _setLightState(value) {
+    this.floodLight = value;
+    this.spotLightService?.getCharacteristic(Characteristic.On).updateValue(this.floodLight);
+    this.floodLightService?.getCharacteristic(Characteristic.On).updateValue(this.floodLight);
+  }
+
   _getOrAddService({ ServiceType, subtype, defaultName, legacyLookup, label }) {
     // Prefer subtype-based lookup (stable across renames). Fall back to a
     // legacy name-based lookup so cameras paired before the naming change
@@ -482,10 +494,9 @@ module.exports = class WyzeCamera extends WyzeAccessory {
           }
           break;
         case "P1056": // Spotlight / Floodlight (same PID — covers both)
-          if (this._isInConfig("spotLightAccessory")) {
-            this.floodLight = property.value;
-            this.spotLightService?.getCharacteristic(Characteristic.On).updateValue(this.floodLight);
-            summary.push(`spotlight=${this.floodLight ? "on" : "off"}`);
+          if (this._lightConfigured()) {
+            this._setLightState(property.value);
+            summary.push(`light=${this.floodLight ? "on" : "off"}`);
           }
           break;
         case "P1301": // Garage Door
@@ -583,10 +594,9 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this.sirenSwitch?.getCharacteristic(Characteristic.On).updateValue(this.siren);
       summary.push(`siren=${this.siren ? "on" : "off"}`);
     }
-    if (state.floodlight !== undefined && this._isInConfig("spotLightAccessory")) {
-      this.floodLight = flag(state.floodlight);
-      this.spotLightService?.getCharacteristic(Characteristic.On).updateValue(this.floodLight);
-      summary.push(`spotlight=${this.floodLight ? "on" : "off"}`);
+    if (state.floodlight !== undefined && this._lightConfigured()) {
+      this._setLightState(flag(state.floodlight));
+      summary.push(`light=${this.floodLight ? "on" : "off"}`);
     }
     if (state.notify !== undefined && this._isInConfig("notificationAccessory")) {
       this.notification = flag(state.notify);
