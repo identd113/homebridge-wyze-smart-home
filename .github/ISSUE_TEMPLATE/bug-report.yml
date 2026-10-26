@@ -1,0 +1,89 @@
+name: Bug report
+description: Something does not work the way it should
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. The more of the form you fill in, the faster it can be fixed.
+
+        **Logs and config contain details that identify you or your network** (device names, MAC and IP addresses, your Wi-Fi name, your Wyze email). Please replace those with `REDACTED` before you paste. Never post your password, API key or tokens.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: A short description of the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Home app
+        2. Tap the camera
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected to happen
+
+  - type: input
+    id: device
+    attributes:
+      label: Device and model code
+      description: Which Wyze device is involved, for example "Cam v3 (WYZE_CAKP2JFUS)". Leave blank if it is not about one device.
+
+  - type: input
+    id: plugin
+    attributes:
+      label: Plugin version
+      placeholder: "2.0.0-beta.3"
+    validations:
+      required: true
+
+  - type: input
+    id: homebridge
+    attributes:
+      label: Homebridge version
+      description: "`homebridge -V`, or shown in the Homebridge UI."
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      description: "`node -v`"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The Homebridge log around the time of the problem. Set the plugin's Log Level to debug if the info log shows nothing.
+      render: text
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Plugin config
+      description: The WyzeSmartHome part of your `config.json`, with the credentials removed.
+      render: json
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I removed personal details and credentials from the logs and config.
+          required: true
+        - label: I looked for an existing issue about this.
+          required: true

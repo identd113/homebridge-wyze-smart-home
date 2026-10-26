@@ -1,0 +1,37 @@
+name: Question or help
+description: You need help setting up or using the plugin
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For open-ended chat, ideas or showing what you built, use **Discussions** instead (see the links above). Use this form when you have a specific problem you would like help with.
+
+        Please replace anything personal (device names, MAC and IP addresses, Wi-Fi name, email) with `REDACTED`, and never post passwords, API keys or tokens.
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to do
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you have tried, and what happened
+    validations:
+      required: true
+
+  - type: input
+    id: versions
+    attributes:
+      label: Plugin, Homebridge and Node.js versions
+      placeholder: "2.0.0-beta.3, 2.4.0, 24.1.0"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or config (optional)
+      render: text

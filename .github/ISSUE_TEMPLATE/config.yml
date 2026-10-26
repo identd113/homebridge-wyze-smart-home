@@ -1,5 +1,11 @@
-# blank_issues_enabled: false
-# contact_links:
-#   - name: Homebridge Discord Community
-#     url: https://discord.gg/kqNCe2D
-#     about: Ask your questions in the #YOUR_CHANNEL_HERE channel
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/identd113/homebridge-wyze-smart-home/discussions
+    about: Open-ended questions, ideas, feedback and showing what you built. Not for bugs.
+  - name: Homebridge Discord
+    url: https://discord.gg/Mjkpq2x9
+    about: Chat about this plugin with other users.
+  - name: Problem with the Wyze library itself
+    url: https://github.com/identd113/wyze-api/issues
+    about: Login, API and camera streaming problems that are not specific to the Homebridge plugin.
