@@ -143,6 +143,8 @@ module.exports = class WyzeSmartHome {
     this._fastPollStats = new Map()
     this._knownUnsupported = new Set()
     this._lastFullRefreshAt = 0
+    this._nextFullRefreshAt = 0 // every full refresh, whoever started it, moves this forward
+    this._refreshing = null
 
     process.on('unhandledRejection', (reason) => {
       this.log.error(`Unhandled promise rejection: ${reason?.stack ?? reason}`)
@@ -218,17 +220,34 @@ module.exports = class WyzeSmartHome {
   }
 
   async runLoop() {
-    const interval = this.config.refreshInterval || DEFAULT_REFRESH_INTERVAL
     // eslint-disable-next-line no-constant-condition
     while (true) {
+      // A refresh started by the lock fast poll counts: wait out what is left of its interval.
+      const wait = this._nextFullRefreshAt - Date.now()
+      if (wait > 0) {
+        await delay(wait)
+        continue
+      }
       try {
         await this.refreshDevices()
       } catch (e) {
         this.log.error(`[Plugin] Refresh failed: ${e}`)
       }
-
-      await delay(interval)
     }
+  }
+
+  /**
+   * One full refresh at a time: a caller that arrives while one is running shares it.
+   * When it ends, even on failure, the next scheduled refresh is a full interval away.
+   */
+  refreshDevices() {
+    if (!this._refreshing) {
+      this._refreshing = this._refreshDevicesOnce().finally(() => {
+        this._refreshing = null
+        this._nextFullRefreshAt = Date.now() + (this.config.refreshInterval || DEFAULT_REFRESH_INTERVAL)
+      })
+    }
+    return this._refreshing
   }
 
   async runLockFastPollLoop() {
@@ -271,7 +290,7 @@ module.exports = class WyzeSmartHome {
     }
   }
 
-  async refreshDevices() {
+  async _refreshDevicesOnce() {
     let fastPollSummary = ''
     if (this._fastPollStats.size > 0) {
       const parts = []
