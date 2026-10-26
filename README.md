@@ -69,7 +69,7 @@ Open a group to see its models.
 Notes on cameras:
 - Wyze cameras serve **one live viewer at a time**. The plugin closes each stream cleanly and shows the last snapshot while a stream is open.
 - **Audio** depends on the camera. Check that its microphone is on in the Wyze app. One of our Cam v3 units stayed silent in HomeKit even though the Wyze app played its sound, and we have not found why; the plugin then carries on with video only. Other cameras (the Doorbell v2, another Cam v3) work.
-- **Pictures** are refreshed every 30 seconds and when Wyze reports new motion (`snapshotRefreshSeconds`, `snapshotOnMotion`). Each refresh is a short live connection, so a Wyze app view of the same camera may be interrupted.
+- **Pictures** are refreshed every 30 seconds and when Wyze reports new motion (`advanced.snapshotRefreshSeconds`, `advanced.snapshotOnMotion`). Each refresh is a short live connection, so a Wyze app view of the same camera may be interrupted.
 - The Doorbell v2 press arrives from Wyze's cloud event list, so it can lag a few seconds. Turn on notifications for the doorbell in the Home app.
 - Extra switches (`garage`, `spotlight`, `floodlight`, `siren`, `notifications`, `motionDetection`) are set per camera under `cameras` in the config.
 - Cam Pan v4 and Bulb Cam come from [SecKatie/wyzeapy](https://github.com/SecKatie/wyzeapy) and have not been tried on hardware here yet.
@@ -178,9 +178,47 @@ For more information about our version updates, please check our [change log](CH
 
 ## Configuration
 
-Use the settings UI in Homebridge Config UI X to configure your Wyze account, or add the following to the platforms section of your config file:
+The easiest way is the settings screen in Homebridge Config UI X. You can also edit the `platforms` section of `config.json` yourself.
 
-```js
+### Quick start
+
+Four fields are **required**. With only these, the plugin finds your Wyze devices and adds them to Homebridge automatically, using the default settings:
+
+```json
+{
+  "platforms": [
+    {
+      "platform": "WyzeSmartHome",
+      "name": "Wyze",
+      "auth": {
+        "username": "YOUR_EMAIL",
+        "password": "YOUR_PASSWORD",
+        "keyId": "YOUR_KEY_ID",
+        "apiKey": "YOUR_API_KEY"
+      }
+    }
+  ]
+}
+```
+
+If your Wyze account uses an authenticator app for 2-factor authentication, also add `"totpSecret": "YOUR_2FA_KEY"` inside `auth` (see below).
+
+### Required fields
+
+| Field | What to enter |
+|---|---|
+| `auth.username` | Your Wyze account email address. |
+| `auth.password` | Your Wyze account password. |
+| `auth.keyId` | From the [Wyze developer portal](https://developer-api-console.wyze.com/). |
+| `auth.apiKey` | From the same portal. |
+
+To get the Key ID and API key, sign in to the [Wyze developer portal](https://developer-api-console.wyze.com/) with the same account you use in the Wyze app, then choose **Create an API key**. Wyze emails you to say a key was created. Use **view** to see the full key.
+
+### Recommended settings
+
+Everything else is optional. This example shows every common setting at the value the plugin uses when you leave it out, so you only need to write a line to change it:
+
+```json
 {
   "platforms": [
     {
@@ -198,64 +236,80 @@ Use the settings UI in Homebridge Config UI X to configure your Wyze account, or
         "lowBatteryPercentage": 30
       },
       "cameras": [
-        {
-          "mac": "MAC_ADDRESS_1",
-          "name": "Garage cam",
-          "garage": true,
-          "siren": true
-        }
+        { "mac": "MAC_ADDRESS_1", "name": "Garage cam", "garage": true, "siren": true }
       ],
+      "excludes": { "macs": [], "types": [] },
       "hms": { "enabled": false },
-      "excludes": { "macs": ["MAC_ADDRESS_2"], "types": ["Plug"] },
-      "logging": { "level": "info" }
+      "logging": { "level": "info" },
+      "advanced": {
+        "snapshotRefreshSeconds": 30,
+        "snapshotOnMotion": true,
+        "warmLiveView": false
+      }
     }
   ]
 }
 ```
 
-Supported devices will be discovered and added to Homebridge automatically. Each entry under `cameras` can add extra switches to that camera: `garage`, `spotlight`, `floodlight`, `siren`, `notifications` and `motionDetection`. Cameras not listed there get only the camera and its Privacy switch (the Doorbell v2 has no Privacy switch).
+The `cameras` entry is only an example. Cameras not listed there still appear, with the camera and its Privacy switch (the Doorbell v2 has no Privacy switch).
 
-The older flat format (`username`, `password`, `keyId`, `apiKey`, `filterByMacAddressList`, `garageDoorAccessory`, ...) is still accepted. On first start Homebridge converts it to the format above and keeps a copy of your old file next to it as `config.json.pre-2.0.bak`. Instead of putting credentials in `config.json` you can point `auth.secretsFile` at a private JSON file or use the `WYZE_*` environment variables.
+### Optional fields
 
-### Required Fields
+**Account**
 
-* **`username`** &ndash; App email address
-* **`password`** &ndash; App password
-* **`apiKey`** &ndash; Navigate to [this portal](https://developer-api-console.wyze.com/)
-* **`keyId`** &ndash; Navigate to [this portal](https://developer-api-console.wyze.com/), and click Login to sign in to your Wyze account.
-Note: Ensure that the login info you are using matches the info you use when logLevel into the Wyze app.
-Once you’ve signed in, you’ll be automatically redirected back to the developer page.
-Click Create an API key for your API key to be created.
-Once created, you can click view to see the entire key.
-You should receive an email that a new API key has been generated.
-Once you have the API key, you can use it in your script to get the access token and refresh token.
+| Field | Default | What it does |
+|---|---|---|
+| `auth.totpSecret` | none | Recommended if your account uses an authenticator app for 2-factor authentication. Enter the base32 key Wyze shows next to the QR code ("can't scan? enter this key"). The plugin generates the codes itself, so you enter it once. |
+| `auth.mfaCode` | none | An alternative to `totpSecret`: the current 6-digit code from your authenticator app, needed once at login. It rotates every 30 seconds, so it must be current when Homebridge starts. |
+| `auth.secretsFile` | none | Path to a private JSON file (mode 600) holding any of the credentials above, to keep them out of `config.json`. Values in the file override the config. The `WYZE_*` environment variables (for example `WYZE_USERNAME` and `WYZE_PASSWORD`) work too. |
 
-### Optional Fields
+**Polling**
 
-Everything below is in the settings screen of Homebridge Config UI X. The defaults suit most people.
+| Field | Default | What it does |
+|---|---|---|
+| `polling.refreshInterval` | `30000` | How often device status is checked, in milliseconds. |
+| `polling.lowBatteryPercentage` | `30` | Battery level that HomeKit reports as low. |
+| `securityRefreshInterval` | `10000` | How often lock devices (Wyze Lock, Lock Bolt v2, Palm Lock) are checked for changes, in milliseconds, separately from the main refresh. Top-level option with no settings-screen field. |
 
-* **`auth.totpSecret`** &ndash; Recommended if your Wyze account uses an authenticator app for 2-factor authentication. Enter the base32 key Wyze shows next to the QR code ("can't scan? enter this key"). The plugin generates the codes itself, so you only enter it once.
-* **`auth.mfaCode`** &ndash; An alternative to `totpSecret`: the current 6-digit code from your authenticator app, needed once at login. It rotates every 30 seconds, so it must be current when Homebridge starts.
-* **`polling.refreshInterval`** &ndash; How often device status is checked, in milliseconds. Defaults to 30000 (30 seconds).
-* **`polling.lowBatteryPercentage`** &ndash; Battery level that HomeKit reports as low. Defaults to 30.
-* **`hms.enabled`** &ndash; Set to `true` to add the Home Monitoring System. Defaults to `false`.
-* **`excludes`** &ndash; Hide devices by MAC address (`macs`) or type (`types`).
-* **`cameras`** &ndash; Extra switches for individual cameras (see above).
-* **`logging.level`** &ndash; `info` by default. Use `debug` only when troubleshooting, and note that debug logs are long.
-* **`securityRefreshInterval`** &ndash; How often, in milliseconds, to check lock devices (Wyze Lock, Lock Bolt v2, Palm Lock) for state changes, separately from the main refresh. Defaults to 10000 (10 seconds). Top-level option with no settings-screen field.
-* **`phoneId`** &ndash; The phone id the Wyze app uses, found by intercepting your phone's traffic. A default is used if it is not set. Top-level option with no settings-screen field.
-* **`advanced.snapshotRefreshSeconds`** &ndash; How often each camera's picture in the Home app is refreshed. Defaults to 30; `0` turns it off. Each refresh is a short live connection, so a Wyze app view of the same camera may be interrupted.
-* **`advanced.snapshotOnMotion`** &ndash; Take a new picture as soon as Wyze reports motion. Defaults to `true`.
-* **`advanced.warmLiveView`** &ndash; "Quick Live View". While the Home app is looking at a camera, the plugin opens a connection to it ahead of time (kept about 45 seconds after the Home app stops asking), so tapping live view starts almost at once and the picture stays fresh. Defaults to `false`. While a camera's connection is open the Wyze app cannot watch it, and all the cameras on screen are connected at once.
+**Devices**
 
-Other settings, such as the thermostat, vacuum and advanced options, are in the same screen and are explained there.
+| Field | Default | What it does |
+|---|---|---|
+| `cameras` | none | Extra switches for individual cameras, by `mac`: `garage`, `spotlight`, `floodlight`, `siren`, `notifications` and `motionDetection`, each `false` unless set. `name` is an optional label. |
+| `excludes.macs` | none | Hide devices by MAC address. |
+| `excludes.types` | none | Hide every device of a type, for example `Plug`, `Light` or `Camera`. The settings screen lists the choices. |
+| `hms.enabled` | `false` | Add the Home Monitoring System. Turn it on only with an active HMS subscription. |
+| `thermostat.exposeRoomSensors` | `false` | Also add the thermostat's room sensors. Costs one extra request per thermostat on each refresh. |
+| `thermostat.mode` | `auto` | `heat-only` or `cool-only` hides the modes your system doesn't have. |
+| `vacuum.perRoomSwitches` | `false` | One HomeKit switch per room, for voice commands like "vacuum the kitchen". |
+
+**Logging**
+
+| Field | Default | What it does |
+|---|---|---|
+| `logging.level` | `info` | `error`, `warn`, `info` or `debug`. Use `debug` only when troubleshooting; the logs are long. |
+| `logging.disableRedaction` | `false` | Keep tokens, emails and MAC addresses in the log. Never share a log made this way. |
+
+**Camera pictures and live view** (under `advanced`)
+
+| Field | Default | What it does |
+|---|---|---|
+| `advanced.snapshotRefreshSeconds` | `30` | How often each camera's picture in the Home app is refreshed; `0` turns it off. Each refresh is a short live connection, so a Wyze app view of the same camera may be interrupted. |
+| `advanced.snapshotOnMotion` | `true` | Take a new picture as soon as Wyze reports motion. |
+| `advanced.warmLiveView` | `false` | "Quick Live View". While the Home app is looking at a camera, the plugin opens a connection to it ahead of time (kept about 45 seconds after the Home app stops asking), so live view starts almost at once. Worth turning on if live view is slow to start. While a camera's connection is open the Wyze app cannot watch it, and all the cameras on screen are connected at once. |
+
+Other advanced settings (`deviceTypeOverrides` and custom base URLs) are for troubleshooting and are explained in the settings screen.
+
+### Older configs
+
+The older flat format (`username`, `password`, `keyId`, `apiKey`, `filterByMacAddressList`, `garageDoorAccessory`, ...) is still accepted. On first start Homebridge converts it to the format above and keeps a copy of your old file next to it as `config.json.pre-2.0.bak`.
 
 ## Cameras and doorbells
 
 - **Pairing.** Cameras are separate HomeKit accessories, not part of the bridge. When a camera is discovered, Homebridge's log prints its own setup code ("Please add [Camera name] manually in the Home app"); add each one in the Home app with that code. A camera that is newly recognised after an update (Cam Pan v4, Bulb Cam, Floodlight v2, Doorbell v2) shows up the same way and needs pairing once. Nothing already paired changes.
 - **Live view, snapshots and audio** come from Wyze over WebRTC. A Wyze camera serves **one viewer at a time**, so opening the same camera in the Wyze app, or in a second Home app view, may interrupt the stream. While a live view is open, the tile keeps showing the last snapshot. Audio only arrives if the camera's microphone is switched on in the Wyze app.
 - **Doorbell v2** is a HomeKit doorbell: a press rings the Home app (turn on notifications for it in the Home app). The plugin looks for presses in Wyze's cloud event list every 5 seconds, so the ring can arrive a few seconds late. Its picture is 640x480 (4:3) at 15 frames per second. Wyze doesn't let the doorbell be powered off through its API, so it has no Privacy switch.
-- **Battery cameras** (Cam Outdoor, Cam Outdoor v2, Battery Cam Pro) are woken by every connection, so their picture is taken at startup and when motion is reported, not on a timer (unless you set `snapshotRefreshSeconds` yourself), and they never get Quick Live View.
+- **Battery cameras** (Cam Outdoor, Cam Outdoor v2, Battery Cam Pro) are woken by every connection, so their picture is taken at startup and when motion is reported, not on a timer (unless you set `advanced.snapshotRefreshSeconds` yourself), and they never get Quick Live View.
 - **Many cameras.** Pictures are taken one at a time, a few seconds each, so with more than about six cameras each one is refreshed less often than every 30 seconds (the log says how often).
 - **Wyze plan limit.** Motion and doorbell events come from Wyze's cloud event list, which depends on your plan: cameras without a Wyze plan record at most one motion event about every 5 minutes (and no person/vehicle tags), and a doorbell without a plan may also miss a press that lands inside that cooldown. Live view and snapshots are not affected.
 
