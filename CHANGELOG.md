@@ -62,7 +62,7 @@ Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/identd
 - The README configuration section now lists required and optional fields with their defaults and example values.
 
 **Under the hood**
-- The minimum wyze-api version is declared once, in `package.json` (`^2.0.0-beta.3`). The plugin checks the installed wyze-api against it at startup and logs a clear error instead of failing later. The publish workflows check that a published wyze-api satisfies it, and the stable workflow counts only stable versions.
+- The wyze-api version is declared once, in `package.json`, and pinned exactly (`2.0.0-beta.3`), so every install gets the library build this release was tested with and a later wyze-api publish cannot change it. The plugin checks the installed wyze-api against it at startup and logs a clear error instead of failing later. The publish workflows check that a published wyze-api satisfies it, and the stable workflow counts only stable versions.
 - Removed the `src/wyze-api` git submodule. `wyze-api` is only an npm dependency now; for local development, clone it next to this repository and run `npm run dev-link`.
 - New tests: the wyze-api version check, a guard that every wyze-api method the plugin calls exists, the camera light and name logic, config migration, the thermostat humidity tile, wall-switch grace and the issue triage.
 
