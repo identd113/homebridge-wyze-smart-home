@@ -35,6 +35,13 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
 
     this.service = this.getThermostatService();
 
+    // 0.5.x showed humidity as its own tile; keep it so upgrading doesn't drop the tile
+    // (the Thermostat service carries the humidity too).
+    this.humidityService = this.getHumidityService();
+    this.humidityService
+      .getCharacteristic(Characteristic.CurrentRelativeHumidity)
+      .onGet(this.handleCurrentHumidityGet.bind(this));
+
     this.fanService = this.getOrAddSwitchService("fan", "Fan");
     this.fanService
       .getCharacteristic(Characteristic.On)
@@ -124,6 +131,16 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
       if (this.plugin.config.pluginLoggingEnabled)
         this.plugin.log(`[Thermostat] Adding service for "${this.display_name}"`);
       service = this.homeKitAccessory.addService(Service.Thermostat);
+    }
+    return service;
+  }
+
+  getHumidityService() {
+    let service = this.homeKitAccessory.getService(Service.HumiditySensor);
+    if (!service) {
+      if (this.plugin.config.pluginLoggingEnabled)
+        this.plugin.log(`[Thermostat] [Humidity] Adding service for "${this.display_name}"`);
+      service = this.homeKitAccessory.addService(Service.HumiditySensor);
     }
     return service;
   }
@@ -389,6 +406,9 @@ module.exports = class WyzeThermostat extends WyzeAccessory {
       .getCharacteristic(Characteristic.CurrentTemperature)
       .updateValue(c.fahrenheitToCelsius(this.thermostatTemperature));
     this.service
+      .getCharacteristic(Characteristic.CurrentRelativeHumidity)
+      .updateValue(this.thermostatHumidity);
+    this.humidityService
       .getCharacteristic(Characteristic.CurrentRelativeHumidity)
       .updateValue(this.thermostatHumidity);
     this.service
