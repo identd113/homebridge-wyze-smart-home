@@ -50,7 +50,7 @@ test('a doorbell model gets a DoorbellController, other cameras a CameraControll
   assert.ok(!(camera.acc._cameraController instanceof FakeDoorbellController))
   // A camera without a doorbell only watches for motion; it never rings.
   assert.strictEqual(camera.acc._watchRing, false)
-  clearInterval(camera.acc._ringTimer)
+  camera.acc.stopStreams()
 })
 
 function ringer (model, getEvents) {

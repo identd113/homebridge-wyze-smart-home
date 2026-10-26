@@ -97,8 +97,6 @@ function makeCamera (config, model = 'WYZE_CAKP2JFUS') {
 
 test('new motion events refresh the picture; the first poll only records history', () => {
   const { acc, refreshes } = makeCamera({})
-  acc._startEventWatch(false)
-  clearInterval(acc._ringTimer)
   acc._checkMotion([{ id: 'old' }])
   assert.strictEqual(refreshes.length, 0)
   acc._checkMotion([{ id: 'old' }])
@@ -109,14 +107,17 @@ test('new motion events refresh the picture; the first poll only records history
   assert.strictEqual(refreshes.length, 1)
 })
 
-test('snapshotOnMotion: false turns the motion poll off for a camera without a doorbell', () => {
+test('cameras without a doorbell join one shared motion poll; snapshotOnMotion: false keeps them out', () => {
   const on = makeCamera({})
+  on.acc.mac = 'AA'
   on.acc._startEventWatch(false)
-  assert.ok(on.acc._ringTimer)
-  clearInterval(on.acc._ringTimer)
+  assert.strictEqual(on.acc._ringTimer, undefined, 'no poll of its own')
+  assert.strictEqual(on.acc.plugin._motionPoller.members.length, 1)
+  on.acc.stopStreams()
+  assert.strictEqual(on.acc.plugin._motionPoller.members.length, 0)
   const off = makeCamera({ snapshotOnMotion: false })
   off.acc._startEventWatch(false)
-  assert.strictEqual(off.acc._ringTimer, undefined)
+  assert.strictEqual(off.acc.plugin._motionPoller, undefined)
 })
 
 test('a camera without a doorbell never rings on a motion event', async () => {
@@ -124,9 +125,9 @@ test('a camera without a doorbell never rings on a motion event', async () => {
   acc._cameraController = { ringDoorbell: () => { throw new Error('should not ring') } }
   acc.plugin.client.cameraGetEvents = async () => [{ id: 'e', type: 'DOORBELL_RANG' }]
   acc._startEventWatch(false)
-  clearInterval(acc._ringTimer)
   await acc._checkRing()
   await acc._checkRing()
+  acc.stopStreams()
 })
 
 test('cameras join one shared scheduler (default 30 s), can opt out, and leave on shutdown', () => {

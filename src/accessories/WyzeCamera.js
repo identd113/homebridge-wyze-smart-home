@@ -3,6 +3,7 @@ const WyzeAccessory = require("./WyzeAccessory");
 const enums = require("../enums");
 const WyzeCameraStreamingDelegate = require("../camera/WyzeCameraStreamingDelegate");
 const RefreshScheduler = require("../camera/refreshScheduler");
+const MotionPoller = require("../camera/motionPoller");
 const { markServiceOnline } = require("./offlineIndicator");
 
 // Sizes advertised to HomeKit. The video is passed through unscaled, so these
@@ -216,13 +217,26 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     this._watchRing = !!isDoorbell;
     this._watchMotion = this.plugin.config.snapshotOnMotion !== false;
     if (!this._watchRing && !this._watchMotion) return;
-    if (this._ringTimer) return;
+    if (this._ringTimer || this._motionMember) return;
     this._ringedIds = null; // seeded by the first successful poll
     this._motionIds = null; // likewise
-    this._ringFailures = 0;
-    this._ringSkip = 0;
-    this._ringTimer = setInterval(() => this._checkRing(), this._watchRing ? DOORBELL_POLL_MS : MOTION_POLL_MS);
-    this._ringTimer.unref?.();
+    if (this._watchRing) {
+      // A doorbell press has to be seen within seconds, so it keeps a poll of its own.
+      this._ringFailures = 0;
+      this._ringSkip = 0;
+      this._ringTimer = setInterval(() => this._checkRing(), DOORBELL_POLL_MS);
+      this._ringTimer.unref?.();
+      return;
+    }
+    // Everything else shares one request for all the cameras.
+    if (!this.plugin._motionPoller) this.plugin._motionPoller = new MotionPoller(this.plugin.client, { log: this.plugin.log });
+    this._motionMember = {
+      mac: this.mac,
+      online: () => this.cameraOnline !== false,
+      onEvents: (events) => this._checkMotion(events),
+      reset: () => { this._motionIds = null; },
+    };
+    this.plugin._motionPoller.add(this._motionMember);
   }
 
   // Keep the Home app's picture current: one new capture every `snapshotRefreshSeconds`
@@ -308,6 +322,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   stopStreams() {
     clearInterval(this._ringTimer);
     this._ringTimer = null;
+    if (this._motionMember) this.plugin._motionPoller?.remove(this._motionMember);
+    this._motionMember = null;
     if (this._refreshMember) this.plugin._refreshScheduler?.remove(this._refreshMember);
     this._refreshMember = null;
     this._streamingDelegate?.stopAll();
