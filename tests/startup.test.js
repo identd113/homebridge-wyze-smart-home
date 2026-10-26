@@ -75,3 +75,17 @@ test('a camera that drops out of the device list stops its streams and doorbell 
   assert.deepStrictEqual(stopped, ['doorbell'])
   assert.strictEqual(platform.accessories.length, 0)
 })
+
+test('startup says which plugin and wyze-api versions are loaded', () => {
+  const log = makeLog()
+  const api = makeApi()
+  const out = captureStdout(() => {
+    // eslint-disable-next-line no-new
+    new WyzeSmartHome(log, { platform: 'WyzeSmartHome', name: 'Wyze', username: ' ', password: 'p', keyId: 'k', apiKey: 'a' }, api)
+  })
+  const pluginVersion = require('../package.json').version
+  const apiVersion = require('wyze-api/package.json').version
+  const lines = out.split('\n').filter((l) => l.includes('[Wyze] homebridge-wyze-smart-home'))
+  assert.strictEqual(lines.length, 1)
+  assert.ok(lines[0].includes(`homebridge-wyze-smart-home ${pluginVersion}, wyze-api ${apiVersion} (needs `), lines[0])
+})

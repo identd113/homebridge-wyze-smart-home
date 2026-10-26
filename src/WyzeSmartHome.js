@@ -124,6 +124,11 @@ module.exports = class WyzeSmartHome {
     // accessories are left alone (see configureAccessory) so a config or
     // version problem never removes paired accessories from HomeKit.
     const apiCheck = wyzeApiVersion.checkInstalled()
+    // The library can differ between two installs of the same plugin version
+    // (it is a range), so say which one is loaded: it is the first thing to ask for.
+    if (apiCheck.installed) {
+      this.log.info?.(`[Wyze] homebridge-wyze-smart-home ${require('../package.json').version}, wyze-api ${apiCheck.installed} (needs ${apiCheck.required})`)
+    }
     const username = typeof this.config.username === 'string' ? this.config.username.trim() : ''
     const fatal = !apiCheck.ok
       ? apiCheck.message
