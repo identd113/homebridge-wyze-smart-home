@@ -1,0 +1,32 @@
+# Sorts issues made from the "New or unsupported Wyze device" form: labels them, spots
+# requests for the same model, flags personal details in the pasted text, and keeps one
+# comment up to date. The logic is in .github/scripts/triage-issue.js (tested in tests/).
+#
+# The issue text is untrusted, so it is only read by that script as data and never put in a
+# shell command.
+
+name: Triage device issues
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: triage-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    if: ${{ contains(github.event.issue.labels.*.name, 'new device') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { run } = require('./.github/scripts/triage-issue.js')
+            await run({ github, context, core })

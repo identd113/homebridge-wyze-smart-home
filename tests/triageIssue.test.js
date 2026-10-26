@@ -1,0 +1,147 @@
+/**
+ * The issue triage (.github/scripts/triage-issue.js) reads the "New or unsupported Wyze
+ * device" form. These bodies are shaped the way GitHub writes a submitted issue form.
+ */
+const test = require('node:test')
+const assert = require('node:assert')
+const fs = require('node:fs')
+const path = require('node:path')
+
+const triage = require('../.github/scripts/triage-issue.js')
+const known = { supported: require('../.github/scripts/known-models.json'), notApplicable: triage.NOT_APPLICABLE }
+
+const blobFor = (model, extra = {}) => JSON.stringify({ product_model: model, product_type: 'Common', firmware_ver: '1.2.3', ...extra }, null, 2)
+
+function issue ({ model = 'HL_NEW1', name = 'Wyze Thing', kind = 'Light, bulb or light strip', blob = blobFor(model), features = 'turns on' } = {}) {
+  return [
+    '### Model code', '', model, '',
+    '### What the device is called', '', name, '',
+    '### What kind of device is it?', '', kind, '',
+    '### Firmware version', '', '_No response_', '',
+    '### What the device does in the Wyze app', '', features, '',
+    '### What you would like in HomeKit', '', '_No response_', '',
+    '### Device information', '', '```json', blob, '```', '',
+    '### Anything else from the log (optional)', '', '_No response_', '',
+    '### Before you submit', '', '- [x] I looked at the README lists'
+  ].join('\n')
+}
+
+test('the headings the script reads are the ones in the issue form', () => {
+  const form = fs.readFileSync(path.join(__dirname, '../.github/ISSUE_TEMPLATE/new-device.yml'), 'utf8')
+  for (const heading of Object.values(triage.FIELD)) assert.ok(form.includes(`label: ${heading}`), heading)
+  for (const kind of Object.keys(triage.KIND_LABELS)) assert.ok(form.includes(`- ${kind}`), kind)
+})
+
+test('a form body is split into its fields, and "No response" is empty', () => {
+  const fields = triage.parseForm(issue())
+  assert.strictEqual(fields['Model code'], 'HL_NEW1')
+  assert.strictEqual(fields['Firmware version'], '')
+  assert.ok(fields['Device information'].startsWith('{'), 'the json fence is removed')
+})
+
+test('a new model gets a model label, a kind label and no complaints', () => {
+  const r = triage.triage(issue(), known)
+  assert.strictEqual(r.status, 'new')
+  assert.deepStrictEqual(r.labels, ['kind:light', 'model:HL_NEW1', 'new device'])
+  assert.deepStrictEqual(r.problems, [])
+  assert.deepStrictEqual(r.leaks, [])
+})
+
+test('a model the plugin handles is labelled already-supported and says what handles it', () => {
+  const r = triage.triage(issue({ model: 'HL_DB2', kind: 'Camera or doorbell' }), known)
+  assert.strictEqual(r.status, 'supported')
+  assert.ok(r.labels.includes('already-supported'))
+  assert.ok(!r.labels.some((l) => l.startsWith('model:')))
+  assert.match(triage.buildComment(r, known), /handled as: camera or doorbell/)
+})
+
+test('scales, headphones and chimes are labelled not-applicable', () => {
+  for (const model of ['WL_SC3', 'JA_HP', 'GW_CHI', 'CHIME']) {
+    const r = triage.triage(issue({ model }), known)
+    assert.strictEqual(r.status, 'not-applicable', model)
+    assert.ok(r.labels.includes('not-applicable'))
+  }
+})
+
+test('personal details in the pasted text are flagged by key, and never repeated', () => {
+  const blob = blobFor('HL_NEW1', { mac: 'HL_NEW1_AABBCCDDEEFF', nickname: 'Example Lock', ip: '192.0.2.10', ssid: 'ExampleWifi' })
+  const r = triage.triage(issue({ blob }), known)
+  assert.deepStrictEqual(r.leaks, ['ip', 'mac', 'nickname', 'ssid'])
+  assert.ok(r.labels.includes('needs-redaction'))
+  const comment = triage.buildComment(r, known)
+  for (const secret of ['AABBCCDDEEFF', 'Example Lock', '192.0.2.10', 'ExampleWifi']) assert.ok(!comment.includes(secret), secret)
+  assert.match(comment, /Delete revision/)
+})
+
+test('values replaced with REDACTED are accepted', () => {
+  const blob = blobFor('HL_NEW1', { mac: 'REDACTED', nickname: 'REDACTED', ip: '<redacted>', ssid: '***' })
+  assert.deepStrictEqual(triage.triage(issue({ blob }), known).leaks, [])
+})
+
+test('a firmware version that looks like an IP address is not a leak', () => {
+  const blob = blobFor('HL_NEW1', { firmware_ver: '4.10.3.22' })
+  assert.deepStrictEqual(triage.triage(issue({ blob }), known).leaks, [])
+})
+
+test('a MAC in a pasted log line is flagged', () => {
+  assert.deepStrictEqual(triage.sensitiveKeysIn('Unsupported device type: (Name: X) (MAC: AABBCCDDEEFF) (Model: HL_A)'), ['mac'])
+})
+
+test('a blob that is not JSON, or lacks the model code, needs more information', () => {
+  const broken = triage.triage(issue({ blob: '{ "product_model": ' }), known)
+  assert.ok(broken.labels.includes('needs-info'))
+  assert.match(broken.problems[0], /not valid JSON/)
+  const wrong = triage.triage(issue({ blob: blobFor('SOMETHING_ELSE') }), known)
+  assert.ok(wrong.labels.includes('needs-info'))
+  assert.match(wrong.problems[0], /does not mention the model code/)
+})
+
+test('a missing or odd model code is rejected and does not become a label', () => {
+  for (const model of ['', '_No response_', 'x', '../../etc', 'a b', 'HL_NEW1; rm -rf /']) {
+    const r = triage.triage(issue({ model }), known)
+    assert.ok(r.labels.includes('needs-info'), JSON.stringify(model))
+    assert.ok(!r.labels.some((l) => l.startsWith('model:')), JSON.stringify(model))
+  }
+  assert.strictEqual(triage.cleanModel('`HL_NEW1`'), 'HL_NEW1')
+})
+
+test('requests for the same model are counted in the comment', () => {
+  const r = triage.triage(issue(), known)
+  assert.match(triage.buildComment(r, known, [12]), /One other person has asked for this model too: #12/)
+  assert.match(triage.buildComment(r, known, [12, 15]), /2 other people have asked for this model too: #12, #15/)
+  assert.ok(!/other people/.test(triage.buildComment(r, known, [])))
+})
+
+test('the comment is marked so it can be found and updated', () => {
+  assert.ok(triage.buildComment(triage.triage(issue(), known), known).startsWith(triage.MARKER))
+})
+
+test('known-models.json lists exactly the models wyze-api provides', () => {
+  const generated = require('../.github/scripts/gen-known-models.js').build()
+  assert.deepStrictEqual(known.supported, generated, 'run `npm run known-models` and commit the result')
+})
+
+test('run() labels the issue, creates missing labels, and posts one comment', async () => {
+  const calls = { created: [], added: [], comments: [] }
+  const github = {
+    rest: {
+      issues: {
+        getLabel: async ({ name }) => { if (name !== 'new device') { const e = new Error('nf'); e.status = 404; throw e } },
+        createLabel: async ({ name }) => calls.created.push(name),
+        addLabels: async ({ labels }) => calls.added.push(...labels),
+        removeLabel: async () => {},
+        listForRepo: async () => ({ data: [{ number: 7 }, { number: 9, pull_request: {} }, { number: 42 }] }),
+        listComments: async () => {},
+        createComment: async ({ body }) => calls.comments.push(body),
+        updateComment: async () => { throw new Error('should create, not update') }
+      }
+    },
+    paginate: async () => []
+  }
+  const context = { repo: { owner: 'o', repo: 'r' }, payload: { issue: { number: 42, body: issue(), labels: [{ name: 'new device' }] } } }
+  await triage.run({ github, context, core: { info () {} } })
+  assert.deepStrictEqual(calls.created.sort(), ['kind:light', 'model:HL_NEW1'])
+  assert.deepStrictEqual(calls.added.sort(), ['kind:light', 'model:HL_NEW1'])
+  assert.strictEqual(calls.comments.length, 1)
+  assert.match(calls.comments[0], /One other person has asked for this model too: #7\./, 'pull requests and the issue itself are not counted')
+})
