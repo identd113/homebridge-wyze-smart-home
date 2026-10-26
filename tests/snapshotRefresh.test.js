@@ -129,13 +129,16 @@ test('a camera without a doorbell never rings on a motion event', async () => {
   await acc._checkRing()
 })
 
-test('the refresh timer defaults to 30 s, can be turned off, and stops on shutdown', () => {
+test('cameras join one shared scheduler (default 30 s), can opt out, and leave on shutdown', () => {
   const { acc } = makeCamera({})
   acc._startSnapshotRefresh()
-  assert.ok(acc._refreshTimer)
+  const scheduler = acc.plugin._refreshScheduler
+  assert.strictEqual(scheduler.intervalMs, 30_000)
+  assert.deepStrictEqual(scheduler.members, [acc._streamingDelegate])
   acc.stopStreams()
-  assert.strictEqual(acc._refreshTimer, null)
+  assert.deepStrictEqual(scheduler.members, [])
+  assert.strictEqual(scheduler.timer, null)
   const off = makeCamera({ snapshotRefreshSeconds: 0 })
   off.acc._startSnapshotRefresh()
-  assert.strictEqual(off.acc._refreshTimer, undefined)
+  assert.strictEqual(off.acc.plugin._refreshScheduler, undefined)
 })

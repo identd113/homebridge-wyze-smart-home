@@ -51,7 +51,6 @@ test('a doorbell model gets a DoorbellController, other cameras a CameraControll
   // A camera without a doorbell only watches for motion; it never rings.
   assert.strictEqual(camera.acc._watchRing, false)
   clearInterval(camera.acc._ringTimer)
-  clearInterval(camera.acc._refreshTimer)
 })
 
 function ringer (model, getEvents) {

@@ -2,6 +2,7 @@ const { Service, Characteristic } = require("../types");
 const WyzeAccessory = require("./WyzeAccessory");
 const enums = require("../enums");
 const WyzeCameraStreamingDelegate = require("../camera/WyzeCameraStreamingDelegate");
+const RefreshScheduler = require("../camera/refreshScheduler");
 const { markServiceOnline } = require("./offlineIndicator");
 
 // Sizes advertised to HomeKit. The video is passed through unscaled, so these
@@ -228,14 +229,16 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   // (default 30, 0 turns it off). Each capture opens a short WebRTC session, so the
   // delegate skips a camera that is streaming, offline or off.
   _startSnapshotRefresh() {
-    if (this._refreshTimer) return;
+    if (this._refreshMember) return;
     const configured = this.plugin.config.snapshotRefreshSeconds;
     const seconds = configured === undefined || configured === null ? SNAPSHOT_REFRESH_DEFAULT_S : Number(configured);
-    if (!(seconds > 0)) return;
+    if (!(seconds > 0) || !this._streamingDelegate) return;
     const ms = Math.max(seconds, SNAPSHOT_REFRESH_MIN_S) * 1000;
-    // Home app requests are served from the cache for two intervals, so a tile never opens a session of its own.
-    this._refreshTimer = setInterval(() => this._streamingDelegate?.refreshSnapshot?.("timer", ms * 2), ms);
-    this._refreshTimer.unref?.();
+    // One scheduler for the whole platform takes the cameras in turn, evenly spaced,
+    // so they never refresh at the same moment.
+    if (!this.plugin._refreshScheduler) this.plugin._refreshScheduler = new RefreshScheduler(ms);
+    this._refreshMember = this._streamingDelegate;
+    this.plugin._refreshScheduler.add(this._refreshMember);
   }
 
   async _checkRing() {
@@ -305,8 +308,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   stopStreams() {
     clearInterval(this._ringTimer);
     this._ringTimer = null;
-    clearInterval(this._refreshTimer);
-    this._refreshTimer = null;
+    if (this._refreshMember) this.plugin._refreshScheduler?.remove(this._refreshMember);
+    this._refreshMember = null;
     this._streamingDelegate?.stopAll();
   }
 
