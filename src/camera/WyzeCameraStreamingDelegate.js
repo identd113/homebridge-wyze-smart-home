@@ -229,7 +229,7 @@ class WyzeCameraStreamingDelegate {
     try {
       result = await this.camera.plugin.client.getCameraSnapshotImage(
         this.camera.mac,
-        { skipCloud: true, label: this.camera.display_name }
+        { skipCloud: true, label: this.camera.display_name, deviceModel: this.camera.product_model }
       );
     } catch (err) {
       // A stream can claim the camera between the check above and this call (HomeKit asks

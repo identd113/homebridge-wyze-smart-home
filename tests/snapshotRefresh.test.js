@@ -181,3 +181,19 @@ test('cameras join one shared scheduler (default 30 s), can opt out, and leave o
   off.acc._startSnapshotRefresh()
   assert.strictEqual(off.acc.plugin._refreshScheduler, undefined)
 })
+
+test('a capture tells wyze-api the camera model, so it need not look the camera up', async () => {
+  const seen = []
+  const d = makeDelegate('A', async () => Buffer.from('x'), {
+    product_model: 'WYZE_CAKP2JFUS',
+    plugin: {
+      config: {},
+      log: Object.assign(() => {}, { error: () => {}, warn: () => {}, debug: () => {} }),
+      client: { getCameraSnapshotImage: async (mac, options) => { seen.push([mac, options]); return { buffer: Buffer.from('x') } } }
+    }
+  })
+  await d.refreshSnapshot('timer', 60_000)
+  assert.strictEqual(seen.length, 1)
+  assert.strictEqual(seen[0][1].deviceModel, 'WYZE_CAKP2JFUS')
+  assert.strictEqual(seen[0][1].skipCloud, true)
+})
