@@ -11,7 +11,7 @@ Old branches that were cleaned out of the repository, what each one held, and wh
 | `feature/lock-fast-poll-wyze-api-1.1.11` | `847142f9e` | 2026-04-30 | Lock Bolt V2 and Palm Lock, a separate 10 s lock poll, thermostat setter fixes, `wyze-api` 1.1.11 | `WyzeLockBoltV2.js` and the lock poll are in `2.x` |
 | `feature/thermostat-hms-improvements` | `3cf78c5bd` | 2026-04-11 | Thermostat humidity sensor and fan switch, a fix for a Home Monitoring offline crash, dependency bumps | The fan switch is in `2.x`. The separate humidity tile was missing and was restored in 2.0.0-beta.3 |
 | `release/0.5.56` | `1a928a8ec` | 2026-05-11 | The 0.5.56 stability release | Merged into `main` |
-| `2.0.0-merge-main` | `11aa07d01` | 2026-08-06 | A parallel reconciliation of `main` (0.5.x) into the 2.0.0 line, with an audit pass | `2.x` took the same direction on its own. Three audit fixes were **not** carried over (below) |
+| `2.0.0-merge-main` | `11aa07d01` | 2026-08-06 | A parallel reconciliation of `main` (0.5.x) into the 2.0.0 line, with an audit pass | `2.x` took the same direction on its own. Two of its three audit fixes were ported and one was left out (below) |
 | `codex/add-dx_pvloc-...` (two branches), `pr/merge-main-into-2.0.0` | n/a | n/a | Nothing that `2.x` does not already have | Deleted without a tag |
 
 ## Fixes on `2.0.0-merge-main`
