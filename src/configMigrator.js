@@ -67,6 +67,20 @@ const ADVANCED_KEYS = [
   "warmLiveView",
 ];
 
+// Top-level options the plugin still reads that have no nested home. They are kept
+// as they are when a flat config is rewritten, so a migration doesn't reset them.
+const PASSTHROUGH_KEYS = [
+  "securityRefreshInterval",
+  "phoneId",
+  "authApiKey",
+  "appName",
+  "appVer",
+  "appVersion",
+  "userAgent",
+  "sc",
+  "sv",
+];
+
 function isPlainObject(v) {
   return v != null && typeof v === "object" && !Array.isArray(v);
 }
@@ -268,6 +282,11 @@ function toCanonical2x(normalized, platformMeta) {
   if (normalized.auth.secretsFile) out.auth.secretsFile = normalized.auth.secretsFile;
   if (normalized.auth.mfaCode) out.auth.mfaCode = normalized.auth.mfaCode;
   if (normalized.auth.totpSecret) out.auth.totpSecret = normalized.auth.totpSecret;
+
+  for (const k of PASSTHROUGH_KEYS) {
+    const v = normalized[k];
+    if (v != null && v !== "") out[k] = v;
+  }
 
   // Only include the advanced block if anything in it is set, so the
   // file stays clean for the 99% of users who never touch it.
