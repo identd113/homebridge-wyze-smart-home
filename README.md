@@ -242,6 +242,8 @@ Everything below is in the settings screen of Homebridge Config UI X. The defaul
 * **`excludes`** &ndash; Hide devices by MAC address (`macs`) or type (`types`).
 * **`cameras`** &ndash; Extra switches for individual cameras (see above).
 * **`logging.level`** &ndash; `info` by default. Use `debug` only when troubleshooting, and note that debug logs are long.
+* **`securityRefreshInterval`** &ndash; How often, in milliseconds, to check lock devices (Wyze Lock, Lock Bolt v2, Palm Lock) for state changes, separately from the main refresh. Defaults to 10000 (10 seconds). Top-level option with no settings-screen field.
+* **`phoneId`** &ndash; The phone id the Wyze app uses, found by intercepting your phone's traffic. A default is used if it is not set. Top-level option with no settings-screen field.
 * **`advanced.snapshotRefreshSeconds`** &ndash; How often each camera's picture in the Home app is refreshed. Defaults to 30; `0` turns it off. Each refresh is a short live connection, so a Wyze app view of the same camera may be interrupted.
 * **`advanced.snapshotOnMotion`** &ndash; Take a new picture as soon as Wyze reports motion. Defaults to `true`.
 * **`advanced.warmLiveView`** &ndash; "Quick Live View". While the Home app is looking at a camera, the plugin opens a connection to it ahead of time (kept about 45 seconds after the Home app stops asking), so tapping live view starts almost at once and the picture stays fresh. Defaults to `false`. While a camera's connection is open the Wyze app cannot watch it, and all the cameras on screen are connected at once.
