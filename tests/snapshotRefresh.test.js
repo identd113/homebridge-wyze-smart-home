@@ -197,3 +197,22 @@ test('a capture tells wyze-api the camera model, so it need not look the camera 
   assert.strictEqual(seen[0][1].deviceModel, 'WYZE_CAKP2JFUS')
   assert.strictEqual(seen[0][1].skipCloud, true)
 })
+
+test('preparing a stream asks wyze-api to fetch the camera connection details ahead of time', async () => {
+  const asked = []
+  const camera = {
+    display_name: 'A', mac: 'MAC1', product_model: 'WYZE_CAKP2JFUS',
+    plugin: {
+      config: {},
+      log: Object.assign(() => {}, { error: () => {}, warn: () => {}, debug: () => {} }),
+      client: {
+        prefetchCameraConnection: (mac, model) => asked.push([mac, model]),
+        prepareCameraHKStream: async () => ({ localRtpPort: 1, localAudioRtpPort: 2, videoSsrc: 3, audioSsrc: 4, localAddress: '127.0.0.1' })
+      }
+    }
+  }
+  const d = new Delegate(camera)
+  const request = { sessionID: Buffer.from('aa'), targetAddress: '127.0.0.1', video: { port: 5000, srtp_key: Buffer.alloc(16), srtp_salt: Buffer.alloc(14) }, audio: { port: 5002, srtp_key: Buffer.alloc(16), srtp_salt: Buffer.alloc(14) } }
+  await new Promise((resolve) => d.prepareStream(request, () => resolve()))
+  assert.deepStrictEqual(asked, [['MAC1', 'WYZE_CAKP2JFUS']])
+})

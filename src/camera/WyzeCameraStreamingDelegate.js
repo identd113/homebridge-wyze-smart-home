@@ -242,6 +242,12 @@ class WyzeCameraStreamingDelegate {
 
   async prepareStream(request, callback) {
     const sessionKey = request.sessionID.toString("hex");
+    // HomeKit starts the stream a moment after preparing it: ask Wyze for the camera's
+    // connection details now, so that round trip is not part of the wait. Skipped when a
+    // live stream is already running (a second one could not use it).
+    if (!this._streamActive()) {
+      try { this.camera.plugin.client.prefetchCameraConnection?.(this.camera.mac, this.camera.product_model); } catch (_) { /* optional speed-up */ }
+    }
     const { localRtpPort, localAudioRtpPort, videoSsrc, audioSsrc, localAddress } =
       await this.camera.plugin.client.prepareCameraHKStream();
 
