@@ -389,3 +389,71 @@ test('CI skips changes that only touch Markdown, so the README pull requests fro
   assert.match(ci, /pull_request:\n    paths-ignore: \["\*\*\.md"\]/)
   assert.match(ci, /branches: \[2\.x\]\n    paths-ignore: \["\*\*\.md"\]/)
 })
+
+test('pasted credentials are found by name, never by value, and removed ones are not', () => {
+  const { credentialKeysIn } = require('../.github/scripts/credentials.js')
+  const origin = require('../.github/scripts/origin-label.js')
+  assert.deepStrictEqual(credentialKeysIn('{"username": "a@b.c", "password": "hunter2", "apiKey": "REDACTED", "keyId": "abc-123"}'), ['keyid', 'password'])
+  assert.deepStrictEqual(credentialKeysIn('password: <hidden>\nkeyId=***\ntotpSecret = JBSWY3DPEHPK3PXP'), ['totpsecret'])
+  assert.deepStrictEqual(credentialKeysIn('Using the password to log in. The token expired.'), [])
+  assert.deepStrictEqual(credentialKeysIn('Authorization: Bearer abcdefghijklmnopqrstuvwxyz0123456789'), ['authorization'])
+  const warning = origin.credentialComment(['keyid', 'password'], true)
+  assert.ok(warning.includes('`keyid`') && warning.includes('`password`') && !/hunter2|abc-123/.test(warning))
+  assert.match(warning, /replaced the values with `REDACTED` automatically/)
+})
+
+test('credentials are replaced with REDACTED in place, and nothing else in the text changes', () => {
+  const { redactCredentials, credentialKeysIn } = require('../.github/scripts/credentials.js')
+  const text = '{\n  "username": "a@b.c",\n  "password": "hunter2",\n  "apiKey": "REDACTED",\n  "keyId": "abc-123"\n}\nlog: totpSecret = JBSWY3DPEHPK3PXP and Bearer abcdefghijklmnopqrstuvwxyz0123456789\nUsing the password to log in.'
+  const out = redactCredentials(text)
+  assert.ok(!/hunter2|abc-123|JBSWY3DPEHPK3PXP|abcdefghijklmnopqrstuvwxyz0123456789/.test(out), out)
+  assert.ok(out.includes('"username": "a@b.c"') && out.includes('Using the password to log in.'), 'the rest is untouched')
+  assert.ok(out.includes('"password": "REDACTED"') && out.includes('totpSecret = REDACTED') && out.includes('Bearer REDACTED'))
+  assert.deepStrictEqual(credentialKeysIn(out), [], 'a second pass finds nothing')
+  assert.strictEqual(redactCredentials(out), out, 'redacting twice changes nothing')
+})
+
+test('the intake redacts the issue text, labels it, and warns once', async () => {
+  const origin = require('../.github/scripts/origin-label.js')
+  const calls = { updated: null, labels: [], comments: [] }
+  const github = {
+    rest: { issues: {
+      update: async ({ body }) => { calls.updated = body }, getLabel: async () => {}, createLabel: async () => {},
+      addLabels: async ({ labels }) => calls.labels.push(...labels), removeLabel: async () => {}, addAssignees: async () => {},
+      listComments: async () => {}, createComment: async ({ body }) => calls.comments.push(body), updateComment: async () => {}
+    } },
+    paginate: async () => []
+  }
+  const issue = { number: 3, body: '### Plugin config\n\n{"password": "hunter2"}', labels: [], assignees: [] }
+  await origin.run({ github, context: { repo: { owner: 'o', repo: 'r' }, payload: { action: 'opened', issue } }, core: { info () {}, warning () {} } })
+  assert.ok(calls.updated.includes('"password": "REDACTED"') && !calls.updated.includes('hunter2'))
+  assert.deepStrictEqual(calls.labels, ['credentials-exposed'])
+  assert.strictEqual(calls.comments.length, 1)
+  assert.ok(!calls.comments[0].includes('hunter2'))
+})
+
+test('the bug form is short, asks for the checks first, and has the origin question', () => {
+  const yaml = require('node:fs').readFileSync(path.join(__dirname, '../.github/ISSUE_TEMPLATE/bug-report.yml'), 'utf8')
+  const questions = (yaml.match(/^    id: /gm) || []).length
+  assert.ok(questions <= 8, `${questions} questions`)
+  assert.ok(yaml.indexOf('id: checks') < yaml.indexOf('id: what'))
+  assert.ok(yaml.includes('label: Where did you come from?'))
+})
+
+test('a "does not work" report on a confirmed device is flagged as a possible regression, and never auto-closed', async () => {
+  const calls = { labels: [], closed: false }
+  const body = issue({ report: 'It does not work', device: 'Video Doorbell v2 (HL_DB2)', model: '', blob: '' })
+  const github = {
+    rest: { issues: {
+      getLabel: async () => {}, createLabel: async () => {}, addLabels: async ({ labels }) => calls.labels.push(...labels), removeLabel: async () => {},
+      listForRepo: async () => ({ data: [] }), listComments: async () => {}, createComment: async ({ body: text }) => { calls.comment = text },
+      updateComment: async () => {}, update: async () => { calls.closed = true }
+    } },
+    paginate: async () => []
+  }
+  const context = { repo: { owner: 'o', repo: 'r' }, payload: { action: 'opened', issue: { number: 9, body, labels: [{ name: 'new device' }] } } }
+  await triage.run({ github, context, core: { info () {} } })
+  assert.ok(calls.labels.includes('regression') && calls.labels.includes('report:broken'))
+  assert.match(calls.comment, /possible \*\*regression\*\*/)
+  assert.strictEqual(calls.closed, false)
+})

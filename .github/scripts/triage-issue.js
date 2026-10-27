@@ -76,13 +76,14 @@ function kindFromModel(model) {
   return model && has(names, model) ? SECTION_KIND[names[model].section] || null : null;
 }
 
-const STATUS_LABELS = ["already-supported", "not-applicable", "needs-redaction", "needs-info"];
+const STATUS_LABELS = ["already-supported", "not-applicable", "needs-redaction", "needs-info", "regression"];
 
 const LABEL_COLORS = {
   "already-supported": "0e8a16",
   "not-applicable": "cccccc",
   "needs-redaction": "b60205",
   "needs-info": "fbca04",
+  regression: "d93f0b",
   "new device": "1d76db",
   model: "5319e7",
   kind: "c5def5",
@@ -248,6 +249,12 @@ function buildComment(result, known, others = [], listed = null) {
       "- the log from startup and from the moment you use the device, with the plugin's Log Level set to debug;",
       "- this device's part of your plugin config, with personal details removed."
     );
+    if (listed && listed.level >= USER) {
+      lines.push(
+        "",
+        `\`${model}\` is currently listed as ${listed.name}, so this is being treated as a possible **regression** and is flagged for a maintainer.`
+      );
+    }
   } else if (status === "supported") {
     lines.push(
       `Thanks for the report. \`${model}\` is already supported (it is handled as: ${known.supported[model]}).`,
@@ -322,6 +329,20 @@ async function run({ github, context, core }) {
   };
   const result = triage(issue.body, known);
 
+  let listed = null;
+  if (result.status === "supported" && ["works", "partial", "broken"].includes(result.report)) {
+    try {
+      listed = statusOf(fs.readFileSync(path.join(process.cwd(), "README.md"), "utf8"), result.model);
+    } catch {
+      listed = null; // no README to read: say nothing about the level
+    }
+  }
+  // "Partly works" or "does not work" for a device a user or maintainer has confirmed is a
+  // possible regression: label it so it stands out.
+  if (listed && listed.level >= USER && (result.report === "partial" || result.report === "broken")) {
+    result.labels = [...result.labels, "regression"].sort();
+  }
+
   let others = [];
   if (result.status === "new" && result.model) {
     const found = await github.rest.issues.listForRepo({
@@ -344,14 +365,6 @@ async function run({ github, context, core }) {
     owner, repo, issue_number: issue.number, per_page: 100,
   });
   const mine = comments.find((c) => c.body && c.body.includes(MARKER) && c.user && c.user.type === "Bot");
-  let listed = null;
-  if (result.status === "supported" && result.report === "works") {
-    try {
-      listed = statusOf(fs.readFileSync(path.join(process.cwd(), "README.md"), "utf8"), result.model);
-    } catch {
-      listed = null; // no README to read: say nothing about the level
-    }
-  }
   const body = buildComment(result, known, others, listed);
   if (mine) {
     if (mine.body !== body) await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
@@ -359,7 +372,7 @@ async function run({ github, context, core }) {
     await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body });
   }
   // A "works" report that cannot move the device up has nothing left to do: close it with the note.
-  if (listed && listed.level >= USER && context.payload.action === "opened") {
+  if (listed && listed.level >= USER && result.report === "works" && context.payload.action === "opened") {
     await github.rest.issues.update({ owner, repo, issue_number: issue.number, state: "closed", state_reason: "completed" });
   }
   core.info(`#${issue.number}: ${result.status}, model ${result.model || "none"}, labels ${result.labels.join(", ")}`);

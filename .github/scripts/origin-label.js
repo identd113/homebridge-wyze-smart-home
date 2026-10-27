@@ -2,7 +2,9 @@
 
 /**
  * Intake for every new issue, whichever form made it: assigns the maintainers if nobody is
- * assigned, and labels the issue by where the reporter came from. The bug report and device report forms
+ * assigned, labels the issue by where the reporter came from, and warns when the text looks like
+ * it contains a password, API key or token: the values are replaced with REDACTED in the issue
+ * text, and only the names of the secrets are ever repeated. The bug report and device report forms
  * have an optional "Where did you come from?" question, which a link on another page can
  * fill in (for example `...issues/new?template=bug-report.yml&origin=wyze-api` from the
  * wyze-api repository). It runs from .github/workflows/label-origin.yml through
@@ -11,6 +13,10 @@
  */
 
 const { assignIfUnassigned } = require("./maintainers.js");
+const { credentialKeysIn, redactCredentials } = require("./credentials.js");
+
+const CREDENTIAL_MARKER = "<!-- wyze-credentials -->";
+const CREDENTIAL_LABEL = "credentials-exposed";
 
 const HEADING = "Where did you come from?";
 const ORIGIN = /^[a-z0-9][a-z0-9._-]{0,30}$/;
@@ -27,6 +33,49 @@ function originLabel(body) {
   return null;
 }
 
+function credentialComment(keys, redacted) {
+  return [
+    CREDENTIAL_MARKER,
+    "**This issue contained credentials** (" + keys.map((k) => `\`${k}\``).join(", ") + ")." +
+      (redacted ? " I replaced the values with `REDACTED` automatically." : " Please replace the values with `REDACTED` by editing the issue."),
+    "",
+    "GitHub keeps an issue's edit history, so the original values can still be seen and may already have been copied. Please:",
+    "",
+    "1. **Change them now.** Create a new API key in the Wyze developer portal, and change your Wyze password if you posted it.",
+    "2. Open the issue's \"edited\" dropdown, choose the earlier version, and select **Delete revision**.",
+    "",
+    "<sub>This comment is written by a script. The `credentials-exposed` label stays until a maintainer is satisfied the credentials were changed.</sub>",
+  ].join("\n");
+}
+
+async function handleCredentials({ github, core, owner, repo, issue, labels }) {
+  const keys = credentialKeysIn(issue.body);
+  if (!keys.length) return keys; // nothing found: leave any earlier label and comment alone
+  let redacted = false;
+  try {
+    await github.rest.issues.update({ owner, repo, issue_number: issue.number, body: redactCredentials(issue.body) });
+    redacted = true;
+  } catch (err) {
+    core.warning(`#${issue.number}: could not redact the issue text: ${err.message}`);
+  }
+  try {
+    await github.rest.issues.getLabel({ owner, repo, name: CREDENTIAL_LABEL });
+  } catch (err) {
+    if (err.status !== 404) throw err;
+    await github.rest.issues.createLabel({ owner, repo, name: CREDENTIAL_LABEL, color: "b60205" });
+  }
+  if (!labels.includes(CREDENTIAL_LABEL)) await github.rest.issues.addLabels({ owner, repo, issue_number: issue.number, labels: [CREDENTIAL_LABEL] });
+  const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: issue.number, per_page: 100 });
+  const mine = comments.find((c) => c.body && c.body.includes(CREDENTIAL_MARKER) && c.user && c.user.type === "Bot");
+  const body = credentialComment(keys, redacted);
+  if (mine) {
+    if (mine.body !== body) await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+  } else {
+    await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body });
+  }
+  return keys;
+}
+
 async function run({ github, context, core }) {
   const { owner, repo } = context.repo;
   const issue = context.payload.issue;
@@ -35,6 +84,8 @@ async function run({ github, context, core }) {
   }
   const label = originLabel(issue.body);
   const current = (issue.labels || []).map((l) => (typeof l === "string" ? l : l.name));
+  const exposed = await handleCredentials({ github, core, owner, repo, issue, labels: current });
+  if (exposed.length) core.warning(`#${issue.number}: credentials in the issue: ${exposed.join(", ")}`);
   for (const name of current.filter((n) => n.startsWith("from:") && n !== label)) {
     await github.rest.issues.removeLabel({ owner, repo, issue_number: issue.number, name });
   }
@@ -49,4 +100,4 @@ async function run({ github, context, core }) {
   core.info(`#${issue.number}: ${label}`);
 }
 
-module.exports = { HEADING, originLabel, run };
+module.exports = { HEADING, CREDENTIAL_LABEL, originLabel, credentialComment, run };

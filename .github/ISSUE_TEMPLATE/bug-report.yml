@@ -7,67 +7,44 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting this. The more of the form you fill in, the faster it can be fixed. This also covers the `wyze-api` library the plugin is built on: problems with login, the Wyze API or camera streaming belong here too.
+        Thanks for reporting this. It also covers the `wyze-api` library the plugin is built on: problems with login, the Wyze API or camera streaming belong here too. For one device that works, partly works or does not work, the **Wyze device report** form is quicker.
 
-        **Logs and config contain details that identify you or your network** (device names, MAC and IP addresses, your Wi-Fi name, your Wyze email). Please replace those with `REDACTED` before you paste. Never post your password, API key or tokens.
+        **Logs and config contain details that identify you or your network** (device names, MAC and IP addresses, your Wi-Fi name, your Wyze email). Replace those with `REDACTED` before you paste. **Never post your password, API key, key ID or tokens**: if you do, change them in the Wyze developer portal, then edit them out of the issue.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you start
+      options:
+        - label: I removed personal details and credentials from anything I paste.
+          required: true
+        - label: I looked for an existing issue about this.
+          required: true
 
   - type: textarea
     id: what
     attributes:
-      label: What happened
-      description: A short description of the problem.
+      label: What happened, and what you expected
+      description: A short description, and the steps that cause it if you know them.
     validations:
       required: true
-
-  - type: textarea
-    id: steps
-    attributes:
-      label: Steps to reproduce
-      placeholder: |
-        1. Open the Home app
-        2. Tap the camera
-        3. ...
-    validations:
-      required: true
-
-  - type: textarea
-    id: expected
-    attributes:
-      label: What you expected to happen
 
   - type: input
     id: device
     attributes:
       label: Device and model code
-      description: Which Wyze device is involved, for example "Cam v3 (WYZE_CAKP2JFUS)". Leave blank if it is not about one device.
+      description: Only if it is about one device, for example "Cam v3 (WYZE_CAKP2JFUS)".
 
-  - type: input
-    id: plugin
+  - type: textarea
+    id: versions
     attributes:
-      label: Plugin version
-      placeholder: "2.0.0-beta.3"
-    validations:
-      required: true
-
-  - type: input
-    id: wyze-api
-    attributes:
-      label: wyze-api version
-      description: "Printed in the Homebridge log at startup, or run `npm ls wyze-api` in the plugin's folder."
-
-  - type: input
-    id: homebridge
-    attributes:
-      label: Homebridge version
-      description: "`homebridge -V`, or shown in the Homebridge UI."
-    validations:
-      required: true
-
-  - type: input
-    id: node
-    attributes:
-      label: Node.js version
-      description: "`node -v`"
+      label: Versions
+      description: "The plugin and wyze-api versions are printed in the Homebridge log at startup. `homebridge -V` and `node -v` give the other two."
+      value: |
+        Plugin:
+        wyze-api:
+        Homebridge:
+        Node.js:
     validations:
       required: true
 
@@ -82,7 +59,7 @@ body:
     id: config
     attributes:
       label: Plugin config
-      description: The WyzeSmartHome part of your `config.json`, with the credentials removed.
+      description: The WyzeSmartHome part of your `config.json`, with every credential removed.
       render: json
 
   - type: input
@@ -90,13 +67,3 @@ body:
     attributes:
       label: Where did you come from?
       description: Filled in for you when you followed a link from another page, for example the wyze-api repository. Otherwise leave it empty.
-
-  - type: checkboxes
-    id: checks
-    attributes:
-      label: Before you submit
-      options:
-        - label: I removed personal details and credentials from the logs and config.
-          required: true
-        - label: I looked for an existing issue about this.
-          required: true
