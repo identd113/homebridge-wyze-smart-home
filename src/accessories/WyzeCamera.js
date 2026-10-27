@@ -32,7 +32,7 @@ const MOTION_POLL_MS = 10_000;
 const SNAPSHOT_REFRESH_DEFAULT_S = 30;
 const SNAPSHOT_REFRESH_MIN_S = 10;
 // Floodlight accessories (device parameter `dongle_product_model`) that get a light switch on
-// their own. HL_CFL is the Cam v3 floodlight, seen on a real Back Yard Cam.
+// their own. HL_CFL is the Cam v3 floodlight, seen on a real Cam v3.
 const FLOODLIGHT_DONGLE_MODELS = new Set(["HL_CFL"]);
 // Wyze sends on/off properties as strings ("1" on, "2" or "0" off), and any non-empty string is truthy.
 const isOn = (v) => v === 1 || v === "1" || v === true;
