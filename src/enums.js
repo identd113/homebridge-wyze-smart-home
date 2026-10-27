@@ -176,7 +176,7 @@ const ModelNames = {
   "AN_RSCW":         "Battery Cam Pro",
   "LD_CFP":          "Cam Floodlight Pro",
   "GW_GC1":          "Cam OG",
-  "GW_GC":           "Cam OG Telephoto 3x",
+  "GW_GC2":          "Cam OG Telephoto 3x",
   // Vacuum / Irrigation
   "JA_RO2":          "Robot Vacuum",
   "BS_WK1":          "Sprinkler Controller",

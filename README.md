@@ -73,7 +73,7 @@ Open a group to see its models. Each **report** link opens the device report for
 | Cam Floodlight v2 | `HL_CFL2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Floodlight%20v2%20%28HL_CFL2%29&origin=readme) | Appears as a camera | WebRTC | 🟡 |
 | Battery Cam Pro | `AN_RSCW` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Battery%20cameras%20-%20Battery%20Cam%20Pro%20%28AN_RSCW%29&origin=readme) | Appears as a camera (spotlight and siren expected) | WebRTC | 🟡 |
 | Cam OG | `GW_GC1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20OG%20%28GW_GC1%29&origin=readme) | Appears as a camera | WebRTC | 🟡 |
-| Cam OG Telephoto 3x | `GW_GC` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20OG%20Telephoto%203x%20%28GW_GC%29&origin=readme) | Appears as a camera | WebRTC | 🟡 |
+| Cam OG Telephoto 3x | `GW_GC2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20OG%20Telephoto%203x%20%28GW_GC2%29&origin=readme) | Appears as a camera | WebRTC | 🟡 |
 
 Notes on cameras:
 - Wyze cameras serve **one live viewer at a time**. The plugin closes each stream cleanly and shows the last snapshot while a stream is open.
