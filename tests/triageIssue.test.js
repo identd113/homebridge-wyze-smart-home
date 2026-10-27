@@ -383,3 +383,9 @@ test('every issue form assigns the maintainers, and the intake assigns them when
   const failing = { rest: { issues: { addAssignees: async () => { throw new Error('no access') } } } }
   assert.strictEqual(await assignIfUnassigned({ github: failing, core, owner: 'o', repo: 'r', number: 7 }), false, 'a failure is not thrown')
 })
+
+test('CI skips changes that only touch Markdown, so the README pull requests from verify need no run', () => {
+  const ci = fs.readFileSync(path.join(__dirname, '../.github/workflows/ci.yml'), 'utf8')
+  assert.match(ci, /pull_request:\n    paths-ignore: \["\*\*\.md"\]/)
+  assert.match(ci, /branches: \[2\.x\]\n    paths-ignore: \["\*\*\.md"\]/)
+})

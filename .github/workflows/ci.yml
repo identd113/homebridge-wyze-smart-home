@@ -6,10 +6,15 @@
 
 name: CI
 
+# A change that only touches Markdown files (the README, the changelog) cannot break the tests,
+# so it is skipped. That includes the pull requests the verify-device workflow opens. A change
+# that also touches any other file still runs.
 on:
   pull_request:
+    paths-ignore: ["**.md"]
   push:
     branches: [2.x]
+    paths-ignore: ["**.md"]
 
 permissions:
   contents: read
