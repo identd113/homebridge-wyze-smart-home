@@ -165,11 +165,12 @@ Have a Wyze device that is not on either list? [Tell us about it](https://github
 **Effort** is our rough estimate. **Easy** means another open-source Wyze project already handles the device, so we can port from it; **Hard** means it needs a different protocol; **Unknown** means we found no reference implementation.
 
 <details open>
-<summary><strong>Devices we do not support yet</strong> (5)</summary>
+<summary><strong>Devices we do not support yet</strong> (6)</summary>
 
 | Device | Model code | Why it isn't supported | Effort |
 |---|---|---|---|
-| Keypad | — | No accessory class | Easy |
+| Air Purifier | `CO_AP1` | No accessory class. [wyzeapy](https://github.com/SecKatie/wyzeapy) reads on/off, fan mode and air quality, and HomeKit has matching services | Medium |
+| Keypad | — | It is an accessory of the lock and HomeKit has no keypad service. [wyze-sdk](https://github.com/shauntarves/wyze-sdk) reads its enable setting and events | Unknown |
 | Lamp Socket / Lamp Socket v2 | — | No model code yet | Easy |
 | Lock Bolt (original, Bluetooth only) | — | Bluetooth only, no cloud control | Hard |
 | Window Cam, Battery Video Doorbell, Duo Cam Doorbell | — | No model codes yet | Unknown |
@@ -177,7 +178,7 @@ Have a Wyze device that is not on either list? [Tell us about it](https://github
 
 </details>
 
-Not applicable to HomeKit, or not planned: Cordless Vacuum, Scales, Watch, Headphones, Air Purifier, Chimes.
+Not applicable to HomeKit, or not planned: Cordless Vacuum, Scales, Watch, Headphones, Chimes.
 
 For more information about our version updates, please check our [change log](CHANGELOG.md).
 
