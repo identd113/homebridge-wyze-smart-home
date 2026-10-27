@@ -239,3 +239,19 @@ test('the device list is grouped, and newest first inside each group', () => {
   assert.strictEqual(opts[0].startsWith('Doorbells - '), true)
   assert.strictEqual(gen.options().at(-1), gen.OTHER)
 })
+
+test('a device picked from the list gets its kind label without the kind question', () => {
+  const r = triage.triage(issue({ report: 'It works', device: 'Cam v2 (WYZEC1-JZ)', model: '', kind: '_No response_', blob: '' }), known)
+  assert.ok(r.labels.includes('kind:camera'))
+  assert.strictEqual(triage.triage(issue({ device: 'Palm Lock (DX_PVLOC)', model: '', kind: '_No response_' }), known).labels.includes('kind:lock'), true)
+  assert.strictEqual(triage.kindFromModel('NOT_A_MODEL'), null)
+})
+
+test('a kind the reporter picked wins over the one from the list', () => {
+  const r = triage.triage(issue({ device: 'Cam v2 (WYZEC1-JZ)', model: '', kind: 'Something else' }), known)
+  assert.ok(r.labels.includes('kind:other') && !r.labels.includes('kind:camera'))
+})
+
+test('every group in the device list maps to a kind label', () => {
+  for (const section of require('../.github/scripts/gen-device-options.js').SECTIONS) assert.ok(triage.SECTION_KIND[section], section)
+})

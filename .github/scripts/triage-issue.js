@@ -54,6 +54,25 @@ const REPORT_LABELS = {
   "It does not work": "report:broken",
 };
 
+// The kind label a device from the form's list gets when the reporter did not pick a kind:
+// its group in device-names.json decides.
+const SECTION_KIND = {
+  Doorbells: "kind:camera",
+  Cameras: "kind:camera",
+  "Battery cameras": "kind:camera",
+  Locks: "kind:lock",
+  Lights: "kind:light",
+  "Plugs and switches": "kind:plug-switch",
+  Sensors: "kind:sensor",
+  Climate: "kind:climate",
+  Appliances: "kind:appliance",
+};
+
+function kindFromModel(model) {
+  const names = require("./device-names.json");
+  return model && has(names, model) ? SECTION_KIND[names[model].section] || null : null;
+}
+
 const STATUS_LABELS = ["already-supported", "not-applicable", "needs-redaction", "needs-info"];
 
 const LABEL_COLORS = {
@@ -155,7 +174,7 @@ function triage(body, known) {
   const notApplicable = known.notApplicable || NOT_APPLICABLE;
   const fields = parseForm(body);
   const model = modelFrom(fields);
-  const kind = KIND_LABELS[fields[FIELD.kind]] || null;
+  const kind = KIND_LABELS[fields[FIELD.kind]] || kindFromModel(model);
   const reportLabel = has(REPORT_LABELS, fields[FIELD.report]) ? REPORT_LABELS[fields[FIELD.report]] : null;
   const leaks = sensitiveKeysIn(Object.values(fields).join("\n"));
 
@@ -317,5 +336,5 @@ async function run({ github, context, core }) {
 
 module.exports = {
   MARKER, FIELD, OTHER_DEVICE, NOT_APPLICABLE, KIND_LABELS, REPORT_LABELS, MODEL_PATTERN,
-  parseForm, modelFrom, cleanModel, sensitiveKeysIn, blobProblem, triage, buildComment, run,
+  parseForm, modelFrom, kindFromModel, SECTION_KIND, cleanModel, sensitiveKeysIn, blobProblem, triage, buildComment, run,
 };
