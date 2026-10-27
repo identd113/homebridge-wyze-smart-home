@@ -1,6 +1,6 @@
 /**
- * The issue triage (.github/scripts/triage-issue.js) reads the "New or unsupported Wyze
- * device" form. These bodies are shaped the way GitHub writes a submitted issue form.
+ * The issue triage (.github/scripts/triage-issue.js) reads the "Wyze device report"
+ * form. These bodies are shaped the way GitHub writes a submitted issue form.
  */
 const test = require('node:test')
 const assert = require('node:assert')
@@ -12,8 +12,9 @@ const known = { supported: require('../.github/scripts/known-models.json'), notA
 
 const blobFor = (model, extra = {}) => JSON.stringify({ product_model: model, product_type: 'Common', firmware_ver: '1.2.3', ...extra }, null, 2)
 
-function issue ({ model = 'HL_NEW1', name = 'Wyze Thing', kind = 'Light, bulb or light strip', blob = blobFor(model), features = 'turns on' } = {}) {
+function issue ({ report = 'It is not supported yet', model = 'HL_NEW1', name = 'Wyze Thing', kind = 'Light, bulb or light strip', blob = blobFor(model), features = 'turns on' } = {}) {
   return [
+    '### What are you reporting?', '', report, '',
     '### Model code', '', model, '',
     '### What the device is called', '', name, '',
     '### What kind of device is it?', '', kind, '',
@@ -30,6 +31,7 @@ test('the headings the script reads are the ones in the issue form', () => {
   const form = fs.readFileSync(path.join(__dirname, '../.github/ISSUE_TEMPLATE/new-device.yml'), 'utf8')
   for (const heading of Object.values(triage.FIELD)) assert.ok(form.includes(`label: ${heading}`), heading)
   for (const kind of Object.keys(triage.KIND_LABELS)) assert.ok(form.includes(`- ${kind}`), kind)
+  for (const report of Object.keys(triage.REPORT_LABELS)) assert.ok(form.includes(`- ${report}`), report)
 })
 
 test('a form body is split into its fields, and "No response" is empty', () => {
@@ -152,4 +154,40 @@ test('model codes that are Object.prototype names are new devices, not supported
     assert.strictEqual(r.status, 'new', model)
     assert.ok(!r.labels.includes('already-supported'), model)
   }
+})
+
+test('"it works" on a supported model is labelled, thanked, and not told it is unsupported', () => {
+  const r = triage.triage(issue({ report: 'It works', model: 'HL_DB2', kind: 'Camera or doorbell', blob: '' }), known)
+  assert.strictEqual(r.status, 'supported')
+  assert.strictEqual(r.report, 'works')
+  assert.ok(r.labels.includes('report:works') && r.labels.includes('already-supported'))
+  assert.deepStrictEqual(r.problems, [], 'the device information is optional for a working device')
+  const comment = triage.buildComment(r, known)
+  assert.match(comment, /Thanks for confirming that `HL_DB2` works/)
+  assert.ok(!/If it does not show up in HomeKit/.test(comment))
+})
+
+test('"partly works" and "does not work" on a supported model ask for versions, logs and config', () => {
+  for (const [report, label] of [['It partly works', 'report:partial'], ['It does not work', 'report:broken']]) {
+    const r = triage.triage(issue({ report, model: 'HL_DB2', kind: 'Camera or doorbell', blob: '' }), known)
+    assert.ok(r.labels.includes(label), report)
+    const comment = triage.buildComment(r, known)
+    assert.match(comment, /wyze-api` version/)
+    assert.match(comment, /Log Level set to debug/)
+  }
+})
+
+test('"it works" on a model the plugin does not handle is treated as a request', () => {
+  const r = triage.triage(issue({ report: 'It works' }), known)
+  assert.strictEqual(r.status, 'new')
+  assert.ok(r.misfiled)
+  assert.match(triage.buildComment(r, known), /treated as a request to add it/)
+})
+
+test('an issue made before the report question existed is still read as a request', () => {
+  const body = issue().replace(/### What are you reporting\?\n\n.*\n\n/, '')
+  const r = triage.triage(body, known)
+  assert.strictEqual(r.status, 'new')
+  assert.ok(!r.misfiled)
+  assert.ok(!r.labels.some((l) => l.startsWith('report:')))
 })

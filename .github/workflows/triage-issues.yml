@@ -1,4 +1,4 @@
-# Sorts issues made from the "New or unsupported Wyze device" form: labels them, spots
+# Sorts issues made from the "Wyze device report" form: labels them, spots
 # requests for the same model, flags personal details in the pasted text, and keeps one
 # comment up to date. The logic is in .github/scripts/triage-issue.js (tested in tests/).
 #

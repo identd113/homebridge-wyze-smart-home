@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Sorts a "New or unsupported Wyze device" issue: reads the form, labels the issue, and
+ * Sorts a "Wyze device report" issue (a device to add, or whether one works): reads the form, labels the issue, and
  * posts (or updates) one comment. It runs from .github/workflows/triage-issues.yml through
  * actions/github-script, and everything it decides lives in triage() so it can be tested
  * without GitHub.
@@ -15,6 +15,7 @@ const MARKER = "<!-- wyze-device-triage -->";
 // Headings GitHub writes for the questions in .github/ISSUE_TEMPLATE/new-device.yml.
 // tests/triageIssue.test.js checks that they still match the form.
 const FIELD = {
+  report: "What are you reporting?",
   model: "Model code",
   name: "What the device is called",
   kind: "What kind of device is it?",
@@ -43,6 +44,14 @@ const KIND_LABELS = {
   "Something else": "kind:other",
 };
 
+// The answers to the "What are you reporting?" question, and the label each one gets.
+const REPORT_LABELS = {
+  "It is not supported yet": null,
+  "It works": "report:works",
+  "It partly works": "report:partial",
+  "It does not work": "report:broken",
+};
+
 const STATUS_LABELS = ["already-supported", "not-applicable", "needs-redaction", "needs-info"];
 
 const LABEL_COLORS = {
@@ -53,6 +62,7 @@ const LABEL_COLORS = {
   "new device": "1d76db",
   model: "5319e7",
   kind: "c5def5",
+  report: "bfd4f2",
 };
 
 // A Wyze model code, as the plugin logs it: letters, digits, dot, underscore, dash.
@@ -132,6 +142,7 @@ function triage(body, known) {
   const fields = parseForm(body);
   const model = cleanModel(fields[FIELD.model]);
   const kind = KIND_LABELS[fields[FIELD.kind]] || null;
+  const reportLabel = has(REPORT_LABELS, fields[FIELD.report]) ? REPORT_LABELS[fields[FIELD.report]] : null;
   const leaks = sensitiveKeysIn(Object.values(fields).join("\n"));
 
   const labels = new Set(["new device"]);
@@ -144,6 +155,7 @@ function triage(body, known) {
   } else if (has(known.supported, model)) {
     status = "supported";
     labels.add("already-supported");
+    if (reportLabel) labels.add(reportLabel);
   } else if (has(notApplicable, model)) {
     status = "not-applicable";
     labels.add("not-applicable");
@@ -158,14 +170,33 @@ function triage(body, known) {
   if (kind) labels.add(kind);
   if (leaks.length) labels.add("needs-redaction");
 
-  return { fields, model, status, labels: [...labels].sort(), leaks, problems };
+  // "It works" for a model the plugin does not handle is treated as a request for it.
+  const report = status === "supported" && reportLabel ? reportLabel.slice("report:".length) : null;
+  const misfiled = status === "new" && !!reportLabel;
+
+  return { fields, model, status, report, misfiled, labels: [...labels].sort(), leaks, problems };
 }
 
 function buildComment(result, known, others = []) {
-  const { model, status, leaks, problems } = result;
+  const { model, status, report, misfiled, leaks, problems } = result;
   const lines = [MARKER];
 
-  if (status === "supported") {
+  if (status === "supported" && report === "works") {
+    lines.push(
+      `Thanks for confirming that \`${model}\` works (it is handled as: ${known.supported[model]}). That helps us keep the supported-device list honest.`,
+      "",
+      "If something stops working later, reply here or open a new report with the plugin log."
+    );
+  } else if (status === "supported" && (report === "partial" || report === "broken")) {
+    lines.push(
+      `Thanks for the report. \`${model}\` is handled by the plugin (as: ${known.supported[model]}), so we will look at what goes wrong.`,
+      "",
+      "It helps a lot if you reply with:",
+      "- the plugin version and the `wyze-api` version (both are printed in the Homebridge log at startup);",
+      "- the log from startup and from the moment you use the device, with the plugin's Log Level set to debug;",
+      "- this device's part of your plugin config, with personal details removed."
+    );
+  } else if (status === "supported") {
     lines.push(
       `Thanks for the report. \`${model}\` is already supported (it is handled as: ${known.supported[model]}).`,
       "",
@@ -185,6 +216,9 @@ function buildComment(result, known, others = []) {
     );
   } else {
     lines.push("Thanks for the report. This is labelled so that requests for the same device group together.");
+    if (misfiled) {
+      lines.push("", `The plugin does not handle \`${model || "this model"}\` yet, so this is being treated as a request to add it.`);
+    }
     if (others.length) {
       lines.push(
         "",
@@ -215,7 +249,7 @@ function buildComment(result, known, others = []) {
 }
 
 const managedLabel = (name) =>
-  STATUS_LABELS.includes(name) || name.startsWith("model:") || name.startsWith("kind:");
+  STATUS_LABELS.includes(name) || ["model:", "kind:", "report:"].some((prefix) => name.startsWith(prefix));
 
 async function ensureLabel(github, owner, repo, name) {
   try {
@@ -268,6 +302,6 @@ async function run({ github, context, core }) {
 }
 
 module.exports = {
-  MARKER, FIELD, NOT_APPLICABLE, KIND_LABELS, MODEL_PATTERN,
+  MARKER, FIELD, NOT_APPLICABLE, KIND_LABELS, REPORT_LABELS, MODEL_PATTERN,
   parseForm, cleanModel, sensitiveKeysIn, blobProblem, triage, buildComment, run,
 };

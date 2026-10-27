@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        For a Wyze device the plugin does not support yet, please use the **New or unsupported Wyze device** form instead. It asks for the details needed to add a device.
+        For a Wyze device the plugin does not support yet, please use the **Wyze device report** form instead. It asks for the details needed to add a device, and also takes reports that a device works or does not work.
 
   - type: textarea
     id: problem
