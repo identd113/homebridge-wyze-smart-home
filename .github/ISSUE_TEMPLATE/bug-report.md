@@ -36,6 +36,7 @@ Show your Homebridge config.json here, remove any sensitive information.
 **Environment:**
 
 * **Plugin Version**:
+* **wyze-api Version**: <!-- npm ls wyze-api, in the plugin's folder -->
 * **Homebridge Version**: <!-- homebridge -V -->
 * **Node.js Version**: <!-- node -v -->
 * **NPM Version**: <!-- npm -v -->
