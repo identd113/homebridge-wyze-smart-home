@@ -279,3 +279,26 @@ test('the origin question is in both forms, and the label comes from its answer'
   assert.strictEqual(origin.originLabel(`### ${origin.HEADING}\n\nsome long sentence with spaces`), null)
   assert.strictEqual(origin.originLabel('### Plugin version\n\n2.0.0'), null)
 })
+
+test('verifying a model marks it in the README, once, and only for models that have a row', () => {
+  const verify = require('../.github/scripts/verify-device.js')
+  const readme = '| Cam v2 | `WYZEC1-JZ` [report](https://x/y) | a |\n| Bulb | `WLPA19` [report](https://x/y), `HL_HWB2` [report](https://x/z) | b |'
+  const once = verify.markVerified(readme, 'HL_HWB2')
+  assert.strictEqual(once.changed, true)
+  assert.ok(once.text.includes('`HL_HWB2` 🔵 [report]') && !once.text.includes('`WLPA19` 🔵'), 'only that code, not the others in its row')
+  assert.strictEqual(verify.markVerified(once.text, 'HL_HWB2').changed, false, 'a second run changes nothing')
+  assert.strictEqual(verify.markVerified(readme, 'NOT_THERE'), null)
+  assert.strictEqual(verify.markVerified(readme, '../etc'), null, 'only a model code is accepted')
+})
+
+test('every supported model can be marked verified in the real README', () => {
+  const verify = require('../.github/scripts/verify-device.js')
+  const readme = fs.readFileSync(path.join(__dirname, '../README.md'), 'utf8')
+  for (const code of Object.keys(known.supported)) assert.ok(verify.markVerified(readme, code), code)
+})
+
+test('the verify workflow only runs for the verified label', () => {
+  const yaml = fs.readFileSync(path.join(__dirname, '../.github/workflows/verify-device.yml'), 'utf8')
+  assert.match(yaml, /github\.event\.label\.name == 'verified'/)
+  assert.match(yaml, /types: \[labeled\]/)
+})
