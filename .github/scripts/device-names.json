@@ -1,50 +1,242 @@
 {
-  "AN_RDB1": "Video Doorbell Pro 2",
-  "AN_RSCW": "Battery Cam Pro",
-  "BS_WK1": "Sprinkler Controller",
-  "CO_AP1": "Air Purifier",
-  "CO_EA1": "Thermostat",
-  "CO_TH1": "Thermostat Room Sensor",
-  "DWS2U": "Contact Sensor v1",
-  "DWS3U": "Contact Sensor v2",
-  "DX_LB2": "Lock Bolt v2",
-  "DX_PVLOC": "Palm Lock",
-  "GW3U": "Home Monitoring System",
-  "GW_BE1": "Video Doorbell Pro",
-  "GW_GC": "Cam OG Telephoto 3x",
-  "GW_GC1": "Cam OG",
-  "HL_A19C2": "Color Bulb A19 v2",
-  "HL_BC": "Bulb Cam",
-  "HL_BR30C": "Color Bulb BR30",
-  "HL_CAM3P": "Cam v3 Pro",
-  "HL_CAM4": "Cam v4",
-  "HL_CFL2": "Cam Floodlight v2",
-  "HL_DB2": "Cam Doorbell v2",
-  "HL_HWB2": "Bulb White v2",
-  "HL_LSL": "Light Strip",
-  "HL_LSLP": "Light Strip Pro",
-  "HL_PAN2": "Cam Pan v2",
-  "HL_PAN3": "Cam Pan v3",
-  "HL_PAN4": "Cam Pan v4",
-  "HL_PANP": "Cam Pan Pro",
-  "HL_WCO2": "Cam Outdoor v2",
-  "JA_RO2": "Robot Vacuum",
-  "LD_CFP": "Cam Floodlight Pro",
-  "LD_SS1": "Wall Switch",
-  "PIR2U": "Motion Sensor v1",
-  "PIR3U": "Motion Sensor v2",
-  "TH3U": "Temperature & Humidity Sensor",
-  "WLPA19": "Bulb White",
-  "WLPA19C": "Color Bulb A19",
-  "WLPP1": "Plug",
-  "WLPP1CFH": "Plug (alternate model)",
-  "WLPPO-SUB": "Outdoor Plug",
-  "WS3U": "Leak Sensor",
-  "WVOD1": "Cam Outdoor",
-  "WYZEC1": "Cam v1",
-  "WYZEC1-JZ": "Cam v2",
-  "WYZECP1_JEF": "Cam Pan",
-  "WYZEDB3": "Video Doorbell",
-  "WYZE_CAKP2JFUS": "Cam v3 / Floodlight Cam",
-  "YD.LO1": "Lock"
+  "AN_RDB1": {
+    "name": "Video Doorbell Pro 2",
+    "section": "Cameras",
+    "released": 2025
+  },
+  "AN_RSCW": {
+    "name": "Battery Cam Pro",
+    "section": "Cameras",
+    "released": 2023
+  },
+  "BS_WK1": {
+    "name": "Sprinkler Controller",
+    "section": "Appliances",
+    "released": 2022
+  },
+  "CO_AP1": {
+    "name": "Air Purifier",
+    "section": "Appliances",
+    "released": 2024
+  },
+  "CO_EA1": {
+    "name": "Thermostat",
+    "section": "Climate",
+    "released": 2021
+  },
+  "CO_TH1": {
+    "name": "Thermostat Room Sensor",
+    "section": "Climate",
+    "released": 2021
+  },
+  "DWS2U": {
+    "name": "Contact Sensor v1",
+    "section": "Sensors",
+    "released": 2019
+  },
+  "DWS3U": {
+    "name": "Contact Sensor v2",
+    "section": "Sensors",
+    "released": 2022
+  },
+  "DX_LB2": {
+    "name": "Lock Bolt v2",
+    "section": "Locks",
+    "released": 2024
+  },
+  "DX_PVLOC": {
+    "name": "Palm Lock",
+    "section": "Locks",
+    "released": 2025
+  },
+  "GW3U": {
+    "name": "Home Monitoring System",
+    "section": "Sensors",
+    "released": 2022
+  },
+  "GW_BE1": {
+    "name": "Video Doorbell Pro",
+    "section": "Cameras",
+    "released": 2022
+  },
+  "GW_GC": {
+    "name": "Cam OG Telephoto 3x",
+    "section": "Cameras",
+    "released": 2024
+  },
+  "GW_GC1": {
+    "name": "Cam OG",
+    "section": "Cameras",
+    "released": 2024
+  },
+  "HL_A19C2": {
+    "name": "Color Bulb A19 v2",
+    "section": "Lights",
+    "released": 2023
+  },
+  "HL_BC": {
+    "name": "Bulb Cam",
+    "section": "Cameras",
+    "released": 2024
+  },
+  "HL_BR30C": {
+    "name": "Color Bulb BR30",
+    "section": "Lights",
+    "released": 2022
+  },
+  "HL_CAM3P": {
+    "name": "Cam v3 Pro",
+    "section": "Cameras",
+    "released": 2022
+  },
+  "HL_CAM4": {
+    "name": "Cam v4",
+    "section": "Cameras",
+    "released": 2024
+  },
+  "HL_CFL2": {
+    "name": "Cam Floodlight v2",
+    "section": "Cameras",
+    "released": 2023
+  },
+  "HL_DB2": {
+    "name": "Cam Doorbell v2",
+    "section": "Cameras",
+    "released": 2025
+  },
+  "HL_HWB2": {
+    "name": "Bulb White v2",
+    "section": "Lights",
+    "released": 2022
+  },
+  "HL_LSL": {
+    "name": "Light Strip",
+    "section": "Lights",
+    "released": 2021
+  },
+  "HL_LSLP": {
+    "name": "Light Strip Pro",
+    "section": "Lights",
+    "released": 2022
+  },
+  "HL_PAN2": {
+    "name": "Cam Pan v2",
+    "section": "Cameras",
+    "released": 2021
+  },
+  "HL_PAN3": {
+    "name": "Cam Pan v3",
+    "section": "Cameras",
+    "released": 2022
+  },
+  "HL_PAN4": {
+    "name": "Cam Pan v4",
+    "section": "Cameras",
+    "released": 2025
+  },
+  "HL_PANP": {
+    "name": "Cam Pan Pro",
+    "section": "Cameras",
+    "released": 2022
+  },
+  "HL_WCO2": {
+    "name": "Cam Outdoor v2",
+    "section": "Cameras",
+    "released": 2023
+  },
+  "JA_RO2": {
+    "name": "Robot Vacuum",
+    "section": "Appliances",
+    "released": 2021
+  },
+  "LD_CFP": {
+    "name": "Cam Floodlight Pro",
+    "section": "Cameras",
+    "released": 2024
+  },
+  "LD_SS1": {
+    "name": "Wall Switch",
+    "section": "Plugs and switches",
+    "released": 2022
+  },
+  "PIR2U": {
+    "name": "Motion Sensor v1",
+    "section": "Sensors",
+    "released": 2019
+  },
+  "PIR3U": {
+    "name": "Motion Sensor v2",
+    "section": "Sensors",
+    "released": 2022
+  },
+  "TH3U": {
+    "name": "Temperature & Humidity Sensor",
+    "section": "Sensors",
+    "released": 2022
+  },
+  "WLPA19": {
+    "name": "Bulb White",
+    "section": "Lights",
+    "released": 2018
+  },
+  "WLPA19C": {
+    "name": "Color Bulb A19",
+    "section": "Lights",
+    "released": 2019
+  },
+  "WLPP1": {
+    "name": "Plug",
+    "section": "Plugs and switches",
+    "released": 2018
+  },
+  "WLPP1CFH": {
+    "name": "Plug (alternate model)",
+    "section": "Plugs and switches",
+    "released": 2019
+  },
+  "WLPPO-SUB": {
+    "name": "Outdoor Plug",
+    "section": "Plugs and switches",
+    "released": 2020
+  },
+  "WS3U": {
+    "name": "Leak Sensor",
+    "section": "Sensors",
+    "released": 2022
+  },
+  "WVOD1": {
+    "name": "Cam Outdoor",
+    "section": "Cameras",
+    "released": 2021
+  },
+  "WYZEC1": {
+    "name": "Cam v1",
+    "section": "Cameras",
+    "released": 2017
+  },
+  "WYZEC1-JZ": {
+    "name": "Cam v2",
+    "section": "Cameras",
+    "released": 2018
+  },
+  "WYZECP1_JEF": {
+    "name": "Cam Pan",
+    "section": "Cameras",
+    "released": 2019
+  },
+  "WYZEDB3": {
+    "name": "Video Doorbell",
+    "section": "Cameras",
+    "released": 2021
+  },
+  "WYZE_CAKP2JFUS": {
+    "name": "Cam v3 / Floodlight Cam",
+    "section": "Cameras",
+    "released": 2020
+  },
+  "YD.LO1": {
+    "name": "Lock",
+    "section": "Locks",
+    "released": 2020
+  }
 }

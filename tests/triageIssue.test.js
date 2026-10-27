@@ -211,8 +211,11 @@ test('an issue made before the device list existed still has its model read', ()
 
 test('every model the plugin handles has a name in the device list, and the form lists them all', () => {
   const names = require('../.github/scripts/device-names.json')
-  for (const code of Object.keys(known.supported)) assert.ok(names[code], `add ${code} to .github/scripts/device-names.json, then run npm run device-options`)
   const gen = require('../.github/scripts/gen-device-options.js')
+  for (const code of Object.keys(known.supported)) {
+    const d = names[code]
+    assert.ok(d && d.name && gen.SECTIONS.includes(d.section) && Number.isInteger(d.released), `add ${code} to .github/scripts/device-names.json, then run npm run device-options`)
+  }
   const form = fs.readFileSync(gen.FORM, 'utf8')
   assert.strictEqual(gen.render(form), form, 'run `npm run device-options` and commit the result')
 })
@@ -221,4 +224,18 @@ test('the form asks for two confirmations first and requires little else', () =>
   const yaml = fs.readFileSync(path.join(__dirname, '../.github/ISSUE_TEMPLATE/new-device.yml'), 'utf8')
   assert.ok(yaml.indexOf('id: checks') < yaml.indexOf('id: report'), 'the confirmations come first')
   assert.strictEqual((yaml.match(/required: true/g) || []).length, 4, 'two confirmations, what you are reporting, and the device')
+})
+
+test('the device list is grouped, and newest first inside each group', () => {
+  const names = require('../.github/scripts/device-names.json')
+  const gen = require('../.github/scripts/gen-device-options.js')
+  const opts = gen.options().slice(0, -1)
+  const byCode = (o) => names[triage.modelFrom({ Device: o })]
+  const sections = opts.map((o) => byCode(o).section)
+  assert.deepStrictEqual([...new Set(sections)], gen.SECTIONS.filter((s) => sections.includes(s)), 'groups stay together, in order')
+  for (let i = 1; i < opts.length; i++) {
+    if (byCode(opts[i]).section === byCode(opts[i - 1]).section) assert.ok(byCode(opts[i - 1]).released >= byCode(opts[i]).released, opts[i])
+  }
+  assert.strictEqual(opts[0].startsWith('Cameras - '), true)
+  assert.strictEqual(gen.options().at(-1), gen.OTHER)
 })
