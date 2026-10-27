@@ -16,6 +16,7 @@
 
 const { parseForm, modelFrom, MODEL_PATTERN } = require("./triage-issue.js");
 const { LEVELS, USER, statusOf, raiseToUser, noChangeNote } = require("./device-status.js");
+const { assignIfUnassigned } = require("./maintainers.js");
 
 const MARK = LEVELS[USER].symbol;
 const MAINTAINER = new Set(["admin", "maintain", "write"]);
@@ -131,6 +132,8 @@ async function run({ github, context, core }) {
     title: `README: ${model} confirmed working`,
     body: `\`${model}\` confirmed working, from the report in #${issue.number}, verified by @${sender}.\n\n${changes}\n\nCloses #${issue.number}`,
   });
+  await assignIfUnassigned({ github, core, owner, repo, number: pr.data.number });
+  await github.rest.issues.addLabels({ owner, repo, issue_number: pr.data.number, labels: ["verified"] });
   await say(
     `Thank you${reporter ? ` @${reporter}` : ""} for testing and reporting. \`${model}\` is confirmed working. #${pr.data.number} records it in the device lists` +
       (thanks.added ? ", adds you to the README's list of people who confirmed devices (tell us if you would rather not be listed)," : "") +

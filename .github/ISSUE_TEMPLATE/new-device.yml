@@ -2,6 +2,7 @@ name: Wyze device report
 description: Ask for a Wyze device the plugin does not handle yet, or tell us whether a supported one works
 title: "[Device]: "
 labels: ["new device"]
+assignees: ["identd113"]
 body:
   - type: markdown
     attributes:

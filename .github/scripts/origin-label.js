@@ -1,13 +1,16 @@
 "use strict";
 
 /**
- * Labels an issue by where the reporter came from. The bug report and device report forms
+ * Intake for every new issue, whichever form made it: assigns the maintainers if nobody is
+ * assigned, and labels the issue by where the reporter came from. The bug report and device report forms
  * have an optional "Where did you come from?" question, which a link on another page can
  * fill in (for example `...issues/new?template=bug-report.yml&origin=wyze-api` from the
  * wyze-api repository). It runs from .github/workflows/label-origin.yml through
  * actions/github-script. The issue text is untrusted: it is only read as data, and only a
  * short, plain name ever becomes part of a label.
  */
+
+const { assignIfUnassigned } = require("./maintainers.js");
 
 const HEADING = "Where did you come from?";
 const ORIGIN = /^[a-z0-9][a-z0-9._-]{0,30}$/;
@@ -27,6 +30,9 @@ function originLabel(body) {
 async function run({ github, context, core }) {
   const { owner, repo } = context.repo;
   const issue = context.payload.issue;
+  if (context.payload.action === "opened") {
+    await assignIfUnassigned({ github, core, owner, repo, number: issue.number, current: issue.assignees || [] });
+  }
   const label = originLabel(issue.body);
   const current = (issue.labels || []).map((l) => (typeof l === "string" ? l : l.name));
   for (const name of current.filter((n) => n.startsWith("from:") && n !== label)) {

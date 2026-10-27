@@ -1,8 +1,9 @@
-# Labels an issue "from:<name>" when the reporter's "Where did you come from?" answer names a
-# place, for example from:wyze-api. The logic is in .github/scripts/origin-label.js (tested in
+# Runs for every new issue: assigns the maintainers if nobody is assigned, and labels it
+# "from:<name>" when the reporter's "Where did you come from?" answer names a place, for
+# example from:wyze-api. The logic is in .github/scripts/origin-label.js (tested in
 # tests/). The issue text is untrusted, so it is only read by that script as data.
 
-name: Label issue origin
+name: Assign and label new issues
 
 on:
   issues:

@@ -2,6 +2,7 @@ name: Feature request
 description: An idea for something the plugin could do
 title: "[Feature]: "
 labels: ["enhancement"]
+assignees: ["identd113"]
 body:
   - type: markdown
     attributes:

@@ -2,6 +2,7 @@ name: Question or help
 description: You need help setting up or using the plugin
 title: "[Question]: "
 labels: ["question"]
+assignees: ["identd113"]
 body:
   - type: markdown
     attributes:

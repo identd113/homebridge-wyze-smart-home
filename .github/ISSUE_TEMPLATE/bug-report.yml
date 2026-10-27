@@ -2,6 +2,7 @@ name: Bug report
 description: Something does not work the way it should
 title: "[Bug]: "
 labels: ["bug"]
+assignees: ["identd113"]
 body:
   - type: markdown
     attributes:

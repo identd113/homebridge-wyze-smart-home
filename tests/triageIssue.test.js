@@ -365,3 +365,21 @@ test('the reporter is added to the list of people who confirmed devices, once pe
   assert.strictEqual(verify.addSupporter('no list here', 'octo-cat', 'HL_CAM4').added, false)
   assert.ok(fs.readFileSync(path.join(__dirname, '../README.md'), 'utf8').includes('<!-- confirmed-by -->'), 'the real README has the list')
 })
+
+test('every issue form assigns the maintainers, and the intake assigns them when a form did not', async () => {
+  const { ASSIGNEES, assignIfUnassigned } = require('../.github/scripts/maintainers.js')
+  const dir = path.join(__dirname, '../.github/ISSUE_TEMPLATE')
+  for (const form of fs.readdirSync(dir).filter((f) => f.endsWith('.yml') && f !== 'config.yml')) {
+    const head = fs.readFileSync(path.join(dir, form), 'utf8').split('body:')[0]
+    assert.match(head, /^labels: \[.+\]$/m, `${form} sets labels`)
+    for (const who of ASSIGNEES) assert.ok(head.includes(`assignees: [${JSON.stringify(who)}`), `${form} assigns ${who}`)
+  }
+  const calls = []
+  const github = { rest: { issues: { addAssignees: async (a) => calls.push(a) } } }
+  const core = { warning () {} }
+  assert.strictEqual(await assignIfUnassigned({ github, core, owner: 'o', repo: 'r', number: 5 }), true)
+  assert.deepStrictEqual(calls[0].assignees, ASSIGNEES)
+  assert.strictEqual(await assignIfUnassigned({ github, core, owner: 'o', repo: 'r', number: 6, current: [{ login: 'someone' }] }), false, 'an assigned issue is left alone')
+  const failing = { rest: { issues: { addAssignees: async () => { throw new Error('no access') } } } }
+  assert.strictEqual(await assignIfUnassigned({ github: failing, core, owner: 'o', repo: 'r', number: 7 }), false, 'a failure is not thrown')
+})
