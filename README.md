@@ -37,6 +37,7 @@ This plugin stands on other people's work:
 Thank you to everyone who tested a device and told us it works. Each name was added when a maintainer checked their report. If you would rather not be listed, say so on your report and we will take you off.
 
 <!-- confirmed-by -->
+- [identd113](https://github.com/identd113): `WYZEC1-JZ`
 <!-- /confirmed-by -->
 
 ## Requirements
@@ -57,7 +58,7 @@ Open a group to see its models. Each **report** link opens the device report for
 | Camera | Model code | Controls in HomeKit | Live view / snapshots | Status |
 |---|---|---|---|---|
 | Cam v1 | `WYZEC1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v1%20%28WYZEC1%29&origin=readme) | Privacy, plus Siren / Floodlight / Garage switches per camera in config | WebRTC | 🟢 |
-| Cam v2 | `WYZEC1-JZ` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v2%20%28WYZEC1-JZ%29&origin=readme) | Privacy, plus the same optional switches | WebRTC | 🟢 |
+| Cam v2 | `WYZEC1-JZ` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v2%20%28WYZEC1-JZ%29&origin=readme) | Privacy, plus the same optional switches | WebRTC | 🔵 |
 | Cam v3 (and Floodlight Cam) | `WYZE_CAKP2JFUS` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v3%20%2F%20Floodlight%20Cam%20%28WYZE_CAKP2JFUS%29&origin=readme) | Privacy, plus the same optional switches | WebRTC, snapshots and audio (if the camera's microphone is on) | ✅ |
 | Cam v3 Pro | `HL_CAM3P` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v3%20Pro%20%28HL_CAM3P%29&origin=readme) | Privacy, plus the same optional switches | WebRTC | 🟢 |
 | Cam v4 | `HL_CAM4` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v4%20%28HL_CAM4%29&origin=readme) | Privacy, plus the same optional switches | WebRTC | 🟢 |
