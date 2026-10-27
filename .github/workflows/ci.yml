@@ -30,7 +30,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: npm ci
+      # The lockfile is not committed (it is in .gitignore), so install from package.json.
+      - run: npm install --no-audit --no-fund
       - run: npm test
 
   package:
@@ -41,7 +42,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm ci
+      # The lockfile is not committed (it is in .gitignore), so install from package.json.
+      - run: npm install --no-audit --no-fund
       - name: Check the package contents
         run: |
           npm pack --dry-run --json > pack.json
