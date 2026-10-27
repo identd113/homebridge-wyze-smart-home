@@ -17,16 +17,6 @@ const PLANNED_DEVICES = {
     source: "SecKatie/wyzeapy",
     note: "It is controlled over Bluetooth, not Wyze's cloud, so the plugin cannot reach it.",
   },
-  GW_CHI: {
-    name: "Wyze Chime (base unit)",
-    source: "a real account",
-    note: "Wyze's cloud lists it but reports no settings or state for it, so there is nothing to show in HomeKit.",
-  },
-  CHIME: {
-    name: "Wyze Chime Sensor",
-    source: "a real account",
-    note: "Wyze's cloud lists it but reports no settings or state for it, so there is nothing to show in HomeKit.",
-  },
   // Not a real model code, so nothing ever matches it.
   GUN_SAFE: {
     name: "Wyze Gun Safe",

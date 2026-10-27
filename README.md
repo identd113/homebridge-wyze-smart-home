@@ -177,7 +177,7 @@ Have a Wyze device that is not on either list? [Tell us about it](https://github
 
 </details>
 
-Not applicable to HomeKit, or not planned: Cordless Vacuum, Scales, Watch, Headphones, Air Purifier, and the Chime and Chime Sensor (checked on a real account: Wyze's cloud lists them but reports no settings or state, so there is nothing to show in HomeKit).
+Not applicable to HomeKit, or not planned: Cordless Vacuum, Scales, Watch, Headphones, Air Purifier, Chimes.
 
 For more information about our version updates, please check our [change log](CHANGELOG.md).
 
