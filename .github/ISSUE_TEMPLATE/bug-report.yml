@@ -84,6 +84,12 @@ body:
       description: The WyzeSmartHome part of your `config.json`, with the credentials removed.
       render: json
 
+  - type: input
+    id: origin
+    attributes:
+      label: Where did you come from?
+      description: Filled in for you when you followed a link from another page, for example the wyze-api repository. Otherwise leave it empty.
+
   - type: checkboxes
     id: checks
     attributes:

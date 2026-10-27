@@ -268,3 +268,14 @@ test('every model in the README has a report link that picks a real option in th
   }
   for (const code of Object.keys(known.supported)) assert.ok(linked.has(code), `${code} needs a report link in the README`)
 })
+
+test('the origin question is in both forms, and the label comes from its answer', () => {
+  const origin = require('../.github/scripts/origin-label.js')
+  for (const form of ['bug-report.yml', 'new-device.yml']) {
+    assert.ok(fs.readFileSync(path.join(__dirname, '../.github/ISSUE_TEMPLATE', form), 'utf8').includes(`label: ${origin.HEADING}`), form)
+  }
+  assert.strictEqual(origin.originLabel(`### ${origin.HEADING}\n\nwyze-api\n\n### Other\n\nx`), 'from:wyze-api')
+  assert.strictEqual(origin.originLabel(`### ${origin.HEADING}\n\n_No response_`), null)
+  assert.strictEqual(origin.originLabel(`### ${origin.HEADING}\n\nsome long sentence with spaces`), null)
+  assert.strictEqual(origin.originLabel('### Plugin version\n\n2.0.0'), null)
+})

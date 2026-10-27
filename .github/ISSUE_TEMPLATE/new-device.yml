@@ -147,3 +147,9 @@ body:
       label: Anything else from the log (optional)
       description: Errors or warnings around the time the plugin starts, or when you use the device. Paste them here.
       render: text
+
+  - type: input
+    id: origin
+    attributes:
+      label: Where did you come from?
+      description: Filled in for you when you followed a link from another page, for example the wyze-api repository. Otherwise leave it empty.

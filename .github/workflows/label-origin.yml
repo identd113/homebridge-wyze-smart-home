@@ -1,0 +1,28 @@
+# Labels an issue "from:<name>" when the reporter's "Where did you come from?" answer names a
+# place, for example from:wyze-api. The logic is in .github/scripts/origin-label.js (tested in
+# tests/). The issue text is untrusted, so it is only read by that script as data.
+
+name: Label issue origin
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: origin-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { run } = require('./.github/scripts/origin-label.js')
+            await run({ github, context, core })
