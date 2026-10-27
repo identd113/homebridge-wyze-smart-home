@@ -38,7 +38,7 @@ This plugin stands on other people's work:
 
 ## Supported Devices
 
-**Status key:** ✅ tested on real hardware by the current maintainers · 🟢 supported, carried over from earlier releases · 🟡 registered but not yet verified on hardware (it should show up in HomeKit; please report what works) · 🔵 next to a model code: confirmed working by a user report, checked by a maintainer.
+**Status key:** ✅ tested on real hardware by the current maintainers · 🟢 supported, carried over from earlier releases · 🟡 registered but not yet verified on hardware (it should show up in HomeKit; please report what works) · 🔵 confirmed working by a user report that a maintainer checked (on a row with several model codes, the 🔵 sits next to the code). From least to most verified: 🟡 registered only, 🟢 supported, 🔵 confirmed by a user, ✅ confirmed by a maintainer.
 
 ### Supported hardware
 

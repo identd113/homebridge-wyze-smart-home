@@ -3,17 +3,20 @@
 /**
  * When a maintainer puts the "verified" label on a device report that says the device works,
  * this opens a pull request that records it everywhere the repo lists supported and
- * unsupported devices: a 🔵 next to its model code in the README's supported tables, its row
- * removed from the README's "Not Yet Supported" table (with that table's count), and its entry
- * removed from src/plannedDevices.js. It runs from .github/workflows/verify-device.yml through
+ * unsupported devices, but only when that raises the device's level (see device-status.js):
+ * the device becomes "confirmed by a user" in the README's supported tables, its row is removed
+ * from the "Not Yet Supported" table (with that table's count), and its entry is removed from
+ * src/plannedDevices.js. A device already at that level or above gets a thank-you and the
+ * issue is closed, with no pull request. It runs from .github/workflows/verify-device.yml through
  * actions/github-script. The README is never pushed to directly, and the issue text is
  * untrusted: it is only read as data, and only a model code that passed MODEL_PATTERN is
  * ever used.
  */
 
 const { parseForm, modelFrom, MODEL_PATTERN } = require("./triage-issue.js");
+const { LEVELS, USER, statusOf, raiseToUser, noChangeNote } = require("./device-status.js");
 
-const MARK = "🔵";
+const MARK = LEVELS[USER].symbol;
 const MAINTAINER = new Set(["admin", "maintain", "write"]);
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -36,20 +39,6 @@ function dropPlanned(source, code) {
   if (!MODEL_PATTERN.test(code)) return { text: source, removed: false };
   const entry = new RegExp("\n  " + escapeRegex(code) + ": \\{[\\s\\S]*?\n  \\},", "");
   return entry.test(source) ? { text: source.replace(entry, ""), removed: true } : { text: source, removed: false };
-}
-
-/**
- * Puts the 🔵 mark next to `code` in the README's device tables.
- * @returns {{ text: string, changed: boolean } | null} null when the README has no row for the code.
- */
-function markVerified(readme, code) {
-  if (!MODEL_PATTERN.test(code)) return null;
-  const token = "`" + code + "`";
-  if (!readme.includes(token + " ")) return null;
-  if (readme.includes(token + " " + MARK)) return { text: readme, changed: false };
-  const pattern = new RegExp(escapeRegex(token) + " (?=\\[report\\])", "g");
-  if (!pattern.test(readme)) return null;
-  return { text: readme.replace(pattern, token + " " + MARK + " "), changed: true };
 }
 
 async function run({ github, context, core }) {
@@ -75,10 +64,16 @@ async function run({ github, context, core }) {
   const branch = context.payload.repository.default_branch;
   const file = await github.rest.repos.getContent({ owner, repo, path: "README.md", ref: branch });
   const readme = Buffer.from(file.data.content, "base64").toString("utf8");
-  const marked = markVerified(readme, model);
-  if (!marked) return void (await say(`Not verified: I could not find \`${model}\` in the README's supported-device tables. Add its row there first.`));
+  const status = statusOf(readme, model);
+  if (!status) return void (await say(`Not verified: I could not find \`${model}\` in the README's supported-device tables. Add its row there first.`));
+  if (status.level >= USER) {
+    // Nothing to raise: thank the reporter and close, without a pull request.
+    await say(noChangeNote(model, status));
+    await github.rest.issues.update({ owner, repo, issue_number: issue.number, state: "closed", state_reason: "completed" });
+    return;
+  }
+  const marked = raiseToUser(readme, model);
   const unsupported = dropFromUnsupported(marked.text, model);
-  if (!marked.changed && !unsupported.removed) return void (await say(`\`${model}\` is already marked as confirmed in the README.`));
   const plannedFile = await github.rest.repos.getContent({ owner, repo, path: "src/plannedDevices.js", ref: branch });
   const planned = dropPlanned(Buffer.from(plannedFile.data.content, "base64").toString("utf8"), model);
 
@@ -97,7 +92,7 @@ async function run({ github, context, core }) {
     });
   }
   const changes = [
-    marked.changed ? `- ${MARK} added next to \`${model}\` in the README's supported tables` : null,
+    `- \`${model}\` raised from ${status.name} to ${LEVELS[USER].name} (${MARK}) in the README's supported tables`,
     unsupported.removed ? "- its row removed from the README's \"Not Yet Supported\" table" : null,
     planned.removed ? "- its entry removed from `src/plannedDevices.js`" : null,
   ].filter(Boolean).join("\n");
@@ -110,4 +105,4 @@ async function run({ github, context, core }) {
   core.info(`#${issue.number}: ${model} -> PR #${pr.data.number}`);
 }
 
-module.exports = { MARK, markVerified, dropFromUnsupported, dropPlanned, run };
+module.exports = { MARK, dropFromUnsupported, dropPlanned, run };

@@ -280,21 +280,47 @@ test('the origin question is in both forms, and the label comes from its answer'
   assert.strictEqual(origin.originLabel('### Plugin version\n\n2.0.0'), null)
 })
 
-test('verifying a model marks it in the README, once, and only for models that have a row', () => {
-  const verify = require('../.github/scripts/verify-device.js')
-  const readme = '| Cam v2 | `WYZEC1-JZ` [report](https://x/y) | a |\n| Bulb | `WLPA19` [report](https://x/y), `HL_HWB2` [report](https://x/z) | b |'
-  const once = verify.markVerified(readme, 'HL_HWB2')
-  assert.strictEqual(once.changed, true)
-  assert.ok(once.text.includes('`HL_HWB2` 🔵 [report]') && !once.text.includes('`WLPA19` 🔵'), 'only that code, not the others in its row')
-  assert.strictEqual(verify.markVerified(once.text, 'HL_HWB2').changed, false, 'a second run changes nothing')
-  assert.strictEqual(verify.markVerified(readme, 'NOT_THERE'), null)
-  assert.strictEqual(verify.markVerified(readme, '../etc'), null, 'only a model code is accepted')
+test('a report only ever raises a device, and the level comes from its row and its own mark', () => {
+  const st = require('../.github/scripts/device-status.js')
+  const readme = [
+    '## Supported Devices',
+    '| Cam v2 | `WYZEC1-JZ` [report](https://x/y) | 🟢 |',
+    '| Pan v4 | `HL_PAN4` [report](https://x/y) | 🟡 |',
+    '| Doorbell | `HL_DB2` [report](https://x/y) | ✅ |',
+    '| Bulb | `WLPA19` [report](https://x/y), `HL_HWB2` [report](https://x/z) | 🟢 |',
+    '## Not Yet Supported'
+  ].join('\n')
+  assert.deepStrictEqual(['WYZEC1-JZ', 'HL_PAN4', 'HL_DB2'].map((c) => st.statusOf(readme, c).name), ['supported', 'registered only', 'confirmed by a maintainer'])
+  const one = st.raiseToUser(readme, 'HL_PAN4')
+  assert.ok(one.changed && one.text.includes('| 🔵 |') && one.text.includes('`HL_PAN4`'), 'a single-code row gets its status replaced')
+  assert.strictEqual(st.statusOf(one.text, 'HL_PAN4').name, 'confirmed by a user')
+  const shared = st.raiseToUser(readme, 'HL_HWB2')
+  assert.ok(shared.text.includes('`HL_HWB2` 🔵 [report]') && !shared.text.includes('`WLPA19` 🔵'), 'on a shared row only that code is raised')
+  assert.strictEqual(st.statusOf(shared.text, 'HL_HWB2').name, 'confirmed by a user')
+  assert.strictEqual(st.statusOf(shared.text, 'WLPA19').name, 'supported')
+  assert.strictEqual(st.raiseToUser(one.text, 'HL_PAN4').changed, false, 'already confirmed by a user: no change')
+  assert.strictEqual(st.raiseToUser(readme, 'HL_DB2').changed, false, 'a maintainer-confirmed device is never lowered')
+  assert.strictEqual(st.raiseToUser(readme, 'NOT_THERE'), null)
+  assert.match(st.noChangeNote('HL_DB2', st.statusOf(readme, 'HL_DB2')), /`HL_DB2` is currently listed as confirmed by a maintainer, so your report will not update the existing list, but it is confirmation that this is still working/)
 })
 
-test('every supported model can be marked verified in the real README', () => {
-  const verify = require('../.github/scripts/verify-device.js')
+test('a works report on a device already confirmed is thanked and closed, one that can move up is not', () => {
+  const st = require('../.github/scripts/device-status.js')
+  const r = triage.triage(issue({ report: 'It works', device: 'Video Doorbell v2 (HL_DB2)', model: '', blob: '' }), known)
+  const high = triage.buildComment(r, known, [], { level: 3, name: 'confirmed by a maintainer', symbol: '✅' })
+  assert.match(high, /will not update the existing list/)
+  assert.match(high, /being closed/)
+  const low = triage.buildComment(r, known, [], { level: 1, name: 'supported', symbol: '🟢' })
+  assert.match(low, /currently listed as supported/)
+  assert.match(low, /moves up to confirmed by a user/)
+  assert.ok(!/being closed/.test(low))
+  assert.ok(st.USER === 2)
+})
+
+test('every supported model has a status in the real README', () => {
   const readme = fs.readFileSync(path.join(__dirname, '../README.md'), 'utf8')
-  for (const code of Object.keys(known.supported)) assert.ok(verify.markVerified(readme, code), code)
+  const st = require('../.github/scripts/device-status.js')
+  for (const code of Object.keys(known.supported)) assert.ok(st.statusOf(readme, code), `${code} needs a row in the README's supported tables`)
 })
 
 test('the verify workflow only runs for the verified label', () => {

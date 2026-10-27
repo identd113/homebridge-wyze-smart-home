@@ -10,7 +10,10 @@
  * a shell command, and never repeated back except for a model code that passed MODEL_PATTERN.
  */
 
+const fs = require("fs");
+const path = require("path");
 const { OTHER: OTHER_DEVICE } = require("./gen-device-options.js");
+const { LEVELS, USER, statusOf, noChangeNote } = require("./device-status.js");
 
 const MARKER = "<!-- wyze-device-triage -->";
 
@@ -210,16 +213,32 @@ function triage(body, known) {
   return { fields, model, status, report, misfiled, labels: [...labels].sort(), leaks, problems };
 }
 
-function buildComment(result, known, others = []) {
+/**
+ * @param {object} [listed] statusOf() for a "works" report on a supported model: where the
+ *   README lists that model now.
+ */
+function buildComment(result, known, others = [], listed = null) {
   const { model, status, report, misfiled, leaks, problems } = result;
   const lines = [MARKER];
 
-  if (status === "supported" && report === "works") {
+  if (status === "supported" && report === "works" && listed && listed.level >= USER) {
+    lines.push(
+      noChangeNote(model, listed),
+      "",
+      "Nothing needs to change, so this issue is being closed. If something stops working later, open a new report with the plugin log."
+    );
+  } else if (status === "supported" && report === "works") {
     lines.push(
       `Thanks for confirming that \`${model}\` works (it is handled as: ${known.supported[model]}). That helps us keep the supported-device list honest.`,
-      "",
-      "If something stops working later, reply here or open a new report with the plugin log."
+      ""
     );
+    if (listed) {
+      lines.push(
+        `\`${model}\` is currently listed as ${listed.name}. A maintainer will check your report, and if it is confirmed the list moves up to ${LEVELS[USER].name}.`,
+        ""
+      );
+    }
+    lines.push("If something stops working later, reply here or open a new report with the plugin log.");
   } else if (status === "supported" && (report === "partial" || report === "broken")) {
     lines.push(
       `Thanks for the report. \`${model}\` is handled by the plugin (as: ${known.supported[model]}), so we will look at what goes wrong.`,
@@ -325,11 +344,23 @@ async function run({ github, context, core }) {
     owner, repo, issue_number: issue.number, per_page: 100,
   });
   const mine = comments.find((c) => c.body && c.body.includes(MARKER) && c.user && c.user.type === "Bot");
-  const body = buildComment(result, known, others);
+  let listed = null;
+  if (result.status === "supported" && result.report === "works") {
+    try {
+      listed = statusOf(fs.readFileSync(path.join(process.cwd(), "README.md"), "utf8"), result.model);
+    } catch {
+      listed = null; // no README to read: say nothing about the level
+    }
+  }
+  const body = buildComment(result, known, others, listed);
   if (mine) {
     if (mine.body !== body) await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
   } else {
     await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body });
+  }
+  // A "works" report that cannot move the device up has nothing left to do: close it with the note.
+  if (listed && listed.level >= USER && context.payload.action === "opened") {
+    await github.rest.issues.update({ owner, repo, issue_number: issue.number, state: "closed", state_reason: "completed" });
   }
   core.info(`#${issue.number}: ${result.status}, model ${result.model || "none"}, labels ${result.labels.join(", ")}`);
 }
