@@ -457,3 +457,102 @@ test('a "does not work" report on a confirmed device is flagged as a possible re
   assert.match(calls.comment, /possible \*\*regression\*\*/)
   assert.strictEqual(calls.closed, false)
 })
+
+// An in-memory GitHub, enough for verify-device.js: one default branch with the real README,
+// refs, pull requests and comments.
+function fakeRepo ({ maintainer = true } = {}) {
+  const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')
+  const files = { main: { 'README.md': read('README.md'), 'src/plannedDevices.js': read('src/plannedDevices.js') } }
+  const refs = { main: 'sha-main' }
+  const state = { pulls: [], comments: [], closed: [], labels: [], removed: [], created: 0, deleted: [] }
+  const file = (branch, p) => ({ data: { content: Buffer.from(files[branch][p]).toString('base64'), sha: `sha-${branch}-${p}` } })
+  const rest = {
+    repos: {
+      getCollaboratorPermissionLevel: async () => ({ data: { permission: maintainer ? 'admin' : 'triage' } }),
+      getContent: async ({ path: p, ref }) => file(files[ref] ? ref : 'main', p),
+      createOrUpdateFileContents: async ({ path: p, branch, content }) => { files[branch][p] = Buffer.from(content, 'base64').toString('utf8') }
+    },
+    git: {
+      getRef: async ({ ref }) => { const name = ref.replace('heads/', ''); if (!refs[name]) { const e = new Error('nf'); e.status = 404; throw e } return { data: { object: { sha: refs[name] } } } },
+      createRef: async ({ ref }) => { const name = ref.replace('refs/heads/', ''); if (refs[name]) throw new Error('Reference already exists'); refs[name] = 'sha'; files[name] = { ...files.main } },
+      deleteRef: async ({ ref }) => { const name = ref.replace('heads/', ''); delete refs[name]; delete files[name]; state.deleted.push(name) }
+    },
+    pulls: {
+      list: async ({ head }) => ({ data: state.pulls.filter((p) => `o:${p.head}` === head && p.state === 'open') }),
+      create: async ({ head, body }) => { const pr = { number: 100 + state.pulls.length, head, body, state: 'open' }; state.pulls.push(pr); state.created += 1; return { data: pr } },
+      update: async ({ pull_number, body }) => { state.pulls.find((p) => p.number === pull_number).body = body }
+    },
+    issues: {
+      createComment: async ({ body }) => state.comments.push(body),
+      update: async ({ issue_number }) => state.closed.push(issue_number),
+      removeLabel: async ({ name }) => state.removed.push(name),
+      addLabels: async ({ labels }) => state.labels.push(...labels),
+      addAssignees: async () => {}
+    }
+  }
+  return { github: { rest }, state, files }
+}
+
+function verifyContext (number, login, model = 'Cam Pan v4 (HL_PAN4)') {
+  const body = issue({ report: 'It works', device: model, model: '', blob: '' })
+  const labels = [{ name: 'report:works' }, { name: 'already-supported' }]
+  return { repo: { owner: 'o', repo: 'r' }, payload: { sender: { login: 'maint' }, repository: { default_branch: 'main' }, issue: { number, body, labels, user: { login, type: 'User' } } } }
+}
+
+test('verify: the first report opens one pull request that raises the device and thanks the reporter', async () => {
+  const verify = require('../.github/scripts/verify-device.js')
+  const { github, state, files } = fakeRepo()
+  await verify.run({ github, context: verifyContext(20, 'alice'), core: { info () {}, warning () {} } })
+  assert.strictEqual(state.created, 1)
+  const readme = files['verified/hl-pan4']['README.md']
+  assert.ok(readme.includes('- [alice](https://github.com/alice): `HL_PAN4`'))
+  assert.ok(/Closes #20/.test(state.pulls[0].body))
+  assert.strictEqual(files.main['README.md'].includes('alice'), false, 'the default branch is never written to')
+})
+
+test('verify: a second report for the same device joins the open pull request, no second PR', async () => {
+  const verify = require('../.github/scripts/verify-device.js')
+  const { github, state, files } = fakeRepo()
+  const core = { info () {}, warning () {} }
+  await verify.run({ github, context: verifyContext(20, 'alice'), core })
+  await verify.run({ github, context: verifyContext(21, 'bob'), core })
+  assert.strictEqual(state.created, 1, 'still one pull request')
+  const readme = files['verified/hl-pan4']['README.md']
+  assert.ok(readme.includes('[alice]') && readme.includes('[bob]'), 'both are credited')
+  assert.ok(/Closes #20/.test(state.pulls[0].body) && /Closes #21/.test(state.pulls[0].body))
+  assert.match(state.comments.at(-1), /already has a confirmation waiting in #100/)
+  await verify.run({ github, context: verifyContext(21, 'bob'), core })
+  assert.strictEqual((state.pulls[0].body.match(/Closes #21/g) || []).length, 1, 'verifying the same issue again adds nothing')
+  assert.strictEqual((files['verified/hl-pan4']['README.md'].match(/\[bob\]/g) || []).length, 1)
+})
+
+test('verify: a branch left by a closed pull request is replaced, not a failure', async () => {
+  const verify = require('../.github/scripts/verify-device.js')
+  const { github, state } = fakeRepo()
+  const core = { info () {}, warning () {} }
+  await verify.run({ github, context: verifyContext(20, 'alice'), core })
+  state.pulls[0].state = 'closed'
+  await verify.run({ github, context: verifyContext(20, 'alice'), core })
+  assert.deepStrictEqual(state.deleted, ['verified/hl-pan4'])
+  assert.strictEqual(state.created, 2)
+})
+
+test('verify: a label from someone without write access is removed and nothing is created', async () => {
+  const verify = require('../.github/scripts/verify-device.js')
+  const { github, state } = fakeRepo({ maintainer: false })
+  await verify.run({ github, context: verifyContext(20, 'alice'), core: { info () {}, warning () {} } })
+  assert.deepStrictEqual(state.removed, ['verified'])
+  assert.strictEqual(state.created, 0)
+})
+
+test('the verify workflow runs one at a time for the whole repo', () => {
+  const yaml = fs.readFileSync(path.join(__dirname, '../.github/workflows/verify-device.yml'), 'utf8')
+  assert.match(yaml, /group: verify-device\n/)
+})
+
+test('the triage comment says when another confirmation for the device is already waiting', () => {
+  const r = triage.triage(issue({ report: 'It works', device: 'Cam Pan v4 (HL_PAN4)', model: '', blob: '' }), known)
+  const text = triage.buildComment(r, known, [], { level: 0, name: 'registered only', symbol: '🟡' }, ['#100', '#21'])
+  assert.match(text, /already waiting \(#100, #21\)/)
+  assert.ok(!/already waiting/.test(triage.buildComment(r, known, [], { level: 0, name: 'registered only', symbol: '🟡' }, [])))
+})

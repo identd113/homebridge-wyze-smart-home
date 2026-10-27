@@ -69,6 +69,50 @@ function dropPlanned(source, code) {
   return entry.test(source) ? { text: source.replace(entry, ""), removed: true } : { text: source, removed: false };
 }
 
+/** The branch for a device's verification pull request: one per device, never per issue. */
+function branchFor(code) {
+  return `verified/${code.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+}
+
+async function openPullFor({ github, owner, repo, head }) {
+  const found = await github.rest.pulls.list({ owner, repo, head: `${owner}:${head}`, state: "open" });
+  return found.data[0] || null;
+}
+
+/** A branch left behind by a pull request that was closed unmerged is ours (verified/*) and safe to replace. */
+async function removeStaleBranch({ github, owner, repo, head }) {
+  if (!head.startsWith("verified/")) return;
+  try {
+    await github.rest.git.getRef({ owner, repo, ref: `heads/${head}` });
+  } catch (err) {
+    if (err.status === 404) return;
+    throw err;
+  }
+  await github.rest.git.deleteRef({ owner, repo, ref: `heads/${head}` });
+}
+
+/** Adds a later report for the same device to the open pull request: credit, link, comment. */
+async function joinPull({ github, owner, repo, issue, model, reporter, sender, pr, head, say }) {
+  const file = await github.rest.repos.getContent({ owner, repo, path: "README.md", ref: head });
+  const thanks = addSupporter(Buffer.from(file.data.content, "base64").toString("utf8"), reporter, model);
+  if (thanks.added) {
+    await github.rest.repos.createOrUpdateFileContents({
+      owner, repo, path: "README.md", branch: head, sha: file.data.sha,
+      message: `README: thank @${reporter} for confirming ${model} (#${issue.number})`,
+      content: Buffer.from(thanks.text, "utf8").toString("base64"),
+    });
+  }
+  if (!new RegExp(`Closes #${issue.number}\\b`).test(pr.body || "")) {
+    const also = `Also confirmed in #${issue.number}${thanks.added ? ` by @${reporter} (added to "People who confirmed devices")` : ""}, verified by @${sender}.\nCloses #${issue.number}`;
+    await github.rest.pulls.update({ owner, repo, pull_number: pr.number, body: `${pr.body || ""}\n\n${also}` });
+  }
+  await say(
+    `Thank you${reporter ? ` @${reporter}` : ""} for testing and reporting. \`${model}\` already has a confirmation waiting in #${pr.number}, so yours was added to it` +
+      (thanks.added ? " (and you are on the list of people who confirmed devices; tell us if you would rather not be)" : "") +
+      ". This issue closes when that pull request is merged."
+  );
+}
+
 async function run({ github, context, core }) {
   const { owner, repo } = context.repo;
   const issue = context.payload.issue;
@@ -107,7 +151,17 @@ async function run({ github, context, core }) {
   const plannedFile = await github.rest.repos.getContent({ owner, repo, path: "src/plannedDevices.js", ref: branch });
   const planned = dropPlanned(Buffer.from(plannedFile.data.content, "base64").toString("utf8"), model);
 
-  const head = `verified/${model.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${issue.number}`;
+  // One branch and one pull request per device. A second report for the same device joins the
+  // open pull request instead of opening another, so reporters are credited together and the
+  // README is only ever changed by one branch at a time.
+  const head = branchFor(model);
+  const open = await openPullFor({ github, owner, repo, head });
+  if (open) {
+    await joinPull({ github, owner, repo, issue, model, reporter, sender, pr: open, head, say });
+    core.info(`#${issue.number}: ${model} -> joined PR #${open.number}`);
+    return;
+  }
+  await removeStaleBranch({ github, owner, repo, head });
   const base = await github.rest.git.getRef({ owner, repo, ref: `heads/${branch}` });
   await github.rest.git.createRef({ owner, repo, ref: `refs/heads/${head}`, sha: base.data.object.sha });
   const message = `${model} confirmed working by a user report (#${issue.number})`;
@@ -142,4 +196,4 @@ async function run({ github, context, core }) {
   core.info(`#${issue.number}: ${model} -> PR #${pr.data.number}`);
 }
 
-module.exports = { MARK, addSupporter, dropFromUnsupported, dropPlanned, run };
+module.exports = { MARK, branchFor, addSupporter, dropFromUnsupported, dropPlanned, run };

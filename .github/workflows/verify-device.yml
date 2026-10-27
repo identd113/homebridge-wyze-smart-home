@@ -16,8 +16,10 @@ permissions:
   issues: write
   pull-requests: write
 
+# One run at a time for the whole repo: two reports for the same device must not race each
+# other to create the same branch or edit the same README.
 concurrency:
-  group: verify-${{ github.event.issue.number }}
+  group: verify-device
   cancel-in-progress: false
 
 jobs:

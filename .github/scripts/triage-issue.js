@@ -218,7 +218,7 @@ function triage(body, known) {
  * @param {object} [listed] statusOf() for a "works" report on a supported model: where the
  *   README lists that model now.
  */
-function buildComment(result, known, others = [], listed = null) {
+function buildComment(result, known, others = [], listed = null, waiting = []) {
   const { model, status, report, misfiled, leaks, problems } = result;
   const lines = [MARKER];
 
@@ -236,6 +236,12 @@ function buildComment(result, known, others = [], listed = null) {
     if (listed) {
       lines.push(
         `\`${model}\` is currently listed as ${listed.name}. A maintainer will check your report, and if it is confirmed the list moves up to ${LEVELS[USER].name}.`,
+        ""
+      );
+    }
+    if (waiting.length) {
+      lines.push(
+        `Another confirmation for \`${model}\` is already waiting (${waiting.join(", ")}). There is no need to repeat anything there: when a maintainer verifies yours, it is added to the same pull request and you are credited with the others.`,
         ""
       );
     }
@@ -365,7 +371,19 @@ async function run({ github, context, core }) {
     owner, repo, issue_number: issue.number, per_page: 100,
   });
   const mine = comments.find((c) => c.body && c.body.includes(MARKER) && c.user && c.user.type === "Bot");
-  const body = buildComment(result, known, others, listed);
+  // Other open confirmations for the same device: an open verification pull request, or other
+  // "works" reports still waiting for a maintainer.
+  const waiting = [];
+  if (listed && listed.level < USER && result.report === "works") {
+    const pulls = await github.rest.pulls.list({ owner, repo, head: `${owner}:verified/${result.model.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, state: "open" });
+    for (const pr of pulls.data) waiting.push(`#${pr.number}`);
+    const reports = await github.rest.issues.listForRepo({ owner, repo, labels: "report:works,already-supported", state: "open", per_page: 30 });
+    for (const other of reports.data) {
+      if (other.number === issue.number || other.pull_request) continue;
+      if (modelFrom(parseForm(other.body)) === result.model) waiting.push(`#${other.number}`);
+    }
+  }
+  const body = buildComment(result, known, others, listed, waiting);
   if (mine) {
     if (mine.body !== body) await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
   } else {
