@@ -255,3 +255,16 @@ test('a kind the reporter picked wins over the one from the list', () => {
 test('every group in the device list maps to a kind label', () => {
   for (const section of require('../.github/scripts/gen-device-options.js').SECTIONS) assert.ok(triage.SECTION_KIND[section], section)
 })
+
+test('every model in the README has a report link that picks a real option in the form', () => {
+  const readme = fs.readFileSync(path.join(__dirname, '../README.md'), 'utf8')
+  const options = new Set(require('../.github/scripts/gen-device-options.js').options())
+  const linked = new Set()
+  for (const m of readme.matchAll(/`([^`]+)` \[report\]\(https:\/\/github\.com\/identd113\/homebridge-wyze-smart-home\/issues\/new\?template=new-device\.yml&device=([^)]+)\)/g)) {
+    const option = decodeURIComponent(m[2])
+    assert.ok(options.has(option), option)
+    assert.strictEqual(triage.modelFrom({ Device: option }), m[1], 'the link is on the row of its own model code')
+    linked.add(m[1])
+  }
+  for (const code of Object.keys(known.supported)) assert.ok(linked.has(code), `${code} needs a report link in the README`)
+})

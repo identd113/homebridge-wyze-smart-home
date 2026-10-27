@@ -42,31 +42,31 @@ This plugin stands on other people's work:
 
 ### Supported hardware
 
-Open a group to see its models.
+Open a group to see its models. Each **report** link opens the device report form with that device already picked, for telling us whether it works.
 
 <details>
 <summary><strong>Cameras</strong> (18)</summary>
 
 | Camera | Model code | Controls in HomeKit | Live view / snapshots | Status |
 |---|---|---|---|---|
-| Cam v1 | `WYZEC1` | Privacy, plus Siren / Floodlight / Garage switches per camera in config | WebRTC | 🟢 |
-| Cam v2 | `WYZEC1-JZ` | Privacy, plus the same optional switches | WebRTC | 🟢 |
-| Cam v3 (and Floodlight Cam) | `WYZE_CAKP2JFUS` | Privacy, plus the same optional switches | WebRTC, snapshots and audio (if the camera's microphone is on) | ✅ |
-| Cam v3 Pro | `HL_CAM3P` | Privacy, plus the same optional switches | WebRTC | 🟢 |
-| Cam v4 | `HL_CAM4` | Privacy, plus the same optional switches | WebRTC | 🟢 |
-| Cam Pan | `WYZECP1_JEF` | Privacy, Siren | WebRTC | 🟢 |
-| Cam Pan v2 | `HL_PAN2` | Privacy, Siren | WebRTC | 🟢 |
-| Cam Pan v3 | `HL_PAN3` | Privacy, Siren | WebRTC | 🟢 |
-| Cam Pan v4 | `HL_PAN4` | Privacy, Siren, Spotlight | WebRTC | 🟡 |
-| Cam Pan Pro | `HL_PANP` | Appears as a camera | WebRTC | 🟡 |
-| Bulb Cam | `HL_BC` | Light | WebRTC | 🟡 |
-| Cam Outdoor | `WVOD1` | Privacy | WebRTC | 🟢 |
-| Cam Outdoor v2 | `HL_WCO2` | Privacy | WebRTC | 🟢 |
-| Cam Floodlight Pro | `LD_CFP` | Appears as a camera (Privacy; light and siren expected) | WebRTC | 🟡 |
-| Cam Floodlight v2 | `HL_CFL2` | Appears as a camera | WebRTC | 🟡 |
-| Battery Cam Pro | `AN_RSCW` | Appears as a camera (spotlight and siren expected) | WebRTC | 🟡 |
-| Cam OG | `GW_GC1` | Appears as a camera | WebRTC | 🟡 |
-| Cam OG Telephoto 3x | `GW_GC` | Appears as a camera | WebRTC | 🟡 |
+| Cam v1 | `WYZEC1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v1%20%28WYZEC1%29) | Privacy, plus Siren / Floodlight / Garage switches per camera in config | WebRTC | 🟢 |
+| Cam v2 | `WYZEC1-JZ` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v2%20%28WYZEC1-JZ%29) | Privacy, plus the same optional switches | WebRTC | 🟢 |
+| Cam v3 (and Floodlight Cam) | `WYZE_CAKP2JFUS` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v3%20%2F%20Floodlight%20Cam%20%28WYZE_CAKP2JFUS%29) | Privacy, plus the same optional switches | WebRTC, snapshots and audio (if the camera's microphone is on) | ✅ |
+| Cam v3 Pro | `HL_CAM3P` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v3%20Pro%20%28HL_CAM3P%29) | Privacy, plus the same optional switches | WebRTC | 🟢 |
+| Cam v4 | `HL_CAM4` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v4%20%28HL_CAM4%29) | Privacy, plus the same optional switches | WebRTC | 🟢 |
+| Cam Pan | `WYZECP1_JEF` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20%28WYZECP1_JEF%29) | Privacy, Siren | WebRTC | 🟢 |
+| Cam Pan v2 | `HL_PAN2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20v2%20%28HL_PAN2%29) | Privacy, Siren | WebRTC | 🟢 |
+| Cam Pan v3 | `HL_PAN3` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20v3%20%28HL_PAN3%29) | Privacy, Siren | WebRTC | 🟢 |
+| Cam Pan v4 | `HL_PAN4` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20v4%20%28HL_PAN4%29) | Privacy, Siren, Spotlight | WebRTC | 🟡 |
+| Cam Pan Pro | `HL_PANP` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20Pro%20%28HL_PANP%29) | Appears as a camera | WebRTC | 🟡 |
+| Bulb Cam | `HL_BC` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Bulb%20Cam%20%28HL_BC%29) | Light | WebRTC | 🟡 |
+| Cam Outdoor | `WVOD1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Battery%20cameras%20-%20Cam%20Outdoor%20%28WVOD1%29) | Privacy | WebRTC | 🟢 |
+| Cam Outdoor v2 | `HL_WCO2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Battery%20cameras%20-%20Cam%20Outdoor%20v2%20%28HL_WCO2%29) | Privacy | WebRTC | 🟢 |
+| Cam Floodlight Pro | `LD_CFP` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Floodlight%20Pro%20%28LD_CFP%29) | Appears as a camera (Privacy; light and siren expected) | WebRTC | 🟡 |
+| Cam Floodlight v2 | `HL_CFL2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Floodlight%20v2%20%28HL_CFL2%29) | Appears as a camera | WebRTC | 🟡 |
+| Battery Cam Pro | `AN_RSCW` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Battery%20cameras%20-%20Battery%20Cam%20Pro%20%28AN_RSCW%29) | Appears as a camera (spotlight and siren expected) | WebRTC | 🟡 |
+| Cam OG | `GW_GC1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20OG%20%28GW_GC1%29) | Appears as a camera | WebRTC | 🟡 |
+| Cam OG Telephoto 3x | `GW_GC` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20OG%20Telephoto%203x%20%28GW_GC%29) | Appears as a camera | WebRTC | 🟡 |
 
 Notes on cameras:
 - Wyze cameras serve **one live viewer at a time**. The plugin closes each stream cleanly and shows the last snapshot while a stream is open.
@@ -85,10 +85,10 @@ Notes on cameras:
 
 | Camera | Model code | Controls in HomeKit | Live view / snapshots | Status |
 |---|---|---|---|---|
-| Video Doorbell v2 | `HL_DB2` | HomeKit doorbell: press notification. No Privacy switch (Wyze does not let it be powered off) | WebRTC at 640x480, with audio | ✅ |
-| Video Doorbell | `WYZEDB3` | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
-| Video Doorbell Pro | `GW_BE1` | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
-| Video Doorbell Pro 2 | `AN_RDB1` | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
+| Video Doorbell v2 | `HL_DB2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Doorbells%20-%20Video%20Doorbell%20v2%20%28HL_DB2%29) | HomeKit doorbell: press notification. No Privacy switch (Wyze does not let it be powered off) | WebRTC at 640x480, with audio | ✅ |
+| Video Doorbell | `WYZEDB3` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Doorbells%20-%20Video%20Doorbell%20%28WYZEDB3%29) | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
+| Video Doorbell Pro | `GW_BE1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Doorbells%20-%20Video%20Doorbell%20Pro%20%28GW_BE1%29) | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
+| Video Doorbell Pro 2 | `AN_RDB1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Doorbells%20-%20Video%20Doorbell%20Pro%202%20%28AN_RDB1%29) | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
 
 </details>
 
@@ -97,9 +97,9 @@ Notes on cameras:
 
 | Device | Model code | Controls in HomeKit | Status |
 |---|---|---|---|
-| Lock | `YD.LO1` | Lock/unlock, door status, battery | 🟢 |
-| Lock Bolt v2 | `DX_LB2` | Lock/unlock, door status, battery | 🟢 |
-| Palm Lock | `DX_PVLOC` | Lock/unlock, door status, battery (status refreshed every 10 s) | ✅ |
+| Lock | `YD.LO1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Locks%20-%20Lock%20%28YD.LO1%29) | Lock/unlock, door status, battery | 🟢 |
+| Lock Bolt v2 | `DX_LB2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Locks%20-%20Lock%20Bolt%20v2%20%28DX_LB2%29) | Lock/unlock, door status, battery | 🟢 |
+| Palm Lock | `DX_PVLOC` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Locks%20-%20Palm%20Lock%20%28DX_PVLOC%29) | Lock/unlock, door status, battery (status refreshed every 10 s) | ✅ |
 
 </details>
 
@@ -108,9 +108,9 @@ Notes on cameras:
 
 | Device | Model code | Controls in HomeKit | Status |
 |---|---|---|---|
-| Light Bulb (White, White v2) | `WLPA19`, `HL_HWB2` | On/off, brightness, colour temperature | 🟢 |
-| Mesh / Color Bulb (A19, BR30, A19 v2) | `WLPA19C`, `HL_BR30C`, `HL_A19C2` | On/off, brightness, colour, colour temperature | 🟢 |
-| Light Strip, Light Strip Pro | `HL_LSL`, `HL_LSLP` | On/off, brightness, colour | 🟢 |
+| Light Bulb (White, White v2) | `WLPA19` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Bulb%20White%20%28WLPA19%29), `HL_HWB2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Bulb%20White%20v2%20%28HL_HWB2%29) | On/off, brightness, colour temperature | 🟢 |
+| Mesh / Color Bulb (A19, BR30, A19 v2) | `WLPA19C` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Color%20Bulb%20A19%20%28WLPA19C%29), `HL_BR30C` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Color%20Bulb%20BR30%20%28HL_BR30C%29), `HL_A19C2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Color%20Bulb%20A19%20v2%20%28HL_A19C2%29) | On/off, brightness, colour, colour temperature | 🟢 |
+| Light Strip, Light Strip Pro | `HL_LSL` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Light%20Strip%20%28HL_LSL%29), `HL_LSLP` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Light%20Strip%20Pro%20%28HL_LSLP%29) | On/off, brightness, colour | 🟢 |
 
 </details>
 
@@ -119,9 +119,9 @@ Notes on cameras:
 
 | Device | Model code | Controls in HomeKit | Status |
 |---|---|---|---|
-| Plug | `WLPP1`, `WLPP1CFH` | On/off | 🟢 |
-| Outdoor Plug | `WLPPO-SUB` | On/off | 🟢 |
-| Wall Switch | `LD_SS1` | On/off | 🟢 |
+| Plug | `WLPP1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Plugs%20and%20switches%20-%20Plug%20%28WLPP1%29), `WLPP1CFH` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Plugs%20and%20switches%20-%20Plug%20%28alternate%20model%29%20%28WLPP1CFH%29) | On/off | 🟢 |
+| Outdoor Plug | `WLPPO-SUB` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Plugs%20and%20switches%20-%20Outdoor%20Plug%20%28WLPPO-SUB%29) | On/off | 🟢 |
+| Wall Switch | `LD_SS1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Plugs%20and%20switches%20-%20Wall%20Switch%20%28LD_SS1%29) | On/off | 🟢 |
 
 </details>
 
@@ -130,10 +130,10 @@ Notes on cameras:
 
 | Device | Model code | Controls in HomeKit | Status |
 |---|---|---|---|
-| Contact Sensor v1, v2 | `DWS2U`, `DWS3U` | Open/closed, battery | 🟢 |
-| Motion Sensor v1, v2 | `PIR2U`, `PIR3U` | Motion, battery | 🟢 |
-| Temperature & Humidity Sensor | `TH3U` | Temperature, humidity, battery | 🟢 |
-| Leak Sensor | `WS3U` | Leak, battery | 🟢 |
+| Contact Sensor v1, v2 | `DWS2U` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Contact%20Sensor%20v1%20%28DWS2U%29), `DWS3U` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Contact%20Sensor%20v2%20%28DWS3U%29) | Open/closed, battery | 🟢 |
+| Motion Sensor v1, v2 | `PIR2U` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Motion%20Sensor%20v1%20%28PIR2U%29), `PIR3U` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Motion%20Sensor%20v2%20%28PIR3U%29) | Motion, battery | 🟢 |
+| Temperature & Humidity Sensor | `TH3U` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Temperature%20%26%20Humidity%20Sensor%20%28TH3U%29) | Temperature, humidity, battery | 🟢 |
+| Leak Sensor | `WS3U` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Leak%20Sensor%20%28WS3U%29) | Leak, battery | 🟢 |
 
 </details>
 
@@ -142,9 +142,9 @@ Notes on cameras:
 
 | Device | Model code | Controls in HomeKit | Status |
 |---|---|---|---|
-| Home Monitoring System | `GW3U` | Arm/disarm | 🟢 |
-| Thermostat | `CO_EA1` | Mode, target / heat / cool temperatures, current temperature and humidity | 🟢 |
-| Thermostat Room Sensor | `CO_TH1` | Temperature, humidity, battery | 🟢 |
+| Home Monitoring System | `GW3U` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Home%20Monitoring%20System%20%28GW3U%29) | Arm/disarm | 🟢 |
+| Thermostat | `CO_EA1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Climate%20-%20Thermostat%20%28CO_EA1%29) | Mode, target / heat / cool temperatures, current temperature and humidity | 🟢 |
+| Thermostat Room Sensor | `CO_TH1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Climate%20-%20Thermostat%20Room%20Sensor%20%28CO_TH1%29) | Temperature, humidity, battery | 🟢 |
 
 </details>
 
@@ -153,8 +153,8 @@ Notes on cameras:
 
 | Device | Model code | Controls in HomeKit | Status |
 |---|---|---|---|
-| Robot Vacuum | `JA_RO2` | Start/stop, fan speed, battery and charging state, fault codes, per-room switches | 🟢 |
-| Sprinkler Controller | `BS_WK1` | Zone valves: start/stop, duration, remaining time | 🟢 |
+| Robot Vacuum | `JA_RO2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Appliances%20-%20Robot%20Vacuum%20%28JA_RO2%29) | Start/stop, fan speed, battery and charging state, fault codes, per-room switches | 🟢 |
+| Sprinkler Controller | `BS_WK1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Appliances%20-%20Sprinkler%20Controller%20%28BS_WK1%29) | Zone valves: start/stop, duration, remaining time | 🟢 |
 
 </details>
 
@@ -169,7 +169,7 @@ Have a Wyze device that is not on either list? [Tell us about it](https://github
 
 | Device | Model code | Why it isn't supported | Effort |
 |---|---|---|---|
-| Air Purifier | `CO_AP1` | No accessory class. [wyzeapy](https://github.com/SecKatie/wyzeapy) reads on/off, fan mode and air quality, and HomeKit has matching services | Medium |
+| Air Purifier | `CO_AP1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Appliances%20-%20Air%20Purifier%20%28CO_AP1%29) | No accessory class. [wyzeapy](https://github.com/SecKatie/wyzeapy) reads on/off, fan mode and air quality, and HomeKit has matching services | Medium |
 | Keypad | — | It is an accessory of the lock and HomeKit has no keypad service. [wyze-sdk](https://github.com/shauntarves/wyze-sdk) reads its enable setting and events | Unknown |
 | Lamp Socket / Lamp Socket v2 | — | No model code yet | Easy |
 | Lock Bolt (original, Bluetooth only) | — | Bluetooth only, no cloud control | Hard |
