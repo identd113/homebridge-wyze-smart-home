@@ -3,6 +3,7 @@ const path = require('path')
 const { homebridge, Accessory, UUIDGen, Categories } = require('./types')
 const enums = require('./enums')
 const wyzeApiVersion = require('./wyzeApiVersion')
+const plannedDevices = require('./plannedDevices')
 const { OutdoorPlugModels, PlugModels, CommonModels, CameraModels, LeakSensorModels,
   TemperatureHumidityModels, LockModels, LockBoltV2Models, MotionSensorModels, ContactSensorModels, LightModels,
   LightStripModels, MeshLightModels, ThermostatModels, ThermostatRoomSensor, S1GatewayModels,
@@ -486,7 +487,7 @@ module.exports = class WyzeSmartHome {
     if (!accessoryClass) {
       if (this.config.pluginLoggingEnabled && !this._knownUnsupported.has(device.mac)) {
         this._knownUnsupported.add(device.mac)
-        this.log(`[${device.product_type}] Unsupported device type: (Name: ${safeName}) (MAC: ${device.mac}) (Model: ${device.product_model})`)
+        this.log(`[${device.product_type}] Unsupported device type: (Name: ${safeName}) (MAC: ${device.mac}) (Model: ${device.product_model})${plannedDevices.describe(device.product_model)}`)
       }
       return
     }
