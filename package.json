@@ -13,7 +13,8 @@
     "lint": "eslint src/**.js --max-warnings=0",
     "start": "hb-service run -P ../ -U ./ --stdout",
     "dev-link": "npm link ../wyze-api",
-    "known-models": "node .github/scripts/gen-known-models.js"
+    "known-models": "node .github/scripts/gen-known-models.js",
+    "device-options": "node .github/scripts/gen-device-options.js"
   },
   "keywords": [
     "homebridge-plugin",

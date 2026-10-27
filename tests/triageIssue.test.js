@@ -12,18 +12,17 @@ const known = { supported: require('../.github/scripts/known-models.json'), notA
 
 const blobFor = (model, extra = {}) => JSON.stringify({ product_model: model, product_type: 'Common', firmware_ver: '1.2.3', ...extra }, null, 2)
 
-function issue ({ report = 'It is not supported yet', model = 'HL_NEW1', name = 'Wyze Thing', kind = 'Light, bulb or light strip', blob = blobFor(model), features = 'turns on' } = {}) {
+function issue ({ report = 'It is not supported yet', device = triage.OTHER_DEVICE, model = 'HL_NEW1', kind = 'Light, bulb or light strip', blob = blobFor(model), details = 'turns on' } = {}) {
   return [
+    '### Before you start', '', '- [x] I looked at the README lists', '',
     '### What are you reporting?', '', report, '',
-    '### Model code', '', model, '',
-    '### What the device is called', '', name, '',
+    '### Device', '', device, '',
+    '### Model code (only if your device is not in the list)', '', model, '',
     '### What kind of device is it?', '', kind, '',
-    '### Firmware version', '', '_No response_', '',
-    '### What the device does in the Wyze app', '', features, '',
-    '### What you would like in HomeKit', '', '_No response_', '',
+    '### Plugin version', '', '_No response_', '',
+    '### What the device does, and what you see in HomeKit', '', details, '',
     '### Device information', '', '```json', blob, '```', '',
-    '### Anything else from the log (optional)', '', '_No response_', '',
-    '### Before you submit', '', '- [x] I looked at the README lists'
+    '### Anything else from the log (optional)', '', '_No response_', ''
   ].join('\n')
 }
 
@@ -36,8 +35,8 @@ test('the headings the script reads are the ones in the issue form', () => {
 
 test('a form body is split into its fields, and "No response" is empty', () => {
   const fields = triage.parseForm(issue())
-  assert.strictEqual(fields['Model code'], 'HL_NEW1')
-  assert.strictEqual(fields['Firmware version'], '')
+  assert.strictEqual(fields['Model code (only if your device is not in the list)'], 'HL_NEW1')
+  assert.strictEqual(fields['Plugin version'], '')
   assert.ok(fields['Device information'].startsWith('{'), 'the json fence is removed')
 })
 
@@ -190,4 +189,36 @@ test('an issue made before the report question existed is still read as a reques
   assert.strictEqual(r.status, 'new')
   assert.ok(!r.misfiled)
   assert.ok(!r.labels.some((l) => l.startsWith('report:')))
+})
+
+test('the device chosen from the list supplies the model code', () => {
+  const r = triage.triage(issue({ report: 'It works', device: 'Cam v2 (WYZEC1-JZ)', model: '', blob: '' }), known)
+  assert.strictEqual(r.model, 'WYZEC1-JZ')
+  assert.strictEqual(r.status, 'supported')
+  assert.strictEqual(triage.modelFrom({ Device: 'Light Strip Pro (HL_LSLP)', 'Model code (only if your device is not in the list)': 'IGNORED' }), 'HL_LSLP')
+})
+
+test('picking "not in this list" without a model code asks for one', () => {
+  const r = triage.triage(issue({ model: '' }), known)
+  assert.ok(r.labels.includes('needs-info'))
+  assert.match(r.problems[0], /not picked from the list/)
+})
+
+test('an issue made before the device list existed still has its model read', () => {
+  const body = issue().replace('### Model code (only if your device is not in the list)', '### Model code').replace(/### Device\n\n.*\n\n/, '')
+  assert.strictEqual(triage.triage(body, known).model, 'HL_NEW1')
+})
+
+test('every model the plugin handles has a name in the device list, and the form lists them all', () => {
+  const names = require('../.github/scripts/device-names.json')
+  for (const code of Object.keys(known.supported)) assert.ok(names[code], `add ${code} to .github/scripts/device-names.json, then run npm run device-options`)
+  const gen = require('../.github/scripts/gen-device-options.js')
+  const form = fs.readFileSync(gen.FORM, 'utf8')
+  assert.strictEqual(gen.render(form), form, 'run `npm run device-options` and commit the result')
+})
+
+test('the form asks for two confirmations first and requires little else', () => {
+  const yaml = fs.readFileSync(path.join(__dirname, '../.github/ISSUE_TEMPLATE/new-device.yml'), 'utf8')
+  assert.ok(yaml.indexOf('id: checks') < yaml.indexOf('id: report'), 'the confirmations come first')
+  assert.strictEqual((yaml.match(/required: true/g) || []).length, 4, 'two confirmations, what you are reporting, and the device')
 })

@@ -10,14 +10,16 @@
  * a shell command, and never repeated back except for a model code that passed MODEL_PATTERN.
  */
 
+const { OTHER: OTHER_DEVICE } = require("./gen-device-options.js");
+
 const MARKER = "<!-- wyze-device-triage -->";
 
 // Headings GitHub writes for the questions in .github/ISSUE_TEMPLATE/new-device.yml.
 // tests/triageIssue.test.js checks that they still match the form.
 const FIELD = {
   report: "What are you reporting?",
-  model: "Model code",
-  name: "What the device is called",
+  device: "Device",
+  model: "Model code (only if your device is not in the list)",
   kind: "What kind of device is it?",
   blob: "Device information",
 };
@@ -87,6 +89,18 @@ function parseForm(body) {
   return fields;
 }
 
+// Issues made before the device list existed have a plain "Model code" question.
+const LEGACY_MODEL_HEADING = "Model code";
+
+// The code in brackets at the end of a chosen device option, for example "Cam v4 (HL_CAM4)".
+const PICKED_CODE = /\(([A-Za-z0-9._-]{2,40})\)\s*$/;
+
+function modelFrom(fields) {
+  const picked = PICKED_CODE.exec(fields[FIELD.device] || "");
+  if (picked) return cleanModel(picked[1]);
+  return cleanModel(fields[FIELD.model] || fields[LEGACY_MODEL_HEADING]);
+}
+
 function cleanModel(raw) {
   const value = String(raw || "").trim().replace(/^[`'"]+|[`'"]+$/g, "");
   return MODEL_PATTERN.test(value) ? value : null;
@@ -140,7 +154,7 @@ function blobProblem(blob, model) {
 function triage(body, known) {
   const notApplicable = known.notApplicable || NOT_APPLICABLE;
   const fields = parseForm(body);
-  const model = cleanModel(fields[FIELD.model]);
+  const model = modelFrom(fields);
   const kind = KIND_LABELS[fields[FIELD.kind]] || null;
   const reportLabel = has(REPORT_LABELS, fields[FIELD.report]) ? REPORT_LABELS[fields[FIELD.report]] : null;
   const leaks = sensitiveKeysIn(Object.values(fields).join("\n"));
@@ -150,7 +164,7 @@ function triage(body, known) {
   let status = "new";
 
   if (!model) {
-    problems.push("the model code is missing or is not a model code (letters, digits, `.`, `_` and `-` only)");
+    problems.push("the device is not picked from the list and the model code is missing or is not a model code (letters, digits, `.`, `_` and `-` only)");
     labels.add("needs-info");
   } else if (has(known.supported, model)) {
     status = "supported";
@@ -302,6 +316,6 @@ async function run({ github, context, core }) {
 }
 
 module.exports = {
-  MARKER, FIELD, NOT_APPLICABLE, KIND_LABELS, REPORT_LABELS, MODEL_PATTERN,
-  parseForm, cleanModel, sensitiveKeysIn, blobProblem, triage, buildComment, run,
+  MARKER, FIELD, OTHER_DEVICE, NOT_APPLICABLE, KIND_LABELS, REPORT_LABELS, MODEL_PATTERN,
+  parseForm, modelFrom, cleanModel, sensitiveKeysIn, blobProblem, triage, buildComment, run,
 };

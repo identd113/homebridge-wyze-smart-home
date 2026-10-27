@@ -6,13 +6,20 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping the plugin learn about your Wyze devices. Use this form to ask for a device the plugin does not handle yet, or to say whether a device it does handle **works**, **partly works** or **does not work**.
+        Thanks for helping the plugin learn about your Wyze devices. Use this form to ask for a device the plugin does not handle yet, or to say whether one it does handle **works**, **partly works** or **does not work**. For a bug that is not about one device (a crash, a login problem, a setting that does nothing), use the bug report form instead.
 
-        Please check the **Supported Devices** and **Not Yet Supported** lists in the [README](https://github.com/identd113/homebridge-wyze-smart-home#supported-devices) first. Scales, headphones, chime boxes and similar products are known and are not planned for HomeKit, so there is no need to report those.
+        **Nothing here is sent automatically.** You choose what to paste. Scales, headphones, chime boxes and similar products are known and are not planned for HomeKit.
 
-        For a bug that is not about one device (a crash, a login problem, a setting that does nothing), use the bug report form instead.
-
-        **Nothing here is sent automatically.** You choose what to paste. Please read what you paste and remove anything personal (email, address, Wi-Fi name, IP and MAC addresses, location) before you submit.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you start
+      options:
+        - label: I looked at the **Supported Devices** and **Not Yet Supported** lists in the [README](https://github.com/identd113/homebridge-wyze-smart-home#supported-devices) for this device.
+          required: true
+        - label: I will remove personal details from anything I paste (email, address, Wi-Fi name, IP and MAC addresses, location).
+          required: true
+        - label: I can try a test version of the plugin and report back.
 
   - type: dropdown
     id: report
@@ -26,28 +33,79 @@ body:
     validations:
       required: true
 
-  - type: input
-    id: model
+  - type: dropdown
+    id: device
     attributes:
-      label: Model code
-      description: |
-        The plugin logs a line like `Unsupported device type: (Name: ...) (MAC: ...) (Model: XXXX)`. Copy the value after `Model:`. Turn on debug logging in the plugin settings first (Log Level: debug) and restart Homebridge to see it.
-      placeholder: "HL_ABC"
+      label: Device
+      description: Pick your device by name; its model code is in brackets. If it is not listed, choose the last option and fill in the next two questions.
+      options:
+        # BEGIN device options (npm run device-options)
+        - "Air Purifier (CO_AP1)"
+        - "Battery Cam Pro (AN_RSCW)"
+        - "Bulb Cam (HL_BC)"
+        - "Bulb White (WLPA19)"
+        - "Bulb White v2 (HL_HWB2)"
+        - "Cam Doorbell v2 (HL_DB2)"
+        - "Cam Floodlight Pro (LD_CFP)"
+        - "Cam Floodlight v2 (HL_CFL2)"
+        - "Cam OG (GW_GC1)"
+        - "Cam OG Telephoto 3x (GW_GC)"
+        - "Cam Outdoor (WVOD1)"
+        - "Cam Outdoor v2 (HL_WCO2)"
+        - "Cam Pan (WYZECP1_JEF)"
+        - "Cam Pan Pro (HL_PANP)"
+        - "Cam Pan v2 (HL_PAN2)"
+        - "Cam Pan v3 (HL_PAN3)"
+        - "Cam Pan v4 (HL_PAN4)"
+        - "Cam v1 (WYZEC1)"
+        - "Cam v2 (WYZEC1-JZ)"
+        - "Cam v3 / Floodlight Cam (WYZE_CAKP2JFUS)"
+        - "Cam v3 Pro (HL_CAM3P)"
+        - "Cam v4 (HL_CAM4)"
+        - "Color Bulb A19 (WLPA19C)"
+        - "Color Bulb A19 v2 (HL_A19C2)"
+        - "Color Bulb BR30 (HL_BR30C)"
+        - "Contact Sensor v1 (DWS2U)"
+        - "Contact Sensor v2 (DWS3U)"
+        - "Home Monitoring System (GW3U)"
+        - "Leak Sensor (WS3U)"
+        - "Light Strip (HL_LSL)"
+        - "Light Strip Pro (HL_LSLP)"
+        - "Lock (YD.LO1)"
+        - "Lock Bolt v2 (DX_LB2)"
+        - "Motion Sensor v1 (PIR2U)"
+        - "Motion Sensor v2 (PIR3U)"
+        - "Outdoor Plug (WLPPO-SUB)"
+        - "Palm Lock (DX_PVLOC)"
+        - "Plug (alternate model) (WLPP1CFH)"
+        - "Plug (WLPP1)"
+        - "Robot Vacuum (JA_RO2)"
+        - "Sprinkler Controller (BS_WK1)"
+        - "Temperature & Humidity Sensor (TH3U)"
+        - "Thermostat (CO_EA1)"
+        - "Thermostat Room Sensor (CO_TH1)"
+        - "Video Doorbell (WYZEDB3)"
+        - "Video Doorbell Pro (GW_BE1)"
+        - "Video Doorbell Pro 2 (AN_RDB1)"
+        - "Wall Switch (LD_SS1)"
+        - "Not in this list (enter the model code below)"
+        # END device options
     validations:
       required: true
 
   - type: input
-    id: name
+    id: model
     attributes:
-      label: What the device is called
-      description: The product name, for example "Wyze Cam Floodlight Pro" or "Wyze Window Cam".
-    validations:
-      required: true
+      label: Model code (only if your device is not in the list)
+      description: |
+        The plugin logs a line like `Unsupported device type: (Name: ...) (MAC: ...) (Model: XXXX)`. Copy the value after `Model:`. Turn on debug logging in the plugin settings first (Log Level: debug) and restart Homebridge to see it.
+      placeholder: "HL_ABC"
 
   - type: dropdown
     id: kind
     attributes:
       label: What kind of device is it?
+      description: Only if it is not in the list.
       options:
         - Camera or doorbell
         - Light, bulb or light strip
@@ -57,67 +115,34 @@ body:
         - Thermostat or room sensor
         - Vacuum, sprinkler or other appliance
         - Something else
-    validations:
-      required: true
-
-  - type: input
-    id: firmware
-    attributes:
-      label: Firmware version
-      description: Shown in the Wyze app under the device's settings, then Device Info.
-      placeholder: "1.2.3.456"
-
-  - type: textarea
-    id: features
-    attributes:
-      label: What the device does in the Wyze app
-      description: The controls and readings you see, for example "turns a light on and off, shows battery, has a siren".
-    validations:
-      required: true
 
   - type: input
     id: plugin
     attributes:
       label: Plugin version
-      description: Leave blank if the device is not supported yet. Otherwise the version in the Homebridge UI, for example the one shown at startup.
+      description: For a device the plugin already handles. Shown in the Homebridge UI and at startup.
       placeholder: "2.0.0-beta.3"
 
   - type: textarea
-    id: wanted
+    id: details
     attributes:
-      label: What you would like in HomeKit
-      description: For a device that is not supported yet, for example "a switch for the light" or "a sensor that shows when the door opens".
-
-  - type: textarea
-    id: result
-    attributes:
-      label: What works and what does not in HomeKit
-      description: For a device the plugin handles. For example "on and off work, brightness does nothing, it shows offline after a few hours".
+      label: What the device does, and what you see in HomeKit
+      description: |
+        The product name, if it is not in the list (for example "Wyze Window Cam"). What it does in the Wyze app (for example "turns a light on and off, shows battery, has a siren"). For a device that is not supported yet, what you would like in HomeKit; for one the plugin handles, what works and what does not.
 
   - type: textarea
     id: blob
     attributes:
       label: Device information
       description: |
-        **Needed when the device is not supported yet; helpful, but optional, when it already works or partly works.** Paste what the plugin knows about the device. With debug logging on, restart Homebridge and find the `get_object_list` response in the log. Copy **only the entry for this device** (the part with its model code), not the whole list.
+        **Needed when the device is not supported yet; optional when it works.** Paste what the plugin knows about the device. With debug logging on, restart Homebridge and find the `get_object_list` response in the log. Copy **only the entry for this device** (the part with its model code), including its firmware version, not the whole list.
 
-        **Edit it before you paste.** The log entry includes details that identify you or your network: the device's MAC address, its name, its IP address and your Wi-Fi network name (`mac`, `nickname`, `ip`, `ssid`). Replace those values with `REDACTED`. The model code, firmware version and the rest of the settings are what we need.
+        **Edit it before you paste.** The log entry includes details that identify you or your network: the device's MAC address, its name, its IP address and your Wi-Fi network name (`mac`, `nickname`, `ip`, `ssid`). Replace those values with `REDACTED`.
       render: json
 
   - type: textarea
     id: logs
     attributes:
       label: Anything else from the log (optional)
-      description: Errors or warnings around the time the plugin starts. Paste them here.
+      description: Errors or warnings around the time the plugin starts, or when you use the device. Paste them here.
       render: text
-
-  - type: checkboxes
-    id: checks
-    attributes:
-      label: Before you submit
-      options:
-        - label: I looked at the README lists for this device.
-          required: true
-        - label: I removed personal details from what I pasted.
-          required: true
-        - label: I can try a test version of the plugin and report back.
