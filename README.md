@@ -74,6 +74,7 @@ Notes on cameras:
 - **Pictures** are refreshed every 30 seconds and when Wyze reports new motion (`advanced.snapshotRefreshSeconds`, `advanced.snapshotOnMotion`). Each refresh is a short live connection, so a Wyze app view of the same camera may be interrupted.
 - The Doorbell v2 press arrives from Wyze's cloud event list, so it can lag a few seconds. Turn on notifications for the doorbell in the Home app.
 - Extra switches (`garage`, `spotlight`, `floodlight`, `siren`, `notifications`, `motionDetection`) are set per camera under `cameras` in the config.
+- **Motion Sensor:** set `motionSensor` for a camera and it also appears as a HomeKit motion sensor, for automations. It turns on when Wyze's event list shows new motion and off after 30 seconds without more. The events come from Wyze's cloud, so expect a delay of up to about 10 seconds, and a camera without a Wyze plan records at most one motion event about every 5 minutes. Not yet tried on hardware.
 - **Floodlight:** a camera with a floodlight accessory plugged in (a Cam v3 with the Wyze floodlight) gets a Floodlight switch on its own, with nothing to configure. The Home app shows it with the camera; in the camera's settings you can choose to show it as a separate tile.
 - Cam Pan v4 and Bulb Cam come from [SecKatie/wyzeapy](https://github.com/SecKatie/wyzeapy) and have not been tried on hardware here yet.
 
@@ -280,7 +281,7 @@ The `cameras` entry is only an example. Cameras not listed there still appear, w
 
 | Field | Default | What it does |
 |---|---|---|
-| `cameras` | none | Extra switches for individual cameras, by `mac`: `garage`, `spotlight`, `floodlight`, `siren`, `notifications` and `motionDetection`, each `false` unless set. `name` is an optional label. A camera with a floodlight accessory needs no entry for the Floodlight switch. |
+| `cameras` | none | Extra switches for individual cameras, by `mac`: `garage`, `spotlight`, `floodlight`, `siren`, `notifications`, `motionDetection` and `motionSensor`, each `false` unless set. `name` is an optional label. A camera with a floodlight accessory needs no entry for the Floodlight switch. |
 | `excludes.macs` | none | Hide devices by MAC address. |
 | `excludes.types` | none | Hide every device of a type, for example `Plug`, `Light` or `Camera`. The settings screen lists the choices. |
 | `hms.enabled` | `false` | Add the Home Monitoring System. Turn it on only with an active HMS subscription. |

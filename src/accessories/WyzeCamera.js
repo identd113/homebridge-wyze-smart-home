@@ -34,6 +34,8 @@ const SNAPSHOT_REFRESH_MIN_S = 10;
 // Floodlight accessories (device parameter `dongle_product_model`) that get a light switch on
 // their own. HL_CFL is the Cam v3 floodlight, seen on a real Cam v3.
 const FLOODLIGHT_DONGLE_MODELS = new Set(["HL_CFL"]);
+// How long the Motion Sensor stays on after the last new event in Wyze's event list.
+const MOTION_SENSOR_HOLD_MS = 30_000;
 // Wyze sends on/off properties as strings ("1" on, "2" or "0" off), and any non-empty string is truthy.
 const isOn = (v) => v === 1 || v === "1" || v === true;
 
@@ -59,16 +61,20 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     this.garageDoor = persisted.garageDoor;
     this.motionDetection = persisted.motionDetection;
 
-    // Remove any MotionSensor service left over from earlier plugin versions —
-    // we don't have a reliable way to detect motion so we no longer expose it.
-    const staleMotion = this.homeKitAccessory.getService(Service.MotionSensor);
-    if (staleMotion) this.homeKitAccessory.removeService(staleMotion);
+    // A MotionSensor service left over from earlier plugin versions is removed unless the
+    // Motion Sensor option is on for this camera (it is driven by the event poller below).
+    if (!this._isInConfig("motionSensorAccessory")) {
+      const staleMotion = this.homeKitAccessory.getService(Service.MotionSensor);
+      if (staleMotion) this.homeKitAccessory.removeService(staleMotion);
+    }
 
     if (!Object.values(enums.CameraModels).includes(this.product_model)) return;
 
     this._setupPrivacySwitch();
 
     if (!this.cameraAccessoryAttached()) return;
+
+    if (this._isInConfig("motionSensorAccessory")) this._setupMotionSensor();
 
     // Optional services driven by per-MAC config arrays.
     if (this._isInConfig("garageDoorAccessory")) {
@@ -226,6 +232,36 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     this.floodLightService?.getCharacteristic(Characteristic.On).updateValue(this.floodLight);
   }
 
+  // A HomeKit Motion Sensor fed by the shared event poller: it turns on when a new event
+  // appears in Wyze's cloud list and off again after MOTION_SENSOR_HOLD_MS without another.
+  _setupMotionSensor() {
+    this.motionSensorEnabled = true;
+    this._motionActive = false;
+    this.motionSensorService = this._getOrAddService({
+      ServiceType: Service.MotionSensor,
+      subtype: "Motion",
+      defaultName: "Motion",
+      label: "Motion",
+    });
+    this.motionSensorService
+      .getCharacteristic(Characteristic.MotionDetected)
+      .onGet(() => this._motionActive === true);
+  }
+
+  _setMotionActive(active) {
+    if (!this.motionSensorEnabled) return;
+    clearTimeout(this._motionTimer);
+    this._motionTimer = null;
+    if (active) {
+      this._motionTimer = setTimeout(() => this._setMotionActive(false), MOTION_SENSOR_HOLD_MS);
+      this._motionTimer.unref?.();
+    }
+    if (this._motionActive === active) return;
+    this._motionActive = active;
+    this.motionSensorService.getCharacteristic(Characteristic.MotionDetected).updateValue(active);
+    if (active) this.plugin.log.debug?.(`[Camera] ${this.display_name}: motion`);
+  }
+
   _getOrAddService({ ServiceType, subtype, defaultName, legacyLookup, label }) {
     // Prefer subtype-based lookup (stable across renames). Fall back to a
     // legacy name-based lookup so cameras paired before the naming change
@@ -256,7 +292,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   // doorbell's faster rate, which costs no extra requests.
   _startEventWatch(isDoorbell) {
     this._watchRing = !!isDoorbell;
-    this._watchMotion = this.plugin.config.snapshotOnMotion !== false;
+    this._watchMotion = this.plugin.config.snapshotOnMotion !== false || !!this.motionSensorEnabled;
     if (!this._watchRing && !this._watchMotion) return;
     if (this._motionMember) return;
     this._ringedIds = null; // seeded by the first successful poll
@@ -330,6 +366,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     this._motionIds = ids;
     if (previous === null || previous === undefined) return;
     if (events.some((event) => !previous.has(event.id))) {
+      this._setMotionActive(true);
+      if (this.plugin.config.snapshotOnMotion === false) return;
       this.plugin.log.debug?.(`[Camera] ${this.display_name}: new motion, refreshing the picture`);
       this._streamingDelegate?.refreshSnapshot?.("motion");
     }
@@ -337,6 +375,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
 
   // Stop live streams so the camera isn't left with a dead viewer (shutdown).
   stopStreams() {
+    clearTimeout(this._motionTimer);
+    this._motionTimer = null;
     if (this._motionMember) this.plugin._motionPoller?.remove(this._motionMember);
     this._motionMember = null;
     if (this._refreshMember) this.plugin._refreshScheduler?.remove(this._refreshMember);
