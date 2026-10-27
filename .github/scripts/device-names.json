@@ -1,242 +1,256 @@
 {
   "AN_RDB1": {
     "name": "Video Doorbell Pro 2",
-    "section": "Cameras",
-    "released": 2025
+    "section": "Doorbells",
+    "released": "2025-10",
+    "estimated": true
   },
   "AN_RSCW": {
     "name": "Battery Cam Pro",
-    "section": "Cameras",
-    "released": 2023
+    "section": "Battery cameras",
+    "released": "2023-08"
   },
   "BS_WK1": {
     "name": "Sprinkler Controller",
     "section": "Appliances",
-    "released": 2022
+    "released": "2020-11"
   },
   "CO_AP1": {
     "name": "Air Purifier",
     "section": "Appliances",
-    "released": 2024
+    "released": "2022-04"
   },
   "CO_EA1": {
     "name": "Thermostat",
     "section": "Climate",
-    "released": 2021
+    "released": "2020-10"
   },
   "CO_TH1": {
     "name": "Thermostat Room Sensor",
     "section": "Climate",
-    "released": 2021
+    "released": "2020-10",
+    "estimated": true
   },
   "DWS2U": {
     "name": "Contact Sensor v1",
     "section": "Sensors",
-    "released": 2019
+    "released": "2019-03"
   },
   "DWS3U": {
     "name": "Contact Sensor v2",
     "section": "Sensors",
-    "released": 2022
+    "released": "2020-12"
   },
   "DX_LB2": {
     "name": "Lock Bolt v2",
     "section": "Locks",
-    "released": 2024
+    "released": "2025-11"
   },
   "DX_PVLOC": {
     "name": "Palm Lock",
     "section": "Locks",
-    "released": 2025
+    "released": "2025-09"
+  },
+  "GUNSFE": {
+    "name": "Gun Safe",
+    "section": "Locks",
+    "released": "2026-12",
+    "estimated": true
   },
   "GW3U": {
     "name": "Home Monitoring System",
     "section": "Sensors",
-    "released": 2022
+    "released": "2020-12"
   },
   "GW_BE1": {
     "name": "Video Doorbell Pro",
-    "section": "Cameras",
-    "released": 2022
+    "section": "Doorbells",
+    "released": "2021-10"
   },
   "GW_GC": {
     "name": "Cam OG Telephoto 3x",
     "section": "Cameras",
-    "released": 2024
+    "released": "2023-01"
   },
   "GW_GC1": {
     "name": "Cam OG",
     "section": "Cameras",
-    "released": 2024
+    "released": "2023-01"
   },
   "HL_A19C2": {
     "name": "Color Bulb A19 v2",
     "section": "Lights",
-    "released": 2023
+    "released": "2023-01",
+    "estimated": true
   },
   "HL_BC": {
     "name": "Bulb Cam",
     "section": "Cameras",
-    "released": 2024
+    "released": "2025-06"
   },
   "HL_BR30C": {
     "name": "Color Bulb BR30",
     "section": "Lights",
-    "released": 2022
+    "released": "2022-01",
+    "estimated": true
   },
   "HL_CAM3P": {
     "name": "Cam v3 Pro",
     "section": "Cameras",
-    "released": 2022
+    "released": "2022-10"
   },
   "HL_CAM4": {
     "name": "Cam v4",
     "section": "Cameras",
-    "released": 2024
+    "released": "2024-03"
   },
   "HL_CFL2": {
     "name": "Cam Floodlight v2",
     "section": "Cameras",
-    "released": 2023
+    "released": "2024-01"
   },
   "HL_DB2": {
-    "name": "Cam Doorbell v2",
-    "section": "Cameras",
-    "released": 2025
+    "name": "Video Doorbell v2",
+    "section": "Doorbells",
+    "released": "2023-10"
   },
   "HL_HWB2": {
     "name": "Bulb White v2",
     "section": "Lights",
-    "released": 2022
+    "released": "2021-10"
   },
   "HL_LSL": {
     "name": "Light Strip",
     "section": "Lights",
-    "released": 2021
+    "released": "2021-07"
   },
   "HL_LSLP": {
     "name": "Light Strip Pro",
     "section": "Lights",
-    "released": 2022
+    "released": "2021-07"
   },
   "HL_PAN2": {
     "name": "Cam Pan v2",
     "section": "Cameras",
-    "released": 2021
+    "released": "2021-09"
   },
   "HL_PAN3": {
     "name": "Cam Pan v3",
     "section": "Cameras",
-    "released": 2022
+    "released": "2023-01"
   },
   "HL_PAN4": {
     "name": "Cam Pan v4",
     "section": "Cameras",
-    "released": 2025
+    "released": "2025-08"
   },
   "HL_PANP": {
     "name": "Cam Pan Pro",
     "section": "Cameras",
-    "released": 2022
+    "released": "2023-01",
+    "estimated": true
   },
   "HL_WCO2": {
     "name": "Cam Outdoor v2",
-    "section": "Cameras",
-    "released": 2023
+    "section": "Battery cameras",
+    "released": "2023-01",
+    "estimated": true
   },
   "JA_RO2": {
     "name": "Robot Vacuum",
     "section": "Appliances",
-    "released": 2021
+    "released": "2020-11"
   },
   "LD_CFP": {
     "name": "Cam Floodlight Pro",
     "section": "Cameras",
-    "released": 2024
+    "released": "2023-05"
   },
   "LD_SS1": {
     "name": "Wall Switch",
     "section": "Plugs and switches",
-    "released": 2022
+    "released": "2021-10"
   },
   "PIR2U": {
     "name": "Motion Sensor v1",
     "section": "Sensors",
-    "released": 2019
+    "released": "2019-03"
   },
   "PIR3U": {
     "name": "Motion Sensor v2",
     "section": "Sensors",
-    "released": 2022
+    "released": "2020-12"
   },
   "TH3U": {
     "name": "Temperature & Humidity Sensor",
     "section": "Sensors",
-    "released": 2022
+    "released": "2021-06"
   },
   "WLPA19": {
     "name": "Bulb White",
     "section": "Lights",
-    "released": 2018
+    "released": "2019-05"
   },
   "WLPA19C": {
     "name": "Color Bulb A19",
     "section": "Lights",
-    "released": 2019
+    "released": "2021-02"
   },
   "WLPP1": {
     "name": "Plug",
     "section": "Plugs and switches",
-    "released": 2018
+    "released": "2019-07"
   },
   "WLPP1CFH": {
     "name": "Plug (alternate model)",
     "section": "Plugs and switches",
-    "released": 2019
+    "released": "2019-07",
+    "estimated": true
   },
   "WLPPO-SUB": {
     "name": "Outdoor Plug",
     "section": "Plugs and switches",
-    "released": 2020
+    "released": "2020-12"
   },
   "WS3U": {
     "name": "Leak Sensor",
     "section": "Sensors",
-    "released": 2022
+    "released": "2021-06",
+    "estimated": true
   },
   "WVOD1": {
     "name": "Cam Outdoor",
-    "section": "Cameras",
-    "released": 2021
+    "section": "Battery cameras",
+    "released": "2020-06"
   },
   "WYZEC1": {
     "name": "Cam v1",
     "section": "Cameras",
-    "released": 2017
+    "released": "2017-10"
   },
   "WYZEC1-JZ": {
     "name": "Cam v2",
     "section": "Cameras",
-    "released": 2018
+    "released": "2018-02"
   },
   "WYZECP1_JEF": {
     "name": "Cam Pan",
     "section": "Cameras",
-    "released": 2019
+    "released": "2018-05"
   },
   "WYZEDB3": {
     "name": "Video Doorbell",
-    "section": "Cameras",
-    "released": 2021
+    "section": "Doorbells",
+    "released": "2020-09"
   },
   "WYZE_CAKP2JFUS": {
     "name": "Cam v3 / Floodlight Cam",
     "section": "Cameras",
-    "released": 2020
+    "released": "2020-10"
   },
   "YD.LO1": {
     "name": "Lock",
     "section": "Locks",
-    "released": 2020
+    "released": "2019-12"
   }
 }

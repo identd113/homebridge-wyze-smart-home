@@ -85,7 +85,7 @@ Notes on cameras:
 
 | Camera | Model code | Controls in HomeKit | Live view / snapshots | Status |
 |---|---|---|---|---|
-| Cam Doorbell v2 | `HL_DB2` | HomeKit doorbell: press notification. No Privacy switch (Wyze does not let it be powered off) | WebRTC at 640x480, with audio | ✅ |
+| Video Doorbell v2 | `HL_DB2` | HomeKit doorbell: press notification. No Privacy switch (Wyze does not let it be powered off) | WebRTC at 640x480, with audio | ✅ |
 | Video Doorbell | `WYZEDB3` | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
 | Video Doorbell Pro | `GW_BE1` | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
 | Video Doorbell Pro 2 | `AN_RDB1` | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |

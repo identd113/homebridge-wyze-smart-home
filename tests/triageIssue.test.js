@@ -214,7 +214,7 @@ test('every model the plugin handles has a name in the device list, and the form
   const gen = require('../.github/scripts/gen-device-options.js')
   for (const code of Object.keys(known.supported)) {
     const d = names[code]
-    assert.ok(d && d.name && gen.SECTIONS.includes(d.section) && Number.isInteger(d.released), `add ${code} to .github/scripts/device-names.json, then run npm run device-options`)
+    assert.ok(d && d.name && gen.SECTIONS.includes(d.section) && /^\d{4}-\d{2}$/.test(d.released), `add ${code} to .github/scripts/device-names.json, then run npm run device-options`)
   }
   const form = fs.readFileSync(gen.FORM, 'utf8')
   assert.strictEqual(gen.render(form), form, 'run `npm run device-options` and commit the result')
@@ -236,6 +236,6 @@ test('the device list is grouped, and newest first inside each group', () => {
   for (let i = 1; i < opts.length; i++) {
     if (byCode(opts[i]).section === byCode(opts[i - 1]).section) assert.ok(byCode(opts[i - 1]).released >= byCode(opts[i]).released, opts[i])
   }
-  assert.strictEqual(opts[0].startsWith('Cameras - '), true)
+  assert.strictEqual(opts[0].startsWith('Doorbells - '), true)
   assert.strictEqual(gen.options().at(-1), gen.OTHER)
 })
