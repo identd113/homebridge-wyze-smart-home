@@ -32,6 +32,13 @@ This plugin stands on other people's work:
 
 **Looking for Home Assistant?** Please check out SecKatie's [ha-wyzeapi](https://github.com/SecKatie/ha-wyzeapi) integration.
 
+### People who confirmed devices
+
+Thank you to everyone who tested a device and told us it works. Each name was added when a maintainer checked their report. If you would rather not be listed, say so on your report and we will take you off.
+
+<!-- confirmed-by -->
+<!-- /confirmed-by -->
+
 ## Requirements
 - Node.js 22 or newer (2.0.0-beta.3 and later). Homebridge 2.x already requires it; on Homebridge 1.x, update Node first.
 - The plugin installs the matching `wyze-api` automatically and checks its version at startup. If the version is wrong, or no Wyze `username` is configured, the log shows a `[FATAL]` message and the plugin stays idle without removing your cached accessories.

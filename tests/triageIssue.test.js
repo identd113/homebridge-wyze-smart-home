@@ -352,3 +352,16 @@ test('a verified device is also taken off the unsupported list and the planned d
   assert.ok(!gone.text.includes('CO_AP1') && gone.text.includes('YD_BT1'))
   assert.doesNotThrow(() => new Function('module', 'require', gone.text)({ exports: {} }, require), 'the file still runs')
 })
+
+test('the reporter is added to the list of people who confirmed devices, once per device', () => {
+  const verify = require('../.github/scripts/verify-device.js')
+  const readme = 'x\n<!-- confirmed-by -->\n<!-- /confirmed-by -->\ny'
+  const first = verify.addSupporter(readme, 'octo-cat', 'HL_CAM4')
+  assert.ok(first.added && first.text.includes('- [octo-cat](https://github.com/octo-cat): `HL_CAM4`'))
+  const second = verify.addSupporter(first.text, 'Octo-Cat', 'WYZEC1-JZ')
+  assert.ok(second.text.includes('`HL_CAM4`, `WYZEC1-JZ`') && (second.text.match(/octo-cat/gi) || []).length === 2, 'the same person gets one line, case aside')
+  assert.strictEqual(verify.addSupporter(second.text, 'octo-cat', 'HL_CAM4').added, false, 'no duplicates')
+  for (const bad of ['', null, 'a b', '../x', 'x]y', 'a'.repeat(40), '-lead']) assert.strictEqual(verify.addSupporter(readme, bad, 'HL_CAM4').added, false, String(bad))
+  assert.strictEqual(verify.addSupporter('no list here', 'octo-cat', 'HL_CAM4').added, false)
+  assert.ok(fs.readFileSync(path.join(__dirname, '../README.md'), 'utf8').includes('<!-- confirmed-by -->'), 'the real README has the list')
+})
