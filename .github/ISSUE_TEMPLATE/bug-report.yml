@@ -49,6 +49,12 @@ body:
       required: true
 
   - type: input
+    id: wyze-api
+    attributes:
+      label: wyze-api version
+      description: "Printed in the Homebridge log at startup, or run `npm ls wyze-api` in the plugin's folder."
+
+  - type: input
     id: homebridge
     attributes:
       label: Homebridge version
