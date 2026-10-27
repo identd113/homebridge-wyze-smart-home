@@ -21,42 +21,83 @@ After you have done that if you feel like my work has been valuable to you I wel
 - The plugin installs the matching `wyze-api` automatically and checks its version at startup. If the version is wrong, or no Wyze `username` is configured, the log shows a `[FATAL]` message and the plugin stays idle without removing your cached accessories.
 
 ## Supported Devices
-- Light Bulb (White, White V2)
-- Light Strips (Light Strip, Light Strip Pro)
-- Color Bulb (Mesh Light A19, BR30, A19 v2)
-- Plug
-- Outdoor Plug
-- V1 & V2 Contact Sensor (Status / Battery)
-- V1 & V2 Motion Sensor (Status / Battery)
-- Temperature & Humidity Sensor (Status / Battery)
-- Leak Sensor (Status / Battery)
-- Lock (Battery / Door Status / Control)
-- Lock Bolt v2 / Palm Lock (Battery / Door Status / Control)
-- Camera v1, v2, v3, v3 Pro, v4 (on/off, Siren, Floodlight, Garage Door)
-- Cam Pan, Pan v2, Pan v3 (on/off, Siren)
-- Cam Pan v4 (on/off, Siren, Spotlight, state; new in 2.0.0-beta.3, not yet verified on hardware)
-- Bulb Cam (light; new in 2.0.0-beta.3, not yet verified on hardware)
-- Cam Doorbell v2 (HomeKit doorbell: press notification, snapshots and live view with audio at 640x480; new in 2.0.0-beta.3). There is no Privacy switch for it: Wyze doesn't let the doorbell be powered off through its API. The press comes from Wyze's cloud event list, so it can arrive a few seconds after the button is pressed. Turn on notifications for the doorbell in the Home app.
-- Outdoor Cam, Outdoor Cam 2
-- Wall Switch
-- Home Monitoring System (HMS)
-- Thermostat
+
+**Status key:** ✅ tested on real hardware by the current maintainers · 🟢 supported, carried over from earlier releases · 🟡 registered but not yet verified on hardware (it should show up in HomeKit; please report what works).
+
+**Library key:** every device is reached through [`wyze-api`](https://github.com/jfarmer08/wyze-api) (this project's Wyze cloud client). *devicemgmt* marks the newer Wyze endpoint that `wyze-api` uses for Pan v4, Floodlight Pro, Battery Cam Pro and OG; it follows [SecKatie/wyzeapy](https://github.com/SecKatie/wyzeapy). *WebRTC* means live view and snapshots use Wyze's cloud signalling through [werift](https://github.com/shinyoshiaki/werift) and ffmpeg. Nothing is recorded or stored.
+
+### Camera and doorbell models
+
+| Camera | Model code | Library | Controls in HomeKit | Live view / snapshots | Status |
+|---|---|---|---|---|---|
+| Cam v1 | `WYZEC1` | wyze-api | Privacy, plus Siren / Floodlight / Garage switches per camera in config | WebRTC | 🟢 |
+| Cam v2 | `WYZEC1-JZ` | wyze-api | Privacy, plus the same optional switches | WebRTC | 🟢 |
+| Cam v3 (and Floodlight Cam) | `WYZE_CAKP2JFUS` | wyze-api | Privacy, plus the same optional switches | WebRTC, snapshots and audio (if the camera's microphone is on) | ✅ |
+| Cam v3 Pro | `HL_CAM3P` | wyze-api | Privacy, plus the same optional switches | WebRTC | 🟢 |
+| Cam v4 | `HL_CAM4` | wyze-api | Privacy, plus the same optional switches | WebRTC | 🟢 |
+| Cam Pan | `WYZECP1_JEF` | wyze-api | Privacy, Siren | WebRTC | 🟢 |
+| Cam Pan v2 | `HL_PAN2` | wyze-api | Privacy, Siren | WebRTC | 🟢 |
+| Cam Pan v3 | `HL_PAN3` | wyze-api | Privacy, Siren | WebRTC | 🟢 |
+| Cam Pan v4 | `HL_PAN4` | wyze-api *devicemgmt* | Privacy, Siren, Spotlight | WebRTC | 🟡 |
+| Bulb Cam | `HL_BC` | wyze-api | Light | WebRTC | 🟡 |
+| Cam Outdoor | `WVOD1` | wyze-api | Privacy | WebRTC | 🟢 |
+| Cam Outdoor v2 | `HL_WCO2` | wyze-api | Privacy | WebRTC | 🟢 |
+| Cam Doorbell v2 | `HL_DB2` | wyze-api | HomeKit doorbell: press notification. No Privacy switch (Wyze does not let it be powered off) | WebRTC at 640x480, with audio | ✅ |
+| Cam Floodlight Pro | `LD_CFP` | wyze-api *devicemgmt* | Appears as a camera (Privacy; light and siren expected) | WebRTC | 🟡 |
+| Cam Floodlight v2 | `HL_CFL2` | wyze-api | Appears as a camera | WebRTC | 🟡 |
+| Battery Cam Pro | `AN_RSCW` | wyze-api *devicemgmt* | Appears as a camera (spotlight and siren expected) | WebRTC | 🟡 |
+| Cam OG | `GW_GC1` | wyze-api *devicemgmt* | Appears as a camera | WebRTC | 🟡 |
+| Cam OG Telephoto 3x | `GW_GC` | wyze-api | Appears as a camera | WebRTC | 🟡 |
+| Cam Pan Pro | `HL_PANP` | wyze-api | Appears as a camera | WebRTC | 🟡 |
+| Video Doorbell | `WYZEDB3` | wyze-api | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
+| Video Doorbell Pro | `GW_BE1` | wyze-api | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
+| Video Doorbell Pro 2 | `AN_RDB1` | wyze-api | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
+
+Notes on cameras:
+- Wyze cameras serve **one live viewer at a time**. The plugin closes each stream cleanly and shows the last snapshot while a stream is open.
+- The Doorbell v2 press arrives from Wyze's cloud event list, so it can lag a few seconds. Turn on notifications for the doorbell in the Home app.
+- Extra switches (`garage`, `spotlight`, `floodlight`, `siren`, `notifications`, `motionDetection`) are set per camera under `cameras` in the config.
+- Cam Pan v4 and Bulb Cam come from [SecKatie/wyzeapy](https://github.com/SecKatie/wyzeapy) and have not been tried on hardware here yet.
+
+### Other devices
+
+| Device | Model code | Library | Controls in HomeKit | Status |
+|---|---|---|---|---|
+| Light Bulb (White, White v2) | `WLPA19`, `HL_HWB2` | wyze-api | On/off, brightness, colour temperature | 🟢 |
+| Mesh / Color Bulb (A19, BR30, A19 v2) | `WLPA19C`, `HL_BR30C`, `HL_A19C2` | wyze-api | On/off, brightness, colour, colour temperature | 🟢 |
+| Light Strip, Light Strip Pro | `HL_LSL`, `HL_LSLP` | wyze-api | On/off, brightness, colour | 🟢 |
+| Plug | `WLPP1`, `WLPP1CFH` | wyze-api | On/off | 🟢 |
+| Outdoor Plug | `WLPPO-SUB` | wyze-api | On/off | 🟢 |
+| Wall Switch | `LD_SS1` | wyze-api | On/off | 🟢 |
+| Contact Sensor v1, v2 | `DWS2U`, `DWS3U` | wyze-api | Open/closed, battery | 🟢 |
+| Motion Sensor v1, v2 | `PIR2U`, `PIR3U` | wyze-api | Motion, battery | 🟢 |
+| Temperature & Humidity Sensor | `TH3U` | wyze-api | Temperature, humidity, battery | 🟢 |
+| Leak Sensor | `WS3U` | wyze-api | Leak, battery | 🟢 |
+| Lock | `YD.LO1` | wyze-api | Lock/unlock, door status, battery | 🟢 |
+| Lock Bolt v2 | `DX_LB2` | wyze-api | Lock/unlock, door status, battery | 🟢 |
+| Palm Lock | `DX_PVLOC` | wyze-api | Lock/unlock, door status, battery (status refreshed every 10 s) | ✅ |
+| Home Monitoring System | `GW3U` | wyze-api | Arm/disarm | 🟢 |
+| Thermostat | `CO_EA1` | wyze-api | Mode, target / heat / cool temperatures, current temperature and humidity | 🟢 |
+| Thermostat Room Sensor | `CO_TH1` | wyze-api | Temperature, humidity, battery | 🟢 |
+| Robot Vacuum | `JA_RO2` | wyze-api | Start/stop, fan speed, battery and charging state, fault codes, per-room switches | 🟢 |
+| Sprinkler Controller | `BS_WK1` | wyze-api | Zone valves: start/stop, duration, remaining time | 🟢 |
 
 ## Not Yet Supported
-The following Wyze products are recognized by the plugin but have no HomeKit support yet:
-- Cameras: Battery Cam Pro, Cam OG, Cam OG Telephoto 3x, Cam Floodlight Pro, Cam Pan Pro
-- Doorbells: Video Doorbell, Video Doorbell Pro, Video Doorbell Pro 2
-- Plugs: Outdoor Plug (main unit)
-- Sensors: Chime Sensor, Room Sensor (thermostat companion), Keypad
-- Locks: Lock Bolt (original BLE-only version)
-- Sprinkler Controller
 
-The following newer Wyze products have no model codes in the plugin yet:
-- Window Cam, Battery Video Doorbell, Duo Cam Doorbell
-- Lamp Socket / Lamp Socket v2, Night Light, Surge Protector
+"Likely library" names a project that already handles the device, so we can port from it. **Easy** means working code exists in a library we already follow; **Hard** means the device needs a different protocol or no library covers it; **Unknown** means we found no reference implementation.
 
-The following Wyze products are not applicable to HomeKit:
-- Robot Vacuum, Cordless Vacuum, Scales, Watch, Headphones, Air Purifier
+| Device | Model code | Why it isn't supported | Likely library | Effort |
+|---|---|---|---|---|
+| Chime / Chime Sensor | — | No accessory class | [wyzeapy](https://github.com/SecKatie/wyzeapy) (`CHIME_SENSOR`) | Easy |
+| Keypad | — | No accessory class | wyzeapy (`KEYPAD`); [wyze-sdk](https://github.com/shauntarves/wyze-sdk) (Lock Keypad) | Easy |
+| Lamp Socket / Lamp Socket v2 | — | No model code yet | wyzeapy (shares the camera light controls) | Easy |
+| Lock Bolt (original, Bluetooth only) | — | Bluetooth only, no cloud control | none | Hard |
+| Window Cam, Battery Video Doorbell, Duo Cam Doorbell | — | No model codes yet | none found | Unknown |
+| Night Light, Surge Protector | — | No model codes yet | none found | Unknown |
+
+Not applicable to HomeKit, or not planned: Cordless Vacuum, Scales, Watch, Headphones, Air Purifier. [wyzeapy](https://github.com/SecKatie/wyzeapy) and [wyze-sdk](https://github.com/shauntarves/wyze-sdk) cover some of these if you want to build on them.
+
+Related projects we compare against: [SecKatie/wyzeapy](https://github.com/SecKatie/wyzeapy) (Home Assistant; the source of the devicemgmt calls), [mrlt8/docker-wyze-bridge](https://github.com/mrlt8/docker-wyze-bridge) (camera streaming over TUTK/RTSP), [shauntarves/wyze-sdk](https://github.com/shauntarves/wyze-sdk) (Python SDK).
 
 For more information about our version updates, please check our [change log](CHANGELOG.md).
 
@@ -150,6 +191,43 @@ These use the flat option names; in the nested format above they live under `aut
 - **From 2.0.0-beta.2:** nothing in your config needs to change. Update Node.js to 22 or newer first. Newly recognised cameras need pairing (see above).
 - **From 0.5.x or 1.x:** your flat config is converted on first start (see Configuration). Update Node.js to 22 or newer first.
 - If the installed `wyze-api` is older than this plugin needs, the log shows one `[FATAL]` line and the plugin stays inactive without removing your paired accessories.
+
+## History
+
+### The story
+
+The plugin began in May 2020 as [homebridge-wyze-connected-home](https://github.com/misenhower/homebridge-wyze-connected-home), written by [misenhower](https://github.com/misenhower). Its README listed four devices (Light Bulb, Plug, Contact Sensor, Motion Sensor), and it already supported two-factor logins through an `mfaCode` setting. Seven npm releases (`0.1.0` to `0.5.1`) went out in five weeks, and the last commit to the repository is `v0.5.1` on 2020-06-14 (`015806c`). Issues kept arriving there until at least November 2024.
+
+In May 2022 [jfarmer08](https://github.com/jfarmer08) started this repository as `homebridge-wyze-smart-home` and carried on the `0.5.x` numbering (first npm release `0.5.10`, 2022-05-18). It is not a GitHub fork, and its first commit (`4a7bb75`, "First Check In") arrived with 21 files, including accessories for lights, locks, sensors and a camera, so what came before it isn't in this repository's history. Over the next year the plugin grew a device at a time: camera on/off in June 2022, more camera models in July, the Home Monitoring System and a thermostat (contributed by Carson Loyal) in December, and siren, floodlight and garage-door controls for cameras in October 2023. The Wyze cloud client was published separately as [wyze-api](https://github.com/jfarmer08/wyze-api) in September 2023.
+
+In 2026 the project moved quickly. Lock Bolt v2 and the Palm Lock arrived in April through Wyze's newer IoT3 API (contributed by identd113), followed the same month by robot-vacuum and sprinkler accessories and a motion sensor on cameras. `2.0.0-beta.1` was published on 2026-04-28 and `2.0.0-beta.2` on 2026-08-29.
+
+In October 2026 jfarmer08 said in [issue #315](https://github.com/jfarmer08/homebridge-wyze-smart-home/issues/315) that they could no longer maintain the project, and identd113 offered to take it over.
+
+### Timeline
+
+Each row can be checked against the repository (commit) or the npm registry (release).
+
+| Date | Event | Evidence |
+|---|---|---|
+| 2020-05-07 | Original plugin created; four devices | misenhower repo, npm `0.1.0` |
+| 2020-06-14 | Last release and last commit of the original, `v0.5.1` | `015806c`, npm `0.5.1` |
+| 2022-05-17 | This repository's first commit: lights, plugs, sensors, lock, camera accessory | `4a7bb75` |
+| 2022-05-18 | Thermostat Room Sensor and Temperature/Humidity accessories; first npm release `0.5.10` | `48ebe9d`, npm |
+| 2022-06-21 | Camera (on/off) listed | `9d59a45` |
+| 2022-07-07 | Camera v2, v3, Outdoor and Pan listed | `2e8ff12` |
+| 2022-12-08 | Home Monitoring System accessory | `c9447cf` |
+| 2022-12-15 | Thermostat accessory (Carson Loyal) | `c845eff` |
+| 2023-09-06 | `wyze-api` first published to npm | npm |
+| 2023-10-23 | Camera siren, floodlight and garage-door controls listed | `a43c9a1` |
+| 2026-04-08 | Lock Bolt v2 and Palm Lock (identd113) | `657d5d7` |
+| 2026-04-26 | Vacuum and sprinkler accessories | `8c97a3c` |
+| 2026-04-28 | `2.0.0-beta.1` | npm |
+| 2026-07-21 | `0.5.61`, the last `0.5.x` release | npm |
+| 2026-08-06 | README lists the newer bulb, strip, camera and Pan variants | `a270466` |
+| 2026-08-29 | `2.0.0-beta.2` | npm |
+
+Dates for a README entry show when a device was documented, which can be later than when it first worked.
 
 ## Other Info
 
