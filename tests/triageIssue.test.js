@@ -556,3 +556,19 @@ test('the triage comment says when another confirmation for the device is alread
   assert.match(text, /already waiting \(#100, #21\)/)
   assert.ok(!/already waiting/.test(triage.buildComment(r, known, [], { level: 0, name: 'registered only', symbol: '🟡' }, [])))
 })
+
+test('verify: once the pull request is merged, a later report for the device is thanked and closed, with no new PR', async () => {
+  const verify = require('../.github/scripts/verify-device.js')
+  const st = require('../.github/scripts/device-status.js')
+  const { github, state, files } = fakeRepo()
+  const core = { info () {}, warning () {} }
+  await verify.run({ github, context: verifyContext(20, 'alice'), core })
+  // merge: the default branch now has the branch's README, and the branch and PR are gone
+  files.main['README.md'] = files['verified/hl-pan4']['README.md']
+  state.pulls[0].state = 'closed'
+  assert.strictEqual(st.statusOf(files.main['README.md'], 'HL_PAN4').name, 'confirmed by a user')
+  await verify.run({ github, context: verifyContext(30, 'carol'), core })
+  assert.strictEqual(state.created, 1, 'no second pull request')
+  assert.match(state.comments.at(-1), /currently listed as confirmed by a user, so your report will not update the existing list/)
+  assert.deepStrictEqual(state.closed, [30])
+})
