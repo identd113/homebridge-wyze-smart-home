@@ -302,3 +302,27 @@ test('the verify workflow only runs for the verified label', () => {
   assert.match(yaml, /github\.event\.label\.name == 'verified'/)
   assert.match(yaml, /types: \[labeled\]/)
 })
+
+test('a verified device is also taken off the unsupported list and the planned devices', () => {
+  const verify = require('../.github/scripts/verify-device.js')
+  const readme = [
+    '| Air Purifier | `CO_AP1` [report](https://x/y) | a |',
+    '## Not Yet Supported',
+    '<summary><strong>Devices we do not support yet</strong> (6)</summary>',
+    '| Device | Model code | Why | Effort |',
+    '| Air Purifier | `CO_AP1` [report](https://x/y) | No accessory class | Medium |',
+    '| Keypad | — | No model code | Unknown |',
+    '## Configuration'
+  ].join('\n')
+  const dropped = verify.dropFromUnsupported(readme, 'CO_AP1')
+  assert.strictEqual(dropped.removed, true)
+  assert.ok(dropped.text.includes('(5)') && !dropped.text.includes('No accessory class') && dropped.text.includes('Keypad'))
+  assert.ok(dropped.text.startsWith('| Air Purifier | `CO_AP1`'), 'the supported-table row above it is untouched')
+  assert.strictEqual(verify.dropFromUnsupported(readme, 'NOPE').removed, false)
+
+  const real = require('node:fs').readFileSync(path.join(__dirname, '../src/plannedDevices.js'), 'utf8')
+  const gone = verify.dropPlanned(real, 'CO_AP1')
+  assert.strictEqual(gone.removed, true)
+  assert.ok(!gone.text.includes('CO_AP1') && gone.text.includes('YD_BT1'))
+  assert.doesNotThrow(() => new Function('module', 'require', gone.text)({ exports: {} }, require), 'the file still runs')
+})

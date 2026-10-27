@@ -2,8 +2,10 @@
 
 /**
  * When a maintainer puts the "verified" label on a device report that says the device works,
- * this marks the device as confirmed in the README (a 🔵 next to its model code) and opens a
- * pull request for it. It runs from .github/workflows/verify-device.yml through
+ * this opens a pull request that records it everywhere the repo lists supported and
+ * unsupported devices: a 🔵 next to its model code in the README's supported tables, its row
+ * removed from the README's "Not Yet Supported" table (with that table's count), and its entry
+ * removed from src/plannedDevices.js. It runs from .github/workflows/verify-device.yml through
  * actions/github-script. The README is never pushed to directly, and the issue text is
  * untrusted: it is only read as data, and only a model code that passed MODEL_PATTERN is
  * ever used.
@@ -15,6 +17,26 @@ const MARK = "🔵";
 const MAINTAINER = new Set(["admin", "maintain", "write"]);
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Removes the "Not Yet Supported" row for `code`, and lowers that table's count to match. */
+function dropFromUnsupported(readme, code) {
+  const start = readme.indexOf("## Not Yet Supported");
+  const end = readme.indexOf("## Configuration");
+  if (start < 0 || end < start || !MODEL_PATTERN.test(code)) return { text: readme, removed: false };
+  const rowFor = new RegExp("^\\|[^|\n]*\\| `" + escapeRegex(code) + "`[^\n]*\n", "m");
+  let section = readme.slice(start, end);
+  if (!rowFor.test(section)) return { text: readme, removed: false };
+  section = section.replace(rowFor, "");
+  section = section.replace(/(Devices we do not support yet<\/strong> \()(\d+)(\))/, (_, a, n, c) => a + Math.max(0, Number(n) - 1) + c);
+  return { text: readme.slice(0, start) + section + readme.slice(end), removed: true };
+}
+
+/** Removes the `code` entry from the source of src/plannedDevices.js. */
+function dropPlanned(source, code) {
+  if (!MODEL_PATTERN.test(code)) return { text: source, removed: false };
+  const entry = new RegExp("\n  " + escapeRegex(code) + ": \\{[\\s\\S]*?\n  \\},", "");
+  return entry.test(source) ? { text: source.replace(entry, ""), removed: true } : { text: source, removed: false };
+}
 
 /**
  * Puts the 🔵 mark next to `code` in the README's device tables.
@@ -53,25 +75,39 @@ async function run({ github, context, core }) {
   const branch = context.payload.repository.default_branch;
   const file = await github.rest.repos.getContent({ owner, repo, path: "README.md", ref: branch });
   const readme = Buffer.from(file.data.content, "base64").toString("utf8");
-  const result = markVerified(readme, model);
-  if (!result) return void (await say(`Not verified: I could not find \`${model}\` in the README's device tables.`));
-  if (!result.changed) return void (await say(`\`${model}\` is already marked as confirmed in the README.`));
+  const marked = markVerified(readme, model);
+  if (!marked) return void (await say(`Not verified: I could not find \`${model}\` in the README's supported-device tables. Add its row there first.`));
+  const unsupported = dropFromUnsupported(marked.text, model);
+  if (!marked.changed && !unsupported.removed) return void (await say(`\`${model}\` is already marked as confirmed in the README.`));
+  const plannedFile = await github.rest.repos.getContent({ owner, repo, path: "src/plannedDevices.js", ref: branch });
+  const planned = dropPlanned(Buffer.from(plannedFile.data.content, "base64").toString("utf8"), model);
 
   const head = `verified/${model.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${issue.number}`;
   const base = await github.rest.git.getRef({ owner, repo, ref: `heads/${branch}` });
   await github.rest.git.createRef({ owner, repo, ref: `refs/heads/${head}`, sha: base.data.object.sha });
+  const message = `${model} confirmed working by a user report (#${issue.number})`;
   await github.rest.repos.createOrUpdateFileContents({
-    owner, repo, path: "README.md", branch: head, sha: file.data.sha,
-    message: `README: ${model} confirmed working by a user report (#${issue.number})`,
-    content: Buffer.from(result.text, "utf8").toString("base64"),
+    owner, repo, path: "README.md", branch: head, sha: file.data.sha, message: `README: ${message}`,
+    content: Buffer.from(unsupported.text, "utf8").toString("base64"),
   });
+  if (planned.removed) {
+    await github.rest.repos.createOrUpdateFileContents({
+      owner, repo, path: "src/plannedDevices.js", branch: head, sha: plannedFile.data.sha, message: `Planned devices: ${message}`,
+      content: Buffer.from(planned.text, "utf8").toString("base64"),
+    });
+  }
+  const changes = [
+    marked.changed ? `- ${MARK} added next to \`${model}\` in the README's supported tables` : null,
+    unsupported.removed ? "- its row removed from the README's \"Not Yet Supported\" table" : null,
+    planned.removed ? "- its entry removed from `src/plannedDevices.js`" : null,
+  ].filter(Boolean).join("\n");
   const pr = await github.rest.pulls.create({
     owner, repo, head, base: branch,
     title: `README: ${model} confirmed working`,
-    body: `Marks \`${model}\` with ${MARK} in the supported-device tables, from the report in #${issue.number}, verified by @${sender}.\n\nCloses #${issue.number}`,
+    body: `\`${model}\` confirmed working, from the report in #${issue.number}, verified by @${sender}.\n\n${changes}\n\nCloses #${issue.number}`,
   });
-  await say(`Thank you for the report. \`${model}\` is confirmed working: ${MARK} is added next to it in the README by #${pr.data.number}, which closes this issue once it is merged.`);
+  await say(`Thank you for the report. \`${model}\` is confirmed working. #${pr.data.number} records it in the device lists and closes this issue once it is merged.`);
   core.info(`#${issue.number}: ${model} -> PR #${pr.data.number}`);
 }
 
-module.exports = { MARK, markVerified, run };
+module.exports = { MARK, markVerified, dropFromUnsupported, dropPlanned, run };
