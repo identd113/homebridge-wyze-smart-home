@@ -165,11 +165,10 @@ Have a Wyze device that is not on either list? [Tell us about it](https://github
 **Effort** is our rough estimate. **Easy** means another open-source Wyze project already handles the device, so we can port from it; **Hard** means it needs a different protocol; **Unknown** means we found no reference implementation.
 
 <details open>
-<summary><strong>Devices we do not support yet</strong> (6)</summary>
+<summary><strong>Devices we do not support yet</strong> (5)</summary>
 
 | Device | Model code | Why it isn't supported | Effort |
 |---|---|---|---|
-| Chime / Chime Sensor | — | No accessory class | Easy |
 | Keypad | — | No accessory class | Easy |
 | Lamp Socket / Lamp Socket v2 | — | No model code yet | Easy |
 | Lock Bolt (original, Bluetooth only) | — | Bluetooth only, no cloud control | Hard |
@@ -178,7 +177,7 @@ Have a Wyze device that is not on either list? [Tell us about it](https://github
 
 </details>
 
-Not applicable to HomeKit, or not planned: Cordless Vacuum, Scales, Watch, Headphones, Air Purifier.
+Not applicable to HomeKit, or not planned: Cordless Vacuum, Scales, Watch, Headphones, Air Purifier, and the Chime and Chime Sensor (checked on a real account: Wyze's cloud lists them but reports no settings or state, so there is nothing to show in HomeKit).
 
 For more information about our version updates, please check our [change log](CHANGELOG.md).
 

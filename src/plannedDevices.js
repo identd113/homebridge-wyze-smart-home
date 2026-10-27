@@ -19,13 +19,13 @@ const PLANNED_DEVICES = {
   },
   GW_CHI: {
     name: "Wyze Chime (base unit)",
-    source: "SecKatie/wyzeapy",
-    note: "wyzeapy knows the chime devices, but they have no accessory class here yet.",
+    source: "a real account",
+    note: "Wyze's cloud lists it but reports no settings or state for it, so there is nothing to show in HomeKit.",
   },
   CHIME: {
     name: "Wyze Chime Sensor",
-    source: "SecKatie/wyzeapy",
-    note: "wyzeapy knows the chime devices, but they have no accessory class here yet.",
+    source: "a real account",
+    note: "Wyze's cloud lists it but reports no settings or state for it, so there is nothing to show in HomeKit.",
   },
   // Not a real model code, so nothing ever matches it.
   GUN_SAFE: {
