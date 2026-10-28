@@ -624,3 +624,24 @@ test('normal text and device facts are left alone', () => {
   assert.strictEqual(c.redactAll(text), text)
   assert.deepStrictEqual([c.credentialKeysIn(text), c.personalKeysIn(text)], [[], []])
 })
+
+test('mfaCode and the other 2FA settings are redacted, whether quoted, typed or in a log', () => {
+  const c = require('../.github/scripts/credentials.js')
+  const text = '"mfaCode": "482913",\n"totpSecret": "JBSWY3DPEHPK3PXP"\nauth.mfaCode = 482913\nmfa_code: 482913'
+  assert.deepStrictEqual(c.credentialKeysIn(text), ['mfacode', 'totpsecret'].concat(['mfa_code']).sort())
+  const out = c.redactAll(text)
+  assert.ok(!/482913|JBSWY3DP/.test(out), out)
+  assert.deepStrictEqual(c.credentialKeysIn(out), [])
+})
+
+test('keys other Homebridge plugins use for secrets are caught when a whole config is pasted', () => {
+  const c = require('../.github/scripts/credentials.js')
+  const config = '{"platform":"Pushover","token":"azGDORePK8gMaC0QOYAMyEEuzJnyUi","user":"uQiRzpo4DXghDmr9QzzfQu27cmVRsG"},\n{"platform":"TuyaLan","devices":[{"id":"0120012345","key":"0123456789abcdef","ip":"192.168.1.40"}]},\n{"platform":"Govee","username":"sam@example.com","password":"hunter2hunter2"}'
+  assert.deepStrictEqual(c.credentialKeysIn(config), ['key', 'password', 'token', 'user'])
+  assert.deepStrictEqual(c.personalKeysIn(config), ['ip', 'username'])
+  const out = c.redactAll(config)
+  for (const secret of ['azGDORePK8', 'uQiRzpo4', '0123456789abcdef', '192.168.1.40', 'sam@example.com', 'hunter2hunter2']) assert.ok(!out.includes(secret), secret)
+  assert.ok(out.includes('"platform":"Pushover"') && out.includes('"id":"0120012345"'), 'the rest is kept')
+  const prose = 'Press the key to unlock. The user said it works. "key": "x", "user": "admin"'
+  assert.deepStrictEqual(c.credentialKeysIn(prose), [], 'short values and plain words are left alone')
+})

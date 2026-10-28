@@ -15,6 +15,14 @@ const SECRET_KEYS = [
   "token", "secret", "authorization", "cookie", "pin", "setupid",
 ];
 
+// Other Homebridge plugins' configs, which people paste whole, use these for secrets (OpenGarage,
+// TuyaLan and WeatherPlus "key", Pushover "user" and "token"). The words are too common in prose
+// to match anywhere, so they count only as a quoted JSON key with a long value.
+const JSON_ONLY_SECRET_KEYS = ["key", "user"];
+const looksLikeSecretValue = (value) => String(value).trim().length >= 8 && !/\s/.test(String(value).trim());
+const isSecretJson = (key, value) =>
+  !isRemoved(value) && (SECRET_KEYS.includes(key.toLowerCase()) || (JSON_ONLY_SECRET_KEYS.includes(key.toLowerCase()) && looksLikeSecretValue(value)));
+
 // Personal details that identify a person, a home or a network: a Wyze email (auth.username,
 // or "username" in the _bridge block, which is a MAC), device MACs (cameras[].mac,
 // excludes.macs), names and addresses from the device list. Posting one does not need a new
@@ -49,7 +57,8 @@ function credentialKeysIn(text) {
     let m;
     while ((m = pattern.exec(source))) {
       const key = m[1].toLowerCase();
-      if (SECRET_KEYS.includes(key) && !isRemoved(m[valueGroup])) found.add(key);
+      const ok = valueGroup === 2 ? isSecretJson(key, m[valueGroup]) : SECRET_KEYS.includes(key) && !isRemoved(m[valueGroup]);
+      if (ok) found.add(key);
     }
   }
   // A bearer token or a Wyze access token on its own.
@@ -63,7 +72,7 @@ function redactCredentials(text) {
   const quoted = /(["'])([A-Za-z_]+)\1(\s*:\s*)(["'])([^"'\n]*)\4/g;
   return source
     .replace(quoted, (whole, q, key, colon, vq, value) =>
-      SECRET_KEYS.includes(key.toLowerCase()) && !isRemoved(value) ? `${q}${key}${q}${colon}${vq}REDACTED${vq}` : whole)
+      isSecretJson(key, value) ? `${q}${key}${q}${colon}${vq}REDACTED${vq}` : whole)
     .replace(KEY_VALUE(), (whole, key, sep, value) => (isRemoved(value) ? whole : `${key}${sep}REDACTED`))
     .replace(/\bBearer\s+[A-Za-z0-9._-]{20,}/g, "Bearer REDACTED");
 }
@@ -100,4 +109,4 @@ function redactAll(text) {
     .replace(/\((Name|MAC):\s*([^)]*)\)/g, (whole, label, value) => (isRemoved(value) ? whole : `(${label}: REDACTED)`));
 }
 
-module.exports = { SECRET_KEYS, PERSONAL_KEYS, credentialKeysIn, personalKeysIn, redactCredentials, redactAll };
+module.exports = { SECRET_KEYS, JSON_ONLY_SECRET_KEYS, PERSONAL_KEYS, credentialKeysIn, personalKeysIn, redactCredentials, redactAll };
