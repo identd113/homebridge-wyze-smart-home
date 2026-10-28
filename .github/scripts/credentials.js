@@ -6,11 +6,27 @@
  * (or <...>, [...], ***, xxx) counts as removed.
  */
 
+// Secrets: the plugin's own settings (auth.password, auth.apiKey, auth.keyId, auth.totpSecret,
+// auth.mfaCode), the tokens Wyze hands back, and the Homebridge setup PIN. Posting one means it
+// has to be changed.
 const SECRET_KEYS = [
   "password", "passwd", "apikey", "api_key", "keyid", "key_id", "totpsecret", "totp_secret",
   "mfacode", "mfa_code", "access_token", "accesstoken", "refresh_token", "refreshtoken",
-  "token", "secret", "authorization",
+  "token", "secret", "authorization", "cookie", "pin", "setupid",
 ];
+
+// Personal details that identify a person, a home or a network: a Wyze email (auth.username,
+// or "username" in the _bridge block, which is a MAC), device MACs (cameras[].mac,
+// excludes.macs), names and addresses from the device list. Posting one does not need a new
+// key, but the value should not stay in a public issue.
+const PERSONAL_KEYS = [
+  "username", "user_name", "email", "mac", "macs", "bssid", "ssid", "ip", "ipaddr", "nickname",
+  "phone", "phone_id", "address", "latitude", "longitude", "lat", "lon", "lng",
+];
+// username/email count only when the value is an email address or a MAC (a bare "username" in a
+// log line can be anything).
+const NEEDS_ADDRESS_LIKE = new Set(["username", "user_name", "email"]);
+const EMAIL_OR_MAC = /@|^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$|^[0-9A-Fa-f]{12}$/;
 
 // Matches only the secret names themselves, so a word before one ("log: totpSecret = x") cannot hide it.
 const KEY_VALUE = () => new RegExp("\\b(" + SECRET_KEYS.join("|") + ")(\\s*[:=]\\s*)([^\\s\"',}\\]]+)", "gi");
@@ -52,4 +68,36 @@ function redactCredentials(text) {
     .replace(/\bBearer\s+[A-Za-z0-9._-]{20,}/g, "Bearer REDACTED");
 }
 
-module.exports = { SECRET_KEYS, credentialKeysIn, redactCredentials };
+const PERSONAL = PERSONAL_KEYS.join("|");
+const personalMatches = (value, key) => !isRemoved(value) && (!NEEDS_ADDRESS_LIKE.has(key.toLowerCase()) || EMAIL_OR_MAC.test(String(value).trim().replace(/^["']|["']$/g, "")));
+
+/** Names (lower case, sorted) of personal details with a real-looking value in `text`. */
+function personalKeysIn(text) {
+  const found = new Set();
+  const source = String(text || "");
+  let m;
+  const quoted = new RegExp(`["'](${PERSONAL})["']\\s*:\\s*["']([^"'\\n]*)["']`, "gi");
+  while ((m = quoted.exec(source))) if (personalMatches(m[2], m[1])) found.add(m[1].toLowerCase());
+  const numeric = /["'](latitude|longitude|lat|lon|lng)["']\s*:\s*(-?\d[\d.]*)/gi;
+  while ((m = numeric.exec(source))) found.add(m[1].toLowerCase());
+  const lists = new RegExp(`["'](macs)["']\\s*:\\s*\\[([^\\]]*)\\]`, "gi");
+  while ((m = lists.exec(source))) if (/["'][^"']+["']/.test(m[2]) && !/^\s*(["']?REDACTED["']?\s*,?\s*)+$/i.test(m[2])) found.add("macs");
+  // The log line the device form asks people to copy: "(Name: ...) (MAC: ...) (Model: XXXX)".
+  const nameLine = /\((Name|MAC):\s*([^)]*)\)/g;
+  while ((m = nameLine.exec(source))) if (!isRemoved(m[2])) found.add(m[1].toLowerCase() === "name" ? "nickname" : "mac");
+  return [...found].sort();
+}
+
+/** `text` with every secret and every personal detail replaced by REDACTED. */
+function redactAll(text) {
+  const source = redactCredentials(text);
+  return source
+    .replace(new RegExp(`(["'])(${PERSONAL})\\1(\\s*:\\s*)(["'])([^"'\\n]*)\\4`, "gi"), (whole, q, key, colon, vq, value) =>
+      personalMatches(value, key) ? `${q}${key}${q}${colon}${vq}REDACTED${vq}` : whole)
+    .replace(/(["'](?:latitude|longitude|lat|lon|lng)["']\s*:\s*)(-?\d[\d.]*)/gi, '$1"REDACTED"')
+    .replace(/(["']macs["']\s*:\s*)\[([^\]]*)\]/gi, (whole, head, items) =>
+      /["'][^"']+["']/.test(items) ? `${head}[${items.replace(/(["'])[^"']*\1/g, '"REDACTED"')}]` : whole)
+    .replace(/\((Name|MAC):\s*([^)]*)\)/g, (whole, label, value) => (isRemoved(value) ? whole : `(${label}: REDACTED)`));
+}
+
+module.exports = { SECRET_KEYS, PERSONAL_KEYS, credentialKeysIn, personalKeysIn, redactCredentials, redactAll };

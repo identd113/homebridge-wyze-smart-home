@@ -572,3 +572,55 @@ test('verify: once the pull request is merged, a later report for the device is 
   assert.match(state.comments.at(-1), /currently listed as confirmed by a user, so your report will not update the existing list/)
   assert.deepStrictEqual(state.closed, [30])
 })
+
+const REALISTIC_CONFIG = `{
+  "platform": "WyzeSmartHome",
+  "name": "Wyze",
+  "auth": {
+    "username": "jamie.rivera@example.com",
+    "password": "Tr0ub4dor&3xK",
+    "keyId": "3f9c1a7e-5b2d-4e8a-9c61-0d7a4b2e8f15",
+    "apiKey": "Qm7xYt2LpV9nKc4RbWsZ8aJhD1eFuGo3TiNy6XvAlCkBdPrEzSMf5",
+    "totpSecret": "JBSWY3DPEHPK3PXP"
+  },
+  "cameras": [{ "mac": "WYZE_CAKP2JFUS_7C78B2A91D40", "name": "Garage" }],
+  "excludes": { "macs": ["HL_PAN3_D03F27B8C1E5"] },
+  "_bridge": { "username": "0E:4B:7A:19:C2:5D", "port": 35412, "pin": "031-45-154" }
+}
+[11/3/2026, 8:14:02 PM] [Wyze] Unsupported device type: (Name: Living Room Lamp) (MAC: HL_ABC_AABBCCDDEEFF) (Model: HL_ABC)`
+
+test('a realistic plugin config: every secret and personal field is mapped, the rest is kept', () => {
+  const c = require('../.github/scripts/credentials.js')
+  assert.deepStrictEqual(c.credentialKeysIn(REALISTIC_CONFIG), ['apikey', 'keyid', 'password', 'pin', 'totpsecret'])
+  assert.deepStrictEqual(c.personalKeysIn(REALISTIC_CONFIG), ['mac', 'macs', 'nickname', 'username'])
+  const out = c.redactAll(REALISTIC_CONFIG)
+  for (const secret of ['jamie.rivera', 'Tr0ub4dor', '3f9c1a7e', 'Qm7xYt2L', 'JBSWY3DP', '7C78B2A9', 'D03F27B8', '0E:4B:7A', '031-45-154', 'Living Room Lamp', 'AABBCCDDEEFF']) assert.ok(!out.includes(secret), secret)
+  for (const kept of ['"platform": "WyzeSmartHome"', '"port": 35412', '"name": "Garage"', '(Model: HL_ABC)', '"auth": {']) assert.ok(out.includes(kept), kept)
+  assert.doesNotThrow(() => JSON.parse(out.slice(0, out.indexOf('\n[11/3'))), 'the config is still valid JSON')
+  assert.deepStrictEqual([c.credentialKeysIn(out), c.personalKeysIn(out)], [[], []])
+  assert.strictEqual(c.redactAll(out), out)
+})
+
+test('the plugin schema\'s sensitive fields are all mapped by the redaction', () => {
+  const c = require('../.github/scripts/credentials.js')
+  for (const key of ['password', 'apiKey', 'keyId', 'totpSecret', 'mfaCode']) assert.ok(c.SECRET_KEYS.includes(key.toLowerCase()), key)
+  for (const key of ['username', 'mac', 'macs']) assert.ok(c.PERSONAL_KEYS.includes(key), key)
+  const schema = JSON.parse(fs.readFileSync(path.join(__dirname, '../config.schema.json'), 'utf8'))
+  const masked = []
+  const walk = (node, prefix = '') => {
+    for (const [name, def] of Object.entries((node && node.properties) || {})) {
+      if (def['x-schema-form'] && def['x-schema-form'].type === 'password') masked.push(name)
+      walk(def, `${prefix}${name}.`)
+      if (def.items) walk(def.items, `${prefix}${name}[].`)
+    }
+  }
+  walk(schema.schema)
+  for (const name of masked) assert.ok(c.SECRET_KEYS.includes(name.toLowerCase()), `${name} is a password field in the settings screen but is not in SECRET_KEYS`)
+})
+
+test('normal text and device facts are left alone', () => {
+  const c = require('../.github/scripts/credentials.js')
+  const text = 'Model: HL_CAM4\nFirmware 4.52.3\nI use the username field and the password manager.\n(Model: HL_PAN3)\n"port": 35412\n"refreshInterval": 60000'
+  assert.strictEqual(c.redactAll(text), text)
+  assert.deepStrictEqual([c.credentialKeysIn(text), c.personalKeysIn(text)], [[], []])
+})

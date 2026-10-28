@@ -13,7 +13,7 @@
  */
 
 const { assignIfUnassigned } = require("./maintainers.js");
-const { credentialKeysIn, redactCredentials } = require("./credentials.js");
+const { credentialKeysIn, personalKeysIn, redactAll } = require("./credentials.js");
 
 const CREDENTIAL_MARKER = "<!-- wyze-credentials -->";
 const CREDENTIAL_LABEL = "credentials-exposed";
@@ -33,7 +33,19 @@ function originLabel(body) {
   return null;
 }
 
-function credentialComment(keys, redacted) {
+function personalComment(keys, redacted) {
+  return [
+    CREDENTIAL_MARKER,
+    "**This issue contained personal details** (" + keys.map((k) => `\`${k}\``).join(", ") + ")." +
+      (redacted ? " I replaced the values with `REDACTED` automatically." : " Please replace the values with `REDACTED` by editing the issue."),
+    "",
+    "GitHub keeps an issue's edit history, so to remove the originals open the issue's \"edited\" dropdown, choose the earlier version, and select **Delete revision**. Nothing needs changing in your Wyze account.",
+    "",
+    "<sub>This comment is written by a script and updates when the issue is edited.</sub>",
+  ].join("\n");
+}
+
+function credentialComment(keys, redacted, personal = []) {
   return [
     CREDENTIAL_MARKER,
     "**This issue contained credentials** (" + keys.map((k) => `\`${k}\``).join(", ") + ")." +
@@ -44,36 +56,41 @@ function credentialComment(keys, redacted) {
     "1. **Change them now.** Create a new API key in the Wyze developer portal, and change your Wyze password if you posted it.",
     "2. Open the issue's \"edited\" dropdown, choose the earlier version, and select **Delete revision**.",
     "",
+    ...(personal.length ? ["", "Personal details were also replaced (" + personal.map((k) => `\`${k}\``).join(", ") + ")."] : []),
+    "",
     "<sub>This comment is written by a script. The `credentials-exposed` label stays until a maintainer is satisfied the credentials were changed.</sub>",
   ].join("\n");
 }
 
 async function handleCredentials({ github, core, owner, repo, issue, labels }) {
   const keys = credentialKeysIn(issue.body);
-  if (!keys.length) return keys; // nothing found: leave any earlier label and comment alone
+  const personal = personalKeysIn(issue.body);
+  if (!keys.length && !personal.length) return keys; // nothing found: leave any earlier label and comment alone
   let redacted = false;
   try {
-    await github.rest.issues.update({ owner, repo, issue_number: issue.number, body: redactCredentials(issue.body) });
+    await github.rest.issues.update({ owner, repo, issue_number: issue.number, body: redactAll(issue.body) });
     redacted = true;
   } catch (err) {
     core.warning(`#${issue.number}: could not redact the issue text: ${err.message}`);
   }
-  try {
-    await github.rest.issues.getLabel({ owner, repo, name: CREDENTIAL_LABEL });
-  } catch (err) {
-    if (err.status !== 404) throw err;
-    await github.rest.issues.createLabel({ owner, repo, name: CREDENTIAL_LABEL, color: "b60205" });
+  if (keys.length) {
+    try {
+      await github.rest.issues.getLabel({ owner, repo, name: CREDENTIAL_LABEL });
+    } catch (err) {
+      if (err.status !== 404) throw err;
+      await github.rest.issues.createLabel({ owner, repo, name: CREDENTIAL_LABEL, color: "b60205" });
+    }
+    if (!labels.includes(CREDENTIAL_LABEL)) await github.rest.issues.addLabels({ owner, repo, issue_number: issue.number, labels: [CREDENTIAL_LABEL] });
   }
-  if (!labels.includes(CREDENTIAL_LABEL)) await github.rest.issues.addLabels({ owner, repo, issue_number: issue.number, labels: [CREDENTIAL_LABEL] });
   const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: issue.number, per_page: 100 });
   const mine = comments.find((c) => c.body && c.body.includes(CREDENTIAL_MARKER) && c.user && c.user.type === "Bot");
-  const body = credentialComment(keys, redacted);
+  const body = keys.length ? credentialComment(keys, redacted, personal) : personalComment(personal, redacted);
   if (mine) {
     if (mine.body !== body) await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
   } else {
     await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body });
   }
-  return keys;
+  return keys.length ? keys : personal;
 }
 
 async function run({ github, context, core }) {
@@ -100,4 +117,4 @@ async function run({ github, context, core }) {
   core.info(`#${issue.number}: ${label}`);
 }
 
-module.exports = { HEADING, CREDENTIAL_LABEL, originLabel, credentialComment, run };
+module.exports = { HEADING, CREDENTIAL_LABEL, originLabel, credentialComment, personalComment, run };
