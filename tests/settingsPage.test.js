@@ -21,7 +21,9 @@ const page = {
   settingFor: (...args) => plain(inVm.settingFor(...args)),
   buildView: (...args) => plain(inVm.buildView(...args)),
   valuesFor: (...args) => plain(inVm.valuesFor(...args)),
-  applyDetections: (...args) => plain(inVm.applyDetections(...args))
+  applyDetections: (...args) => plain(inVm.applyDetections(...args)),
+  problemsWith: (...args) => plain(inVm.problemsWith(...args)),
+  prepareSave: (...args) => plain(inVm.prepareSave(...args))
 }
 const DetectionSensors = require('../src/camera/detectionSensors')
 const { normalize } = require('../src/configMigrator')
@@ -172,11 +174,11 @@ function askServer (storagePath, path_) {
 test('the server, run as a child process, answers /detected with what the plugin recorded', async () => {
   const os = require('node:os')
   const storage = fs.mkdtempSync(path.join(os.tmpdir(), 'wyze-ui-'))
-  require('../src/detectedSensors').record(storage, { mac: 'AA', name: 'Front Doorbell', model: 'HL_DB2', motion: true, sound: false, labels: ['person'], unnamed: [] })
+  require('../src/detectedSensors').record(storage, { mac: 'AABBCCDDEEFF', name: 'Front Doorbell', model: 'HL_DB2', motion: true, sound: false, labels: ['person'], unnamed: [] })
   const answer = await askServer(storage, '/detected')
   assert.strictEqual(answer.success, true)
-  assert.strictEqual(answer.data.cameras.AA.name, 'Front Doorbell')
-  assert.deepStrictEqual(answer.data.cameras.AA.labels, ['person'])
+  assert.strictEqual(answer.data.cameras.AABBCCDDEEFF.name, 'Front Doorbell')
+  assert.deepStrictEqual(answer.data.cameras.AABBCCDDEEFF.labels, ['person'])
 })
 
 test('the server answers with nothing found when the plugin has recorded nothing yet', async () => {
@@ -224,4 +226,124 @@ test('the plugin reads what the page saved, ignores the names it does not know, 
   const saved = page.applyDetections(entry([]), 'AA', 'Front Doorbell', ['person', 'starship'])[0]
   const row = normalize({ platform: 'WyzeSmartHome', cameras: saved.cameras }).cameras[0]
   assert.deepStrictEqual(row.detections, ['person', 'starship'])
+})
+
+// ---- nothing is saved unless the change passes every check ------------------------------------------
+
+const MAC = 'AABBCCDDEEFF'
+const saved = () => [{
+  platform: 'WyzeSmartHome',
+  name: 'Wyze',
+  auth: { username: 'u' },
+  polling: { refreshInterval: 60000 },
+  cameras: [{ mac: MAC, name: 'Front', siren: true }, { mac: 'BBCCDDEEFF00', detections: ['pet'] }]
+}]
+
+test('a good choice passes the checks and changes only that camera\'s detections', () => {
+  const before = saved()
+  const result = page.prepareSave(before, MAC, 'Front', ['person', 'starship'])
+  assert.strictEqual(result.ok, true)
+  assert.deepStrictEqual(result.next[0].cameras[0], { mac: MAC, name: 'Front', siren: true, detections: ['person', 'starship'] })
+  assert.deepStrictEqual(result.next[0].cameras[1], before[0].cameras[1])
+  assert.deepStrictEqual(result.next[0].polling, before[0].polling)
+})
+
+test('going back to automatic, none, and a camera with no entry yet all pass', () => {
+  assert.strictEqual(page.prepareSave(saved(), 'BBCCDDEEFF00', 'Garage', []).ok, true)
+  assert.strictEqual(page.prepareSave(saved(), MAC, 'Front', ['none']).ok, true)
+  const added = page.prepareSave(saved(), 'CCDDEEFF0011', 'Porch', ['package'])
+  assert.strictEqual(added.ok, true)
+  assert.deepStrictEqual(added.next[0].cameras[2], { mac: 'CCDDEEFF0011', name: 'Porch', detections: ['package'] })
+})
+
+const refused = (result, pattern) => {
+  assert.strictEqual(result.ok, false)
+  assert.strictEqual(result.next, undefined, 'a refused change comes with nothing to save')
+  assert.match(result.errors.join('; '), pattern)
+}
+
+test('names that are not plain lower-case words are refused', () => {
+  for (const bad of ['<script>', 'Person', '', ' ', 'a'.repeat(40), 'quo"te', "it's", '../x', 'x\ny']) {
+    refused(page.prepareSave(saved(), MAC, 'Front', [bad]), /not a valid item name/)
+  }
+  refused(page.prepareSave(saved(), MAC, 'Front', [5]), /not a valid item name/)
+  refused(page.prepareSave(saved(), MAC, 'Front', [null]), /not a valid item name/)
+})
+
+test('a name listed twice, "none" with others, and a very long list are refused', () => {
+  refused(page.prepareSave(saved(), MAC, 'Front', ['pet', 'pet']), /listed twice/)
+  refused(page.prepareSave(saved(), MAC, 'Front', ['none', 'pet']), /cannot be combined/)
+  refused(page.prepareSave(saved(), MAC, 'Front', Array.from({ length: 31 }, (_, i) => `item${i}`)), /more than 30/)
+  refused(page.prepareSave(saved(), MAC, 'Front', 'person'), /not a list/)
+})
+
+test('a camera id that is missing or odd is refused', () => {
+  for (const bad of ['', 'ab', undefined, null, 'AA BB', '<img>']) refused(page.prepareSave(saved(), bad, 'X', ['pet']), /no usable id/)
+})
+
+test('no saved settings yet, or the wrong shape, is refused', () => {
+  refused(page.prepareSave([], MAC, 'Front', ['pet']), /no saved settings yet/)
+  refused(page.prepareSave(undefined, MAC, 'Front', ['pet']), /no saved settings yet|could not be checked/)
+  refused(page.prepareSave(null, MAC, 'Front', ['pet']), /no saved settings yet|could not be checked/)
+  refused(page.prepareSave([null], MAC, 'Front', ['pet']), /no saved settings yet/)
+})
+
+test('two entries for the same camera are refused, not guessed at', () => {
+  const twice = saved()
+  twice[0].cameras.push({ mac: MAC, detections: ['pet'] })
+  refused(page.prepareSave(twice, MAC, 'Front', ['person']), /more than one entry/)
+})
+
+test('a change that would alter anything else is refused (checked against a faulty save)', () => {
+  const before = saved()
+  const damaged = (change) => {
+    const after = JSON.parse(JSON.stringify(before))
+    change(after)
+    return page.problemsWith(before, after, MAC, ['person'])
+  }
+  const withDetections = (after) => { after[0].cameras[0].detections = ['person'] }
+  const mustReport = (change, pattern) => assert.match(damaged((after) => { withDetections(after); change(after) }).join('; '), pattern)
+  assert.deepStrictEqual(damaged(withDetections), [], 'the good change is clean')
+  mustReport((after) => { after[0].polling.refreshInterval = 1 }, /alter other settings/)
+  mustReport((after) => { after[0].auth = {} }, /alter other settings/)
+  mustReport((after) => { after[0].cameras[1].detections = [] }, /alter other settings/)
+  mustReport((after) => { after[0].cameras[0].siren = false }, /camera's other settings/)
+  mustReport((after) => { after[0].cameras.pop() }, /alter other settings/)
+  mustReport((after) => { after[0].extra = 1 }, /alter other settings/)
+  assert.match(damaged((after) => { after[0].cameras[0].detections = ['pet'] }).join('; '), /not be the list chosen/)
+  assert.match(damaged((after) => { after.push({}) }).join('; '), /same shape/)
+})
+
+test('a new camera entry may hold only its id and name', () => {
+  const before = saved()
+  const after = JSON.parse(JSON.stringify(before))
+  after[0].cameras.push({ mac: 'CCDDEEFF0011', name: 'Porch', detections: ['pet'], siren: true })
+  assert.match(page.problemsWith(before, after, 'CCDDEEFF0011', ['pet']).join('; '), /more than its id and name/)
+})
+
+test('going back to automatic must remove the key', () => {
+  const before = saved()
+  const after = JSON.parse(JSON.stringify(before))
+  after[0].cameras[1].detections = ['pet']
+  assert.match(page.problemsWith(before, after, 'BBCCDDEEFF00', []).join('; '), /not go back to automatic/)
+})
+
+test('a check that cannot be completed refuses to save', () => {
+  const hostile = [{ platform: 'WyzeSmartHome', get cameras () { throw new Error('boom') } }]
+  const result = page.prepareSave(hostile, MAC, 'Front', ['pet'])
+  assert.strictEqual(result.ok, false)
+  assert.match(result.errors.join('; '), /could not be checked/)
+})
+
+test('the page saves only through prepareSave, and does nothing when it says no', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/index.html'), 'utf8')
+  const save = html.slice(html.indexOf('async function save'), html.indexOf('function card'))
+  assert.ok(save.includes('WyzeDetected.prepareSave('), 'the save goes through the checks')
+  assert.ok(!save.includes('WyzeDetected.applyDetections('), 'the page never builds a change that skips them')
+  const check = save.indexOf('if (!prepared.ok)')
+  const returnsBefore = save.indexOf('return;', check)
+  const update = save.indexOf('homebridge.updatePluginConfig')
+  assert.ok(check > 0 && returnsBefore > check && returnsBefore < update, 'a refused change returns before anything is updated or saved')
+  assert.ok(save.indexOf('homebridge.savePluginConfig') > update)
+  assert.match(save, /catch \(e\) \{\s*homebridge\.toast\.error\('Not saved: '/, 'an unexpected failure saves nothing and says so')
 })

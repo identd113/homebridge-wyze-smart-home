@@ -89,5 +89,83 @@
     return next;
   }
 
-  root.WyzeDetected = { LABELS, settingFor, buildView, valuesFor, applyDetections };
+  // ---- checking a change before it is saved -----------------------------------------------------------------
+  // The page saves nothing unless every check here passes, and a check that cannot be completed counts as a
+  // failure: it never saves on a guess.
+  const NAME_PATTERN = /^[a-z0-9][a-z0-9 _-]{0,31}$/; // a name in the list: lower case, short, nothing that needs escaping
+  const MAC_PATTERN = /^[A-Za-z0-9._:-]{4,64}$/;
+  const MAX_NAMES = 30;
+
+  const clone = (value) => JSON.parse(JSON.stringify(value));
+  const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+  // The config with one camera's row taken out, and that row without its `detections`: what must not change.
+  function split(config, mac) {
+    const copy = clone(config);
+    const entry = copy[0];
+    const rows = Array.isArray(entry.cameras) ? entry.cameras : [];
+    const matching = rows.filter((row) => row && row.mac === mac);
+    if (matching.length > 1) throw new Error("more than one entry for this camera");
+    if (Array.isArray(entry.cameras)) entry.cameras = rows.filter((row) => !(row && row.mac === mac));
+    const row = matching[0] ? Object.assign({}, matching[0]) : null;
+    if (row) delete row.detections;
+    return { rest: copy, row, detections: matching[0] ? matching[0].detections : undefined };
+  }
+
+  /** The reasons a change must not be saved; an empty list means it may be. */
+  function problemsWith(before, after, mac, values) {
+    const problems = [];
+    if (!Array.isArray(before) || before.length === 0 || !before[0] || typeof before[0] !== "object") {
+      return ["the plugin has no saved settings yet: save the settings once first"];
+    }
+    if (!Array.isArray(after) || after.length !== before.length) return ["the changed settings do not have the same shape"];
+    if (typeof mac !== "string" || !MAC_PATTERN.test(mac)) problems.push("the camera has no usable id");
+    if (!Array.isArray(values)) {
+      problems.push("the list is not a list");
+    } else {
+      if (values.length > MAX_NAMES) problems.push("more than " + MAX_NAMES + " items");
+      const seen = new Set();
+      for (const value of values) {
+        if (typeof value !== "string" || !NAME_PATTERN.test(value)) problems.push("\"" + String(value).slice(0, 24) + "\" is not a valid item name");
+        else if (seen.has(value)) problems.push("\"" + value + "\" is listed twice");
+        else seen.add(value);
+      }
+      if (values.includes("none") && values.length > 1) problems.push("\"none\" cannot be combined with other items");
+    }
+    if (problems.length > 0) return problems;
+
+    // Nothing but this camera's `detections` may differ.
+    const was = split(before, mac);
+    const now = split(after, mac);
+    if (!sameJson(was.rest, now.rest)) problems.push("the change would alter other settings");
+    if (was.row) {
+      if (!sameJson(was.row, now.row)) problems.push("the change would alter the camera's other settings");
+    } else if (now.row && !sameJson(Object.keys(now.row).sort(), now.row.name ? ["mac", "name"] : ["mac"])) {
+      problems.push("the new camera entry would hold more than its id and name");
+    }
+    if (values.length === 0) {
+      if (now.detections !== undefined) problems.push("the list would not go back to automatic");
+    } else if (!sameJson(now.detections, values)) {
+      problems.push("the saved list would not be the list chosen");
+    }
+    // What is saved must survive being written out and read back unchanged.
+    if (!sameJson(JSON.parse(JSON.stringify(after)), after)) problems.push("the settings cannot be saved as JSON");
+    return problems;
+  }
+
+  /**
+   * The config to save for this camera's choice, or the reasons it must not be saved.
+   * @returns {{ok: true, next: Array}|{ok: false, errors: string[]}}
+   */
+  function prepareSave(config, mac, name, values) {
+    try {
+      const next = applyDetections(config, mac, name, values);
+      const errors = problemsWith(config, next, mac, values);
+      return errors.length > 0 ? { ok: false, errors } : { ok: true, next };
+    } catch (error) {
+      return { ok: false, errors: ["the change could not be checked (" + (error && error.message ? error.message : "unknown problem") + ")"] };
+    }
+  }
+
+  root.WyzeDetected = { LABELS, settingFor, buildView, valuesFor, applyDetections, problemsWith, prepareSave };
 })(self);

@@ -28,12 +28,18 @@
           homebridge.toast.error('Save the plugin settings once first, then try again.');
           return;
         }
-        homebridge.updatePluginConfig(WyzeDetected.applyDetections(config, cam.mac, cam.name, values));
+        // Nothing is saved unless the change passes every check, and a check that cannot finish counts as a failure.
+        const prepared = WyzeDetected.prepareSave(config, cam.mac, cam.name, values);
+        if (!prepared.ok) {
+          homebridge.toast.error('Not saved: ' + prepared.errors.join('; '));
+          return;
+        }
+        homebridge.updatePluginConfig(prepared.next);
         await homebridge.savePluginConfig();
         homebridge.toast.success('Saved for ' + cam.name + '. Restart Homebridge to apply it.');
         await render();
       } catch (e) {
-        homebridge.toast.error('Could not save: ' + (e && e.message ? e.message : e));
+        homebridge.toast.error('Not saved: ' + (e && e.message ? e.message : e));
       }
     }
 
