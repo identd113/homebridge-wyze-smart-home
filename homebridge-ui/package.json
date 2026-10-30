@@ -1,0 +1,6 @@
+{
+  "name": "homebridge-wyze-smart-home-ui",
+  "private": true,
+  "type": "module",
+  "description": "The settings page's server runs as an ES module: @homebridge/plugin-ui-utils is ESM-only, and require() of it needs Node 22.12 or newer."
+}

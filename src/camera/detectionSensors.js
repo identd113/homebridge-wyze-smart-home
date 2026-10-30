@@ -37,8 +37,8 @@ class DetectionSensors {
     this.camera = camera;
     this.seen = {}; // automatic: kinds this camera's events were found to carry
     this.sensors = {}; // kind -> { service, active, timer, ids }
-    this.tries = 0;
-    this.busy = false;
+    this.scanned = false; // discover() has had its answer from Wyze
+    this.report = null; // what it found: { found, unnamed }
   }
 
   // "none", "auto", or the list of kinds chosen.
@@ -55,11 +55,6 @@ class DetectionSensors {
     if (mode === "none") return false;
     if (mode === "auto") return LABELS[kind].auto && Boolean(this.seen[kind]);
     return mode.includes(kind);
-  }
-
-  // Kinds still to be found out about: automatic mode, an automatic label, and not yet seen.
-  pending() {
-    return this.mode() === "auto" ? AUTO_KINDS.filter((kind) => !this.seen[kind]) : [];
   }
 
   any() {
@@ -123,44 +118,49 @@ class DetectionSensors {
     }
   }
 
-  // Find out which labels this camera's events carry, and add a sensor for each automatic one. A camera whose
-  // newest events carry no label at all has no AI detection, so nothing more is asked. Otherwise each label is
-  // asked for on its own: a rare one, like a package, would not show in the 20 newest events of a busy camera.
-  // Labels that are not automatic (Face) are asked about too, only so the log can say they exist and how to
-  // get a sensor for them. Returns true when it got an answer from Wyze (so it need not be asked again).
+  // Find out which labels this camera's events carry. In automatic mode a sensor is added for each automatic
+  // label found. In every mode the result is returned, so it can be logged and offered in the settings page: a
+  // label that turns up on a camera whose list was chosen earlier is exactly what the owner wants to hear about.
+  // A camera whose newest events carry no label at all has no AI detection, so nothing more is asked. Otherwise
+  // each label not already in those events is asked for on its own: a rare one, like a package, would not show in
+  // the 20 newest events of a busy camera. Returns { found, unnamed } once Wyze has answered.
   async discover() {
-    const pending = this.pending();
-    if (pending.length === 0) return true;
     const { client } = this.camera.plugin;
     const mac = this.camera.mac;
     const ask = (kind) => client.cameraGetEvents(mac, { sinceMs: HISTORY_MS, count: 20, tags: [kind.toUpperCase()] });
-    const carries = (events, kind) => events.some((event) => Array.isArray(event.tags) && event.tags.includes(TAG[kind]));
+    const tagsOf = (events) => events.flatMap((event) => (Array.isArray(event.tags) ? event.tags : []));
 
     const recent = await client.cameraGetEvents(mac, { sinceMs: HISTORY_MS, count: 20 });
-    if (!recent.some((event) => Array.isArray(event.tags) && event.tags.length > 0)) return true;
-
+    const inRecent = new Set(tagsOf(recent));
     const found = [];
-    for (const kind of pending) {
-      if (!carries(await ask(kind), kind)) continue;
-      found.push(kind);
-      this.seen[kind] = true;
-      this.setup(kind);
-    }
-    const optIn = [];
-    for (const kind of KINDS.filter((k) => !LABELS[k].auto && !this.wanted(k))) {
-      if (carries(await ask(kind), kind)) optIn.push(kind);
+    if (inRecent.size > 0) {
+      for (const kind of KINDS) {
+        if (inRecent.has(TAG[kind]) || tagsOf(await ask(kind)).includes(TAG[kind])) found.push(kind);
+      }
     }
     // Labels in the newest events that this plugin has no name for.
     const named = new Set(Object.values(TAG));
-    const unnamed = [...new Set(recent.flatMap((event) => (Array.isArray(event.tags) ? event.tags : [])))].filter((tag) => !named.has(tag));
+    const unnamed = [...inRecent].filter((tag) => !named.has(tag));
 
-    if (found.length + optIn.length + unnamed.length > 0) {
-      const parts = [`events carry the AI labels ${found.length ? found.join(", ") : "(none that get a sensor by themselves)"}`];
-      if (optIn.length) parts.push(`${optIn.join(", ")} events exist too: add "${optIn.map((k) => k.toLowerCase()).join('", "')}" to this camera's detections for ${optIn.length > 1 ? "sensors" : "a sensor"}`);
+    const automatic = this.mode() === "auto";
+    for (const kind of found) {
+      if (!automatic || !LABELS[kind].auto || this.seen[kind]) continue;
+      this.seen[kind] = true;
+      this.setup(kind);
+    }
+    this.scanned = true;
+    this.report = { found, unnamed };
+
+    const shown = found.filter((kind) => LABELS[kind].auto || this.wanted(kind));
+    const available = found.filter((kind) => !LABELS[kind].auto && !this.wanted(kind));
+    if (found.length + unnamed.length > 0) {
+      const parts = [];
+      if (shown.length) parts.push(`events carry the AI labels ${shown.join(", ")}`);
+      if (available.length) parts.push(`${available.join(", ")} events exist too: add "${available.map((k) => k.toLowerCase()).join('", "')}" to this camera's detections for ${available.length > 1 ? "sensors" : "a sensor"}`);
       if (unnamed.length) parts.push(`labels with no name here: ${unnamed.join(", ")}`);
       this.camera.plugin.log(`[Camera] ${this.camera.display_name}: ${parts.join("; ")}`);
     }
-    return true;
+    return this.report;
   }
 }
 

@@ -115,7 +115,6 @@ test('Face is never automatic, even if the camera has been found to carry it', (
   const cam = camera()
   cam.detections.seen.Face = true
   assert.strictEqual(cam.detections.wanted('Face'), false)
-  assert.ok(!cam.detections.pending().includes('Face'))
 })
 
 test('Face is built when it is named, and then follows the same rules', () => {
@@ -225,8 +224,8 @@ test('otherwise each label is asked for on its own, and only the ones that exist
     }
   })
   await cam.detections.discover()
-  assert.deepStrictEqual(cam.asked.slice(1).map((o) => o.tags), [['PERSON'], ['VEHICLE'], ['PET'], ['PACKAGE'], ['FACE']],
-    'each automatic label, then Face once, only to be able to say it exists')
+  assert.deepStrictEqual(cam.asked.slice(1).map((o) => o.tags), [['VEHICLE'], ['PET'], ['PACKAGE'], ['FACE']],
+    'every label the newest events do not already show, Face included only to be able to say it exists')
   assert.ok(cam.asked.every((o) => o.sinceMs === 7 * 24 * 60 * 60 * 1000 && o.count === 20))
   assert.deepStrictEqual(Object.keys(cam.detections.sensors).sort(), ['Package', 'Person'])
   assert.deepStrictEqual(cam.homeKitAccessory.services.map((s) => s.subtype).sort(), ['Package', 'Person'])
@@ -238,11 +237,13 @@ test('a wyze-api that ignores the filter does not add a label the answer does no
   assert.deepStrictEqual(Object.keys(cam.detections.sensors), ['Person'])
 })
 
-test('nothing is asked for a camera whose list is chosen, or "none"', async () => {
+test('a chosen list, or "none", is still scanned and reported, but discovery adds no sensor of its own', async () => {
   for (const detections of [['pet'], ['none']]) {
-    const cam = camera({ detections, events: () => [labelled('a', [PERSON])] })
-    await cam.detections.discover()
-    assert.deepStrictEqual(cam.asked, [])
+    const cam = camera({ detections, events: eventsWith([PERSON, PET]) })
+    const report = await cam.detections.discover()
+    assert.deepStrictEqual(report.found, ['Person', 'Pet'])
+    assert.deepStrictEqual(Object.keys(cam.detections.sensors), [], 'sensors come from setupWanted, not from what was found')
+    assert.strictEqual(cam.detections.scanned, true)
   }
 })
 
@@ -309,11 +310,11 @@ test('when Face events exist the log says so and how to get a sensor, but none i
   assert.match(cam.logs[0], /Face events exist too: add "face" to this camera's detections/)
 })
 
-test('a camera that has chosen Face is not told about it again', async () => {
-  const cam = camera({ detections: ['face'], events: eventsWith([FACE]) })
+test('a camera that has chosen Face is not told how to get it', async () => {
+  const cam = camera({ detections: ['person', 'face'], events: eventsWith([PERSON, FACE]) })
   await cam.detections.discover()
-  assert.deepStrictEqual(cam.asked, [], 'a chosen list is built as given, with nothing to find out')
-  assert.deepStrictEqual(cam.logs, [])
+  assert.match(cam.logs[0], /events carry the AI labels Person, Face/)
+  assert.doesNotMatch(cam.logs[0], /add "face"/)
 })
 
 test('labels this plugin has no name for are listed by number, and get no sensor', async () => {
@@ -321,7 +322,7 @@ test('labels this plugin has no name for are listed by number, and get no sensor
     events: (options) => (options.tags ? [] : [labelled('a', [PERSON, 777]), labelled('b', [888])])
   })
   await cam.detections.discover()
-  assert.deepStrictEqual(Object.keys(cam.detections.sensors), [], 'nothing is added for a label with no name')
+  assert.deepStrictEqual(Object.keys(cam.detections.sensors), ['Person'], 'only the named label gets a sensor; 777 and 888 get none')
   assert.match(cam.logs[0], /labels with no name here: 777, 888/)
 })
 

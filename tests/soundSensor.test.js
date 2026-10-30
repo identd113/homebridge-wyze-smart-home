@@ -272,7 +272,8 @@ test('discovery leaves alone a sensor that is on or off, and asks nothing when n
     events: [sound('s', 1)]
   })
   await cam._discoverSensors()
-  assert.deepStrictEqual(cam.asked, [])
+  assert.strictEqual(cam.asked.length, 1, 'only the scan for AI labels; nothing for Motion or Sound')
+  assert.ok(cam.asked.every((o) => !o.types))
   assert.strictEqual(cam._sensorWanted('Sound'), false)
 })
 

@@ -4,6 +4,7 @@ const enums = require("../enums");
 const WyzeCameraStreamingDelegate = require("../camera/WyzeCameraStreamingDelegate");
 const RefreshScheduler = require("../camera/refreshScheduler");
 const DetectionSensors = require("../camera/detectionSensors");
+const detectedSensors = require("../detectedSensors");
 const MotionPoller = require("../camera/motionPoller");
 const { isBatteryCamera } = require("../camera/batteryModels");
 const { markServiceOnline } = require("./offlineIndicator");
@@ -300,7 +301,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   // cannot crowd them out of the 20 events one request returns.
   async _discoverSensors() {
     const pending = ["Motion", "Sound"].filter((kind) => this._sensorMode(kind) === "auto" && !this._sensorWanted(kind));
-    if ((pending.length === 0 && this.detections.pending().length === 0) || this._discovering || (this._discoverTries || 0) >= 3) return;
+    if ((pending.length === 0 && this.detections.scanned) || this._discovering || (this._discoverTries || 0) >= 3) return;
     if (!Object.values(enums.CameraModels).includes(this.product_model)) return;
     if (typeof this.plugin.client?.cameraGetEvents !== "function") return;
     this._discovering = true;
@@ -320,7 +321,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(`[Camera] ${this.display_name}: added a ${kind} sensor, its event list shows ${kind.toLowerCase()} events`);
       }
-      await this.detections.discover();
+      this._recordDetected(await this.detections.discover());
       this._discoverTries = 3; // answered: not asked again until the next start
       this._startEventWatch(this._watchRing); // pick up a sensor added after the watch began
     } catch (err) {
@@ -328,6 +329,21 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     } finally {
       this._discovering = false;
     }
+  }
+
+  // Leave a note of what this camera was found to have, for the plugin's settings page (see detectedSensors.js).
+  _recordDetected(report) {
+    const storagePath = this.plugin.api?.user?.storagePath?.();
+    if (!storagePath || !report) return;
+    detectedSensors.record(storagePath, {
+      mac: this.mac,
+      name: this.display_name,
+      model: this.product_model,
+      motion: this._sensorWanted("Motion"),
+      sound: this._sensorWanted("Sound"),
+      labels: report.found.map((kind) => kind.toLowerCase()),
+      unnamed: report.unnamed,
+    });
   }
 
   // A sensor reacts only to an event this young. Wyze lists events late, and a camera without a plan
