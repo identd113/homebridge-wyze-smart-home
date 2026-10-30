@@ -4,6 +4,7 @@ const enums = require("../enums");
 const WyzeCameraStreamingDelegate = require("../camera/WyzeCameraStreamingDelegate");
 const RefreshScheduler = require("../camera/refreshScheduler");
 const MotionPoller = require("../camera/motionPoller");
+const PropertyPoller = require("../camera/propertyPoller");
 const { isBatteryCamera } = require("../camera/batteryModels");
 const { markServiceOnline } = require("./offlineIndicator");
 
@@ -516,19 +517,22 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       return;
     }
 
-    // NOTE: one extra getDevicePID API call per refresh per camera that has
-    // any attached accessory configured (garage / spotlight / floodlight /
-    // siren / notification). Required because the bulk getObjectList
-    // doesn't include those PIDs.
-    let propertyList;
-    try {
-      propertyList = await this.plugin.client.getDevicePID(this.mac, this.product_model);
-    } catch (err) {
-      this.plugin.log.error(
-        `[Camera] getDevicePID failed for ${this.display_name}: ${err.message}`
-      );
-      markServiceOnline(this.privacySwitch, false);
-      return;
+    // NOTE: a camera that has any attached accessory configured (garage /
+    // spotlight / floodlight / siren / notification) needs its property list,
+    // because the bulk getObjectList doesn't include those PIDs. The platform
+    // reads them for all such cameras in one request when it can; otherwise
+    // this is one extra getDevicePID API call per refresh per camera.
+    let propertyList = this.plugin._propertyPoller?.take(this.mac) ?? null;
+    if (!propertyList) {
+      try {
+        propertyList = await this.plugin.client.getDevicePID(this.mac, this.product_model);
+      } catch (err) {
+        this.plugin.log.error(
+          `[Camera] getDevicePID failed for ${this.display_name}: ${err.message}`
+        );
+        markServiceOnline(this.privacySwitch, false);
+        return;
+      }
     }
     if (!propertyList?.data?.property_list) {
       this.plugin.log.error(
@@ -803,5 +807,22 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this._isInConfig("notificationAccessory") ||
       this._isInConfig("motionDetectionAccessory")
     );
+  }
+
+  // For PropertyPoller: the properties _refresh switches on, and whether it will read them this cycle.
+  get propertyPids() {
+    return PropertyPoller.CAMERA_PIDS;
+  }
+
+  wantsProperties() {
+    if (!this.lastDevice || !this.cameraAccessoryAttached()) return false;
+    try {
+      return (
+        !this.plugin.client.cameraUsesDeviceMgmt(this.product_model) &&
+        this.plugin.client.cameraIsOnline(this.lastDevice)
+      );
+    } catch (_) {
+      return false;
+    }
   }
 };

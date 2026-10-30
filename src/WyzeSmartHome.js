@@ -4,6 +4,7 @@ const { homebridge, Accessory, UUIDGen, Categories } = require('./types')
 const enums = require('./enums')
 const wyzeApiVersion = require('./wyzeApiVersion')
 const plannedDevices = require('./plannedDevices')
+const PropertyPoller = require('./camera/propertyPoller')
 const { OutdoorPlugModels, PlugModels, CommonModels, CameraModels, LeakSensorModels,
   TemperatureHumidityModels, LockModels, LockBoltV2Models, MotionSensorModels, ContactSensorModels, LightModels,
   LightStripModels, MeshLightModels, ThermostatModels, ThermostatRoomSensor, S1GatewayModels,
@@ -310,6 +311,11 @@ module.exports = class WyzeSmartHome {
         const roomSensors = await this.discoverRoomSensors(devices)
         for (const rs of roomSensors) devices.push(rs)
       }
+
+      // One request for the properties every camera that needs them will read below, instead
+      // of one request per camera. Cameras fall back to their own read if this has nothing for them.
+      if (!this._propertyPoller) this._propertyPoller = new PropertyPoller(this.client, { log: this.log })
+      await this._propertyPoller.prefetch(this.accessories)
 
       await this.loadDevices(devices, timestamp)
       this._lastFullRefreshAt = Date.now()
