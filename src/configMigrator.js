@@ -66,7 +66,7 @@ const CAMERA_SENSOR_KEYS = [
 
 // The AI labels that can get a sensor of their own (see camera/detectionSensors.js), or "none". An empty
 // list, the default, is automatic.
-const DETECTION_NAMES = ["person", "vehicle", "pet", "package", "none"];
+const DETECTION_NAMES = ["person", "vehicle", "pet", "package", "face", "none"];
 
 function normalizeDetections(value) {
   if (!Array.isArray(value)) return [];
