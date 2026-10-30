@@ -46,8 +46,11 @@ class DetectionSensors {
     const row = (this.camera.plugin.config.cameras || []).find((cam) => cam.mac === this.camera.mac);
     const chosen = (Array.isArray(row?.detections) ? row.detections : []).map((name) => String(name).toLowerCase());
     if (chosen.includes("none")) return "none";
+    if (chosen.length === 0) return "auto";
+    // A list is exact. Names this plugin does not know (saved by the settings page for something newer, or
+    // by hand) get no sensor, and a list of only those is no sensors, not automatic.
     const kinds = KINDS.filter((kind) => chosen.includes(kind.toLowerCase()));
-    return kinds.length > 0 ? kinds : "auto";
+    return kinds.length > 0 ? kinds : "none";
   }
 
   wanted(kind) {

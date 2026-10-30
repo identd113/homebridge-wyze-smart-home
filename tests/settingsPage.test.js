@@ -185,3 +185,43 @@ test('the server answers with nothing found when the plugin has recorded nothing
   assert.strictEqual(answer.success, true)
   assert.deepStrictEqual(answer.data, { version: 1, cameras: {} })
 })
+
+// ---- items the plugin has no name for ----------------------------------------------------------------
+
+const withOthers = {
+  version: 1,
+  cameras: { AA: { name: 'Front Doorbell', model: 'HL_DB2', motion: true, sound: false, labels: ['person', 'starship', 'phaser'], unnamed: [] } }
+}
+
+test('items with no name are listed as other rows, unticked until they are saved, and marked new', () => {
+  const doorbell = byMac(page.buildView(withOthers, entry([])), 'AA')
+  assert.deepStrictEqual(doorbell.items.map((i) => [i.value, i.label, i.other, i.checked, i.isNew]), [
+    ['person', 'Person', false, true, false],
+    ['phaser', 'Phaser', true, false, true],
+    ['starship', 'Starship', true, false, true]
+  ])
+})
+
+test('saving them puts the names in the list, and the page then shows them ticked and not new', () => {
+  const doorbell = byMac(page.buildView(withOthers, entry([])), 'AA')
+  doorbell.items.find((i) => i.value === 'starship').checked = true
+  const values = page.valuesFor(doorbell.items)
+  assert.deepStrictEqual(values, ['person', 'starship'])
+  const saved = page.applyDetections(entry([]), 'AA', 'Front Doorbell', values)
+  const again = byMac(page.buildView(withOthers, saved), 'AA')
+  assert.deepStrictEqual(again.setting, ['person', 'starship'])
+  assert.deepStrictEqual(again.items.filter((i) => i.checked).map((i) => i.value), ['person', 'starship'])
+  assert.deepStrictEqual(again.items.filter((i) => i.isNew).map((i) => i.value), ['phaser'])
+})
+
+test('a name already in the list that is no longer found is still shown, so it can be removed', () => {
+  const gone = byMac(page.buildView({ version: 1, cameras: { AA: { name: 'D', labels: ['person'], unnamed: [] } } }, entry([{ mac: 'AA', detections: ['person', 'tribble'] }])), 'AA')
+  const tribble = gone.items.find((i) => i.value === 'tribble')
+  assert.deepStrictEqual([tribble.found, tribble.checked, tribble.other], [false, true, true])
+})
+
+test('the plugin reads what the page saved, ignores the names it does not know, and builds no tile for them', () => {
+  const saved = page.applyDetections(entry([]), 'AA', 'Front Doorbell', ['person', 'starship'])[0]
+  const row = normalize({ platform: 'WyzeSmartHome', cameras: saved.cameras }).cameras[0]
+  assert.deepStrictEqual(row.detections, ['person', 'starship'])
+})

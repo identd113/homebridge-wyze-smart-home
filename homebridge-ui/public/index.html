@@ -59,6 +59,7 @@
         row.appendChild(input);
         row.appendChild(label);
         if (item.isNew) row.appendChild(el('span', item.auto ? ' new' : ' available, not automatic', 'badge badge-info ml-2 bg-info'));
+        if (item.other) row.appendChild(el('span', ' no sensor yet', 'text-muted ml-2'));
         if (!item.found) row.appendChild(el('span', ' not seen lately', 'text-muted ml-2'));
         box.appendChild(row);
         checks.push(input);

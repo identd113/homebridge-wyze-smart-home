@@ -14,14 +14,16 @@
     { value: "face", label: "Face", auto: false },
   ];
 
-  // This camera's `detections` setting: "auto" (not set, or empty), "none", or the list chosen.
+  // This camera's `detections` setting: "auto" (not set, or empty), "none", or the list chosen. A list is exact,
+  // and keeps names this page has no row for.
   function settingFor(entry, mac) {
     const row = ((entry && entry.cameras) || []).find((cam) => cam && cam.mac === mac);
-    const list = (row && Array.isArray(row.detections) ? row.detections : []).map((name) => String(name).toLowerCase());
+    const list = (row && Array.isArray(row.detections) ? row.detections : []).map((name) => String(name).trim().toLowerCase()).filter(Boolean);
     if (list.includes("none")) return "none";
-    const chosen = LABELS.map((l) => l.value).filter((value) => list.includes(value));
-    return chosen.length > 0 ? chosen : "auto";
+    return list.length > 0 ? [...new Set(list)] : "auto";
   }
+
+  const titleCase = (name) => name.charAt(0).toUpperCase() + name.slice(1);
 
   // What to show: one entry per camera in the plugin's file, with a row for each label it carries (or that its
   // list names), ticked as the current setting would have it. `isNew` marks a label the current setting does not give.
@@ -38,7 +40,16 @@
         found: found.has(l.value),
         checked: given(l),
         isNew: found.has(l.value) && !given(l),
+        other: false,
       }));
+      // Items the plugin has no name for (found, or already in the list). They can be saved into the list; the
+      // plugin ignores them when it builds sensors, so they cannot create a tile.
+      const known = new Set(LABELS.map((l) => l.value));
+      const unknown = new Set([...found, ...(Array.isArray(setting) ? setting : [])]);
+      for (const value of [...unknown].filter((name) => !known.has(name)).sort()) {
+        const listed = Array.isArray(setting) && setting.includes(value);
+        items.push({ value, label: titleCase(value), auto: false, found: found.has(value), checked: listed, isNew: found.has(value) && !listed, other: true });
+      }
       return {
         mac,
         name: cam.name || mac,

@@ -269,7 +269,7 @@ test('a detection service that is not wanted is removed; the Motion and Sound se
   assert.deepStrictEqual(cam.homeKitAccessory.services.map((s) => s.subtype), ['Motion', 'Sound', 'Person'])
 })
 
-test('config: detections is a list of known labels, lower case, without repeats', () => {
+test('config: detections is a list of names, lower case, trimmed, without repeats; unknown names are kept', () => {
   const c = normalize({
     platform: 'WyzeSmartHome',
     cameras: [
@@ -279,7 +279,7 @@ test('config: detections is a list of known labels, lower case, without repeats'
       { mac: 'D' }
     ]
   })
-  assert.deepStrictEqual(c.cameras.map((r) => r.detections), [['person', 'pet'], [], ['none'], []])
+  assert.deepStrictEqual(c.cameras.map((r) => r.detections), [['person', 'pet', 'dog'], [], ['none'], []])
 })
 
 test('config: a camera that only appears in an old flat list gets an empty (automatic) detections list', () => {
@@ -335,4 +335,18 @@ test('a camera with no AI labels logs nothing', async () => {
 test('config: face is a known name', () => {
   const c = normalize({ platform: 'WyzeSmartHome', cameras: [{ mac: 'A', detections: ['Face', 'person'] }] })
   assert.deepStrictEqual(c.cameras[0].detections, ['face', 'person'])
+})
+
+test('a list is exact: a name the plugin does not know gets no sensor, and a list of only those is none, not automatic', () => {
+  const mixed = camera({ detections: ['person', 'starship'] })
+  assert.deepStrictEqual(mixed.detections.mode(), ['Person'])
+  mixed.detections.setupWanted()
+  assert.deepStrictEqual(mixed.homeKitAccessory.services.map((s) => s.subtype), ['Person'], 'no tile for starship')
+
+  const only = camera({ detections: ['starship', 'phaser'] })
+  assert.strictEqual(only.detections.mode(), 'none')
+  only.detections.seen.Person = true
+  assert.strictEqual(only.detections.wanted('Person'), false, 'not turned into automatic')
+  only.detections.setupWanted()
+  assert.deepStrictEqual(only.homeKitAccessory.services, [])
 })
