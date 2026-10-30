@@ -3,6 +3,7 @@ const WyzeAccessory = require("./WyzeAccessory");
 const enums = require("../enums");
 const WyzeCameraStreamingDelegate = require("../camera/WyzeCameraStreamingDelegate");
 const RefreshScheduler = require("../camera/refreshScheduler");
+const DetectionSensors = require("../camera/detectionSensors");
 const MotionPoller = require("../camera/motionPoller");
 const { isBatteryCamera } = require("../camera/batteryModels");
 const { markServiceOnline } = require("./offlineIndicator");
@@ -84,6 +85,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     // depend on any of the switches below being on.
     if (this._sensorWanted("Motion")) this._setupMotionSensor();
     if (this._sensorWanted("Sound")) this._setupSoundSensor();
+    this.detections.setupWanted();
 
     if (!this.cameraAccessoryAttached()) return;
 
@@ -273,6 +275,12 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     if (active) this.plugin.log.debug?.(`[Camera] ${this.display_name}: motion`);
   }
 
+  // The Person, Vehicle, Pet and Package sensors (see camera/detectionSensors.js).
+  get detections() {
+    if (!this._detections) this._detections = new DetectionSensors(this);
+    return this._detections;
+  }
+
   // "on", "off" or "auto" (the default) for the Motion or Sound sensor of this camera. An automatic
   // sensor is added once the camera's event list shows events of its kind (_discoverSensors).
   _sensorMode(kind) {
@@ -292,7 +300,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   // cannot crowd them out of the 20 events one request returns.
   async _discoverSensors() {
     const pending = ["Motion", "Sound"].filter((kind) => this._sensorMode(kind) === "auto" && !this._sensorWanted(kind));
-    if (pending.length === 0 || this._discovering || (this._discoverTries || 0) >= 3) return;
+    if ((pending.length === 0 && this.detections.pending().length === 0) || this._discovering || (this._discoverTries || 0) >= 3) return;
     if (!Object.values(enums.CameraModels).includes(this.product_model)) return;
     if (typeof this.plugin.client?.cameraGetEvents !== "function") return;
     this._discovering = true;
@@ -312,6 +320,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(`[Camera] ${this.display_name}: added a ${kind} sensor, its event list shows ${kind.toLowerCase()} events`);
       }
+      await this.detections.discover();
       this._discoverTries = 3; // answered: not asked again until the next start
       this._startEventWatch(this._watchRing); // pick up a sensor added after the watch began
     } catch (err) {
@@ -335,6 +344,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     const wanted = {
       Motion: this._sensorWanted("Motion"),
       Sound: this._sensorWanted("Sound"),
+      ...Object.fromEntries(DetectionSensors.KINDS.map((kind) => [kind, this.detections.wanted(kind)])),
     };
     for (const service of [...(this.homeKitAccessory.services || [])]) {
       if (service.UUID !== Service.MotionSensor.UUID) continue;
@@ -406,7 +416,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     this._watchRing = !!isDoorbell;
     this._watchMotion = this.plugin.config.snapshotOnMotion !== false || !!this.motionSensorEnabled;
     this._watchSound = !!this.soundSensorEnabled;
-    if (!this._watchRing && !this._watchMotion && !this._watchSound) return;
+    this._watchDetect = this.detections.any();
+    if (!this._watchRing && !this._watchMotion && !this._watchSound && !this._watchDetect) return;
     if (this._motionMember) return;
     this._ringedIds = null; // seeded by the first successful poll
     this._motionIds = null; // likewise
@@ -418,7 +429,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       online: () => this.cameraOnline !== false,
       onEvents: (events) => this._onEvents(events),
       // Offline: forget what has been seen, so nothing from the gap rings or refreshes late.
-      reset: () => { this._ringedIds = null; this._motionIds = null; this._soundIds = null; },
+      reset: () => { this._ringedIds = null; this._motionIds = null; this._soundIds = null; this.detections.reset(); },
     };
     this.plugin._motionPoller.add(this._motionMember);
   }
@@ -427,6 +438,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     if (this._watchRing) this._checkRings(events);
     if (this._watchMotion) this._checkMotion(events);
     if (this._watchSound) this._checkSound(events);
+    if (this._watchDetect) this.detections.check(events);
   }
 
   // Keep the Home app's picture current: one new capture every `snapshotRefreshSeconds`
@@ -508,6 +520,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     this._motionTimer = null;
     clearTimeout(this._soundTimer);
     this._soundTimer = null;
+    this.detections.stop();
     if (this._motionMember) this.plugin._motionPoller?.remove(this._motionMember);
     this._motionMember = null;
     if (this._refreshMember) this.plugin._refreshScheduler?.remove(this._refreshMember);

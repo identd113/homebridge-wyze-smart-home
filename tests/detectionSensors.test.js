@@ -1,0 +1,263 @@
+/**
+ * The Person, Vehicle, Pet and Package sensors: HomeKit motion sensors driven by the AI labels on the events in
+ * Wyze's cloud event list, with the same rules as the Motion and Sound sensors. Automatic by default.
+ */
+const test = require('node:test')
+const assert = require('node:assert')
+
+const MotionSensor = { name: 'MotionSensor', UUID: 'ms' }
+const MotionDetected = { name: 'MotionDetected' }
+require('../src/types').update({
+  hap: {
+    Service: { MotionSensor, Switch: { UUID: 'sw' } },
+    Characteristic: { MotionDetected, Name: { name: 'Name' }, ConfiguredName: { name: 'ConfiguredName' }, On: { name: 'On' } },
+    uuid: {},
+    Categories: {}
+  },
+  platformAccessory: class {}
+})
+
+const { AiEventTag } = require('wyze-api/src/types')
+const WyzeCamera = require('../src/accessories/WyzeCamera')
+const DetectionSensors = require('../src/camera/detectionSensors')
+const { normalize } = require('../src/configMigrator')
+
+function service (type, subtype) {
+  const updates = []
+  const characteristic = () => {
+    const c = { onGet: () => c, onSet: () => c, updateValue: (v) => updates.push(v) }
+    return c
+  }
+  return { UUID: type.UUID, subtype, updates, getCharacteristic: characteristic, setCharacteristic: () => {} }
+}
+
+function homeKit (services = []) {
+  const hk = {
+    displayName: 'Cam',
+    context: { mac: 'AA', product_type: 'Camera', product_model: 'HL_DB2' },
+    services,
+    removed: [],
+    getService: () => undefined,
+    getServiceById: (type, subtype) => hk.services.find((s) => s.UUID === type.UUID && s.subtype === subtype),
+    addService: (type, name, subtype) => { const s = service(type, subtype); hk.services.push(s); return s },
+    removeService: (s) => { hk.removed.push(s.subtype || '(none)'); hk.services = hk.services.filter((x) => x !== s) }
+  }
+  return hk
+}
+
+function camera ({ detections, events = () => [], cfg = {} } = {}) {
+  const acc = Object.create(WyzeCamera.prototype)
+  const asked = []
+  acc.mac = 'AA'
+  acc.homeKitAccessory = homeKit()
+  acc.plugin = {
+    config: {
+      motionSensorAccessory: [], motionSensorOff: [], soundSensorAccessory: [], soundSensorOff: [],
+      cameras: detections === undefined ? [] : [{ mac: 'AA', detections }],
+      ...cfg
+    },
+    log: Object.assign(() => {}, { debug: () => {} }),
+    client: { cameraGetEvents: async (mac, options) => { asked.push(options); return events(options) } }
+  }
+  acc.asked = asked
+  acc._startEventWatch = () => {}
+  return acc
+}
+
+const labelled = (id, tags, ageMs = 1_000) => ({ id, type: 'MOTION', tags, ageMs, time: 1 })
+const PERSON = AiEventTag.PERSON
+const PACKAGE = AiEventTag.PACKAGE
+const PET = AiEventTag.PET
+const VEHICLE = AiEventTag.VEHICLE
+
+// ---- which sensors a camera gets ----------------------------------------------------------------
+
+test('automatic by default: only the labels this camera\'s events were found to carry', () => {
+  const cam = camera()
+  assert.strictEqual(cam.detections.mode(), 'auto')
+  assert.strictEqual(cam.detections.wanted('Person'), false, 'not found yet')
+  cam.detections.seen.Person = true
+  assert.strictEqual(cam.detections.wanted('Person'), true)
+  assert.strictEqual(cam.detections.wanted('Pet'), false)
+})
+
+test('a chosen list is exactly those labels, whether seen or not; "none" is none', () => {
+  const some = camera({ detections: ['person', 'Pet', 'dog'] })
+  assert.deepStrictEqual(some.detections.mode(), ['Person', 'Pet'])
+  assert.strictEqual(some.detections.wanted('Person'), true)
+  assert.strictEqual(some.detections.wanted('Vehicle'), false)
+  some.detections.seen.Vehicle = true
+  assert.strictEqual(some.detections.wanted('Vehicle'), false, 'a chosen list is not widened by what was seen')
+
+  const none = camera({ detections: ['none', 'person'] })
+  assert.strictEqual(none.detections.mode(), 'none')
+  assert.strictEqual(none.detections.wanted('Person'), false)
+  none.detections.seen.Person = true
+  assert.strictEqual(none.detections.wanted('Person'), false)
+})
+
+test('an empty list, or another camera\'s list, is automatic', () => {
+  assert.strictEqual(camera({ detections: [] }).detections.mode(), 'auto')
+  const other = camera()
+  other.plugin.config.cameras = [{ mac: 'BB', detections: ['none'] }]
+  assert.strictEqual(other.detections.mode(), 'auto')
+})
+
+test('a camera has at most four detection sensors, however many labels Wyze knows', () => {
+  assert.deepStrictEqual(DetectionSensors.KINDS, ['Person', 'Vehicle', 'Pet', 'Package'])
+})
+
+// ---- the sensors react to fresh labelled events -----------------------------------------------------
+
+function personCam (detections = ['person', 'package']) {
+  const cam = camera({ detections })
+  cam.detections.setupWanted()
+  return cam
+}
+const updates = (cam, kind) => cam.detections.sensors[kind].service.updates
+
+test('chosen labels get a service each, named for the label', () => {
+  const cam = personCam()
+  assert.deepStrictEqual(cam.homeKitAccessory.services.map((s) => s.subtype).sort(), ['Package', 'Person'])
+  assert.strictEqual(cam.detections.any(), true)
+  assert.strictEqual(camera({ detections: ['none'] }).detections.any(), false)
+})
+
+test('the first poll only records; a new fresh labelled event turns that sensor on, and only that one', () => {
+  const cam = personCam()
+  cam.detections.check([labelled('a', [PERSON])])
+  assert.deepStrictEqual(updates(cam, 'Person'), [])
+  cam.detections.check([labelled('b', [PERSON, PACKAGE]), labelled('a', [PERSON], 11_000)])
+  assert.deepStrictEqual(updates(cam, 'Person'), [true])
+  assert.deepStrictEqual(updates(cam, 'Package'), [true])
+  cam.detections.set('Person', false)
+  assert.deepStrictEqual(updates(cam, 'Person'), [true, false])
+})
+
+test('the same events listed again do not switch it again', () => {
+  const cam = personCam(['person'])
+  cam.detections.check([])
+  cam.detections.check([labelled('a', [PERSON], 2_000)])
+  cam.detections.check([labelled('a', [PERSON], 12_000)])
+  cam.detections.check([labelled('a', [PERSON], 22_000)])
+  assert.deepStrictEqual(updates(cam, 'Person'), [true])
+})
+
+test('a label Wyze adds a few seconds after the event appeared counts as new, while the event is fresh', () => {
+  const cam = personCam(['person'])
+  cam.detections.check([])
+  cam.detections.check([labelled('a', [], 2_000)]) // listed without its label
+  assert.deepStrictEqual(updates(cam, 'Person'), [])
+  cam.detections.check([labelled('a', [PERSON], 12_000)]) // the label arrives
+  assert.deepStrictEqual(updates(cam, 'Person'), [true])
+})
+
+test('a labelled event older than 30 seconds does not switch it', () => {
+  const cam = personCam(['person'])
+  cam.detections.check([])
+  cam.detections.check([labelled('old', [PERSON], 31_000)])
+  assert.deepStrictEqual(updates(cam, 'Person'), [])
+  cam.detections.check([labelled('edge', [PERSON], 30_000), labelled('old', [PERSON], 41_000)])
+  assert.deepStrictEqual(updates(cam, 'Person'), [true], '30 seconds is still fresh')
+})
+
+test('events with other labels, or none, do not switch it', () => {
+  const cam = personCam(['person'])
+  cam.detections.check([])
+  cam.detections.check([labelled('v', [VEHICLE]), labelled('p', [PET]), labelled('n', []), { id: 'x', ageMs: 1 }])
+  assert.deepStrictEqual(updates(cam, 'Person'), [])
+})
+
+test('going offline forgets what was seen, so the gap does not switch a sensor on late', () => {
+  const cam = personCam(['person'])
+  cam.detections.check([labelled('a', [PERSON], 2_000)])
+  cam.detections.reset()
+  cam.detections.check([labelled('b', [PERSON], 2_000)])
+  assert.deepStrictEqual(updates(cam, 'Person'), [], 'the first poll after the gap only records')
+})
+
+test('stopping clears the hold timers', () => {
+  const cam = personCam(['person'])
+  cam.detections.check([])
+  cam.detections.check([labelled('a', [PERSON])])
+  assert.ok(cam.detections.sensors.Person.timer)
+  cam.detections.stop()
+  assert.strictEqual(cam.detections.sensors.Person.timer, null)
+})
+
+// ---- finding out which labels a camera has ------------------------------------------------------------
+
+test('a camera whose newest events carry no label has no AI detection: nothing more is asked', async () => {
+  const cam = camera({ events: () => [labelled('a', []), labelled('b', [])] })
+  await cam.detections.discover()
+  assert.strictEqual(cam.asked.length, 1)
+  assert.strictEqual(cam.detections.any(), false)
+})
+
+test('otherwise each label is asked for on its own, and only the ones that exist are added', async () => {
+  const cam = camera({
+    events: (options) => {
+      if (!options.tags) return [labelled('a', [PERSON])]
+      return options.tags[0] === 'PACKAGE' || options.tags[0] === 'PERSON' ? [labelled('x', [PERSON, PACKAGE])] : []
+    }
+  })
+  await cam.detections.discover()
+  assert.deepStrictEqual(cam.asked.slice(1).map((o) => o.tags), [['PERSON'], ['VEHICLE'], ['PET'], ['PACKAGE']])
+  assert.ok(cam.asked.every((o) => o.sinceMs === 7 * 24 * 60 * 60 * 1000 && o.count === 20))
+  assert.deepStrictEqual(Object.keys(cam.detections.sensors).sort(), ['Package', 'Person'])
+  assert.deepStrictEqual(cam.homeKitAccessory.services.map((s) => s.subtype).sort(), ['Package', 'Person'])
+})
+
+test('a wyze-api that ignores the filter does not add a label the answer does not show', async () => {
+  const cam = camera({ events: () => [labelled('a', [PERSON])] }) // always the same newest event, filtered or not
+  await cam.detections.discover()
+  assert.deepStrictEqual(Object.keys(cam.detections.sensors), ['Person'])
+})
+
+test('nothing is asked for a camera whose list is chosen, or "none"', async () => {
+  for (const detections of [['pet'], ['none']]) {
+    const cam = camera({ detections, events: () => [labelled('a', [PERSON])] })
+    await cam.detections.discover()
+    assert.deepStrictEqual(cam.asked, [])
+  }
+})
+
+test('a camera finds its labels through its own discovery, and then watches events for them', async () => {
+  const cam = camera({ events: (options) => (options.tags ? (options.tags[0] === 'PET' ? [labelled('p', [PET])] : []) : [labelled('a', [PET])]) })
+  let watched = 0
+  cam._startEventWatch = () => { watched += 1 }
+  await cam._discoverSensors()
+  assert.ok(cam.homeKitAccessory.services.some((s) => s.subtype === 'Pet'))
+  assert.strictEqual(watched, 1, 'the event watch is started again so the new sensor is fed')
+})
+
+// ---- removal and config -----------------------------------------------------------------------------
+
+test('a detection service that is not wanted is removed; the Motion and Sound services are left alone', () => {
+  const cam = camera({ detections: ['person'], cfg: { motionSensorAccessory: ['AA'], soundSensorAccessory: ['AA'] } })
+  cam.homeKitAccessory = homeKit([
+    service(MotionSensor, 'Motion'), service(MotionSensor, 'Sound'),
+    service(MotionSensor, 'Person'), service(MotionSensor, 'Pet'), service(MotionSensor, 'Package')
+  ])
+  cam._removeSensorsNotWanted()
+  assert.deepStrictEqual(cam.homeKitAccessory.removed.sort(), ['Package', 'Pet'])
+  assert.deepStrictEqual(cam.homeKitAccessory.services.map((s) => s.subtype), ['Motion', 'Sound', 'Person'])
+})
+
+test('config: detections is a list of known labels, lower case, without repeats', () => {
+  const c = normalize({
+    platform: 'WyzeSmartHome',
+    cameras: [
+      { mac: 'A', detections: ['Person', 'person', 'PET', 'dog'] },
+      { mac: 'B', detections: 'person' },
+      { mac: 'C', detections: ['none'] },
+      { mac: 'D' }
+    ]
+  })
+  assert.deepStrictEqual(c.cameras.map((r) => r.detections), [['person', 'pet'], [], ['none'], []])
+})
+
+test('config: a camera that only appears in an old flat list gets an empty (automatic) detections list', () => {
+  const c = normalize({ platform: 'WyzeSmartHome', sirenAccessory: ['A'] })
+  assert.deepStrictEqual(c.cameras[0].detections, [])
+})

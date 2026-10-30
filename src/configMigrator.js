@@ -64,6 +64,15 @@ const CAMERA_SENSOR_KEYS = [
   ["soundSensor", "soundSensorAccessory", "soundSensorOff"],
 ];
 
+// The AI labels that can get a sensor of their own (see camera/detectionSensors.js), or "none". An empty
+// list, the default, is automatic.
+const DETECTION_NAMES = ["person", "vehicle", "pet", "package", "none"];
+
+function normalizeDetections(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((name) => String(name).toLowerCase()).filter((name) => DETECTION_NAMES.includes(name)))];
+}
+
 function sensorMode(value) {
   if (value === true || value === "on") return "on";
   if (value === "off") return "off";
@@ -155,6 +164,7 @@ function normalize(input) {
         motionDetection: !!cam.motionDetection,
         motionSensor: sensorMode(cam.motionSensor),
         soundSensor: sensorMode(cam.soundSensor),
+        detections: normalizeDetections(cam.detections),
       });
     }
   }
@@ -166,7 +176,7 @@ function normalize(input) {
         mac,
         name: "",
         garage: false, spotlight: false, floodlight: false, siren: false, notifications: false, motionDetection: false,
-        motionSensor: "auto", soundSensor: "auto",
+        motionSensor: "auto", soundSensor: "auto", detections: [],
       };
       row[feature] = true;
       cameraMap.set(mac, row);
@@ -180,7 +190,7 @@ function normalize(input) {
         mac,
         name: "",
         garage: false, spotlight: false, floodlight: false, siren: false, notifications: false, motionDetection: false,
-        motionSensor: "auto", soundSensor: "auto",
+        motionSensor: "auto", soundSensor: "auto", detections: [],
       };
       row[feature] = "on";
       cameraMap.set(mac, row);

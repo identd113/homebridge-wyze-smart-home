@@ -121,7 +121,8 @@
               { "title": "Automatic (add it when the camera has sound events)", "enum": ["auto"] },
               { "title": "Always", "enum": ["on"] },
               { "title": "Never", "enum": ["off"] }
-            ], "description": "A second HomeKit motion sensor, named Sound, that turns on when Wyze lists a new sound event less than 30 seconds old and off after 30 seconds without more. Automatic adds it only to a camera whose last week of events shows sound. With it on, sound no longer triggers the camera's Motion Sensor or its picture refresh." }
+            ], "description": "A second HomeKit motion sensor, named Sound, that turns on when Wyze lists a new sound event less than 30 seconds old and off after 30 seconds without more. Automatic adds it only to a camera whose last week of events shows sound. With it on, sound no longer triggers the camera's Motion Sensor or its picture refresh." },
+            "detections": { "title": "Detection Sensors", "type": "array", "uniqueItems": true, "items": { "type": "string", "enum": ["person", "vehicle", "pet", "package", "none"] }, "description": "HomeKit sensors, one per AI label Wyze puts on this camera's events, for HomeKit automations (for example, turn on a light when a person is detected). Leave empty for automatic: a sensor is added for each label the camera's last week of events carries, which needs a Wyze plan with AI detection. Choose labels to have exactly those, or none for no detection sensors. Each follows the same rules as the Motion Sensor: on for a labelled event less than 30 seconds old, off after 30 seconds without another." }
           }
         }
       },
@@ -344,7 +345,8 @@
                         "cameras[].notifications",
                         "cameras[].motionDetection",
                         "cameras[].motionSensor",
-                        "cameras[].soundSensor"
+                        "cameras[].soundSensor",
+                        "cameras[].detections"
                       ]
                     }
                   ]

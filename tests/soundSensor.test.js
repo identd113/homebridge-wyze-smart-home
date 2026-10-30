@@ -250,7 +250,8 @@ test('discovery adds a sensor when the last week shows events of its kind, and n
     events: (options) => (options.types.includes('SOUND') ? [sound('s', 1)] : [])
   })
   await cam._discoverSensors()
-  assert.deepStrictEqual(cam.asked.map((o) => o.types), [[], ['SOUND']], 'motion asks for every type, sound for sound alone')
+  const forKinds = cam.asked.filter((o) => o.types)
+  assert.deepStrictEqual(forKinds.map((o) => o.types), [[], ['SOUND']], 'motion asks for every type, sound for sound alone')
   assert.ok(cam.asked.every((o) => o.sinceMs === 7 * 24 * 60 * 60 * 1000 && o.count === 20))
   assert.strictEqual(cam._sensorWanted('Sound'), true)
   assert.strictEqual(cam._sensorWanted('Motion'), false, 'no motion events, so no Motion sensor')
@@ -266,7 +267,10 @@ test('discovery counts any event that is not a sound as motion', async () => {
 })
 
 test('discovery leaves alone a sensor that is on or off, and asks nothing when none is auto', async () => {
-  const cam = camera({ cfg: config({ motionSensorAccessory: ['AA'], soundSensorOff: ['AA'] }), events: [sound('s', 1)] })
+  const cam = camera({
+    cfg: config({ motionSensorAccessory: ['AA'], soundSensorOff: ['AA'], cameras: [{ mac: 'AA', detections: ['none'] }] }),
+    events: [sound('s', 1)]
+  })
   await cam._discoverSensors()
   assert.deepStrictEqual(cam.asked, [])
   assert.strictEqual(cam._sensorWanted('Sound'), false)
@@ -276,7 +280,7 @@ test('discovery asks once per start, and a failure is retried a few times withou
   const answered = camera({ events: [] })
   await answered._discoverSensors()
   await answered._discoverSensors()
-  assert.strictEqual(answered.asked.length, 2, 'two kinds, asked once each')
+  assert.strictEqual(answered.asked.length, 3, 'motion, sound and the detection labels, asked once each')
 
   let tries = 0
   const failing = camera()

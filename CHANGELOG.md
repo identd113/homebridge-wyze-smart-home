@@ -19,6 +19,7 @@ Pairs with a `wyze-api` newer than `2.0.0-beta.3`; with beta.3 the bulk read bel
 
 **Sensors**
 - **A Motion Sensor and a Sound Sensor are added to each camera that has the events.** `motionSensor` and `soundSensor` per camera are now `auto` (the default: added when the camera's last week of events shows events of that kind), `on` or `off`. `true` still means `on`, and a saved `false` means `auto`. A sensor reacts only to an event less than 30 seconds old, so reading the same older events again never switches it. With the Sound Sensor on, sound no longer switches that camera's Motion Sensor or refreshes its picture.
+- **Person, Vehicle, Pet and Package sensors** for a camera whose events carry Wyze's AI labels (a Wyze plan with AI detection), with the same rules as Motion and Sound. `detections` per camera is empty (automatic: a sensor for each label the camera's last week of events carries), a list such as `["person", "pet"]` for exactly those, or `["none"]`. A camera has at most these four.
 - **Fixed: the Motion Sensor was not added to a camera that had no other switch configured.**
 
 **Development**
