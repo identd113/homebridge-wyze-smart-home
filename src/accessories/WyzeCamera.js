@@ -40,6 +40,12 @@ const SNAPSHOT_REFRESH_MIN_S = 10;
 const FLOODLIGHT_DONGLE_MODELS = new Set(["HL_CFL"]);
 // How long the Motion Sensor stays on after the last new event in Wyze's event list.
 const MOTION_SENSOR_HOLD_MS = 30_000;
+// The same for the Sound Sensor.
+const SOUND_SENSOR_HOLD_MS = 30_000;
+// A sensor only reacts to an event younger than this.
+const SENSOR_EVENT_MAX_AGE_MS = 30_000;
+// How far back Wyze's event list is read to find out whether a camera has events of a kind at all.
+const SENSOR_HISTORY_MS = 7 * 24 * 60 * 60 * 1000;
 // Wyze sends on/off properties as strings ("1" on, "2" or "0" off), and any non-empty string is truthy.
 const isOn = (v) => v === 1 || v === "1" || v === true;
 
@@ -65,20 +71,21 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     this.garageDoor = persisted.garageDoor;
     this.motionDetection = persisted.motionDetection;
 
-    // A MotionSensor service left over from earlier plugin versions is removed unless the
-    // Motion Sensor option is on for this camera (it is driven by the event poller below).
-    if (!this._isInConfig("motionSensorAccessory")) {
-      const staleMotion = this.homeKitAccessory.getService(Service.MotionSensor);
-      if (staleMotion) this.homeKitAccessory.removeService(staleMotion);
-    }
+    // A Motion Sensor service left over from earlier plugin versions is removed unless the
+    // Motion Sensor option is on for this camera, and the Sound Sensor likewise (both are
+    // driven by the event poller below).
+    this._removeSensorsNotWanted();
 
     if (!Object.values(enums.CameraModels).includes(this.product_model)) return;
 
     this._setupPrivacySwitch();
 
-    if (!this.cameraAccessoryAttached()) return;
+    // These two follow the cloud event list, not the camera's properties, so they do not
+    // depend on any of the switches below being on.
+    if (this._sensorWanted("Motion")) this._setupMotionSensor();
+    if (this._sensorWanted("Sound")) this._setupSoundSensor();
 
-    if (this._isInConfig("motionSensorAccessory")) this._setupMotionSensor();
+    if (!this.cameraAccessoryAttached()) return;
 
     // Optional services driven by per-MAC config arrays.
     if (this._isInConfig("garageDoorAccessory")) {
@@ -266,6 +273,107 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     if (active) this.plugin.log.debug?.(`[Camera] ${this.display_name}: motion`);
   }
 
+  // "on", "off" or "auto" (the default) for the Motion or Sound sensor of this camera. An automatic
+  // sensor is added once the camera's event list shows events of its kind (_discoverSensors).
+  _sensorMode(kind) {
+    if (this._isInConfig(`${kind.toLowerCase()}SensorAccessory`)) return "on";
+    if (this._isInConfig(`${kind.toLowerCase()}SensorOff`)) return "off";
+    return "auto";
+  }
+
+  _sensorWanted(kind) {
+    const mode = this._sensorMode(kind);
+    return mode === "on" || (mode === "auto" && Boolean(this._sensorsSeen?.[kind]));
+  }
+
+  // Add each automatic sensor this camera has events for. Wyze's event list is read a week back,
+  // once per start: a camera with no Wyze plan, or one that never hears a sound, would otherwise
+  // get a sensor that never fires. Sound asks Wyze for sound events alone, so a week of motion
+  // cannot crowd them out of the 20 events one request returns.
+  async _discoverSensors() {
+    const pending = ["Motion", "Sound"].filter((kind) => this._sensorMode(kind) === "auto" && !this._sensorWanted(kind));
+    if (pending.length === 0 || this._discovering || (this._discoverTries || 0) >= 3) return;
+    if (!Object.values(enums.CameraModels).includes(this.product_model)) return;
+    if (typeof this.plugin.client?.cameraGetEvents !== "function") return;
+    this._discovering = true;
+    this._discoverTries = (this._discoverTries || 0) + 1;
+    try {
+      for (const kind of pending) {
+        const events = await this.plugin.client.cameraGetEvents(this.mac, {
+          sinceMs: SENSOR_HISTORY_MS,
+          count: 20,
+          types: kind === "Sound" ? ["SOUND"] : [],
+        });
+        // Motion is any event that is not a sound (a press, a person, ...), as _checkMotion treats it.
+        if (!events.some((event) => (kind === "Sound") === (event.type === "SOUND"))) continue;
+        this._sensorsSeen = { ...this._sensorsSeen, [kind]: true };
+        if (kind === "Motion") this._setupMotionSensor();
+        else this._setupSoundSensor();
+        if (this.plugin.config.pluginLoggingEnabled)
+          this.plugin.log(`[Camera] ${this.display_name}: added a ${kind} sensor, its event list shows ${kind.toLowerCase()} events`);
+      }
+      this._discoverTries = 3; // answered: not asked again until the next start
+      this._startEventWatch(this._watchRing); // pick up a sensor added after the watch began
+    } catch (err) {
+      this.plugin.log.debug?.(`[Camera] ${this.display_name}: sensor discovery failed (${err.message}); will try again`);
+    } finally {
+      this._discovering = false;
+    }
+  }
+
+  // A sensor reacts only to an event this young. Wyze lists events late, and a camera without a plan
+  // records about one every 5 minutes, so an older event is history and must not switch the sensor
+  // on each time the list is read. The age is by Wyze's clock when wyze-api provides it.
+  _isRecent(event) {
+    const age = typeof event.ageMs === "number" ? event.ageMs : Date.now() - event.time;
+    return Number.isNaN(age) || age <= SENSOR_EVENT_MAX_AGE_MS; // no usable time: judge by novelty alone
+  }
+
+  // Remove a Motion Sensor or Sound Sensor service whose option is off for this camera. A
+  // Motion Sensor with no subtype is from earlier plugin versions and goes with the Motion option.
+  _removeSensorsNotWanted() {
+    const wanted = {
+      Motion: this._sensorWanted("Motion"),
+      Sound: this._sensorWanted("Sound"),
+    };
+    for (const service of [...(this.homeKitAccessory.services || [])]) {
+      if (service.UUID !== Service.MotionSensor.UUID) continue;
+      const kind = service.subtype || "Motion";
+      if (kind in wanted && !wanted[kind]) this.homeKitAccessory.removeService(service);
+    }
+  }
+
+  // A second HomeKit Motion Sensor, named Sound, that turns on when a new sound event appears
+  // in Wyze's cloud event list and off again after SOUND_SENSOR_HOLD_MS without another.
+  // HomeKit has no sound sensor, so a motion sensor is the usual stand-in.
+  _setupSoundSensor() {
+    this.soundSensorEnabled = true;
+    this._soundActive = false;
+    this.soundSensorService = this._getOrAddService({
+      ServiceType: Service.MotionSensor,
+      subtype: "Sound",
+      defaultName: "Sound",
+      label: "Sound",
+    });
+    this.soundSensorService
+      .getCharacteristic(Characteristic.MotionDetected)
+      .onGet(() => this._soundActive === true);
+  }
+
+  _setSoundActive(active) {
+    if (!this.soundSensorEnabled) return;
+    clearTimeout(this._soundTimer);
+    this._soundTimer = null;
+    if (active) {
+      this._soundTimer = setTimeout(() => this._setSoundActive(false), SOUND_SENSOR_HOLD_MS);
+      this._soundTimer.unref?.();
+    }
+    if (this._soundActive === active) return;
+    this._soundActive = active;
+    this.soundSensorService.getCharacteristic(Characteristic.MotionDetected).updateValue(active);
+    if (active) this.plugin.log.debug?.(`[Camera] ${this.display_name}: sound`);
+  }
+
   _getOrAddService({ ServiceType, subtype, defaultName, legacyLookup, label }) {
     // Prefer subtype-based lookup (stable across renames). Fall back to a
     // legacy name-based lookup so cameras paired before the naming change
@@ -297,10 +405,12 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   _startEventWatch(isDoorbell) {
     this._watchRing = !!isDoorbell;
     this._watchMotion = this.plugin.config.snapshotOnMotion !== false || !!this.motionSensorEnabled;
-    if (!this._watchRing && !this._watchMotion) return;
+    this._watchSound = !!this.soundSensorEnabled;
+    if (!this._watchRing && !this._watchMotion && !this._watchSound) return;
     if (this._motionMember) return;
     this._ringedIds = null; // seeded by the first successful poll
     this._motionIds = null; // likewise
+    this._soundIds = null; // likewise
     if (!this.plugin._motionPoller) this.plugin._motionPoller = new MotionPoller(this.plugin.client, { log: this.plugin.log });
     this._motionMember = {
       mac: this.mac,
@@ -308,7 +418,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       online: () => this.cameraOnline !== false,
       onEvents: (events) => this._onEvents(events),
       // Offline: forget what has been seen, so nothing from the gap rings or refreshes late.
-      reset: () => { this._ringedIds = null; this._motionIds = null; },
+      reset: () => { this._ringedIds = null; this._motionIds = null; this._soundIds = null; },
     };
     this.plugin._motionPoller.add(this._motionMember);
   }
@@ -316,6 +426,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   _onEvents(events) {
     if (this._watchRing) this._checkRings(events);
     if (this._watchMotion) this._checkMotion(events);
+    if (this._watchSound) this._checkSound(events);
   }
 
   // Keep the Home app's picture current: one new capture every `snapshotRefreshSeconds`
@@ -364,23 +475,39 @@ module.exports = class WyzeCamera extends WyzeAccessory {
 
   // A new event in the cloud list (motion, a press, ...) means something just happened in
   // front of the camera: take a new picture. The first poll only records what is already there.
+  // With the Sound Sensor on for this camera, sound events belong to it and are left out here.
   _checkMotion(events) {
-    const ids = new Set(events.map((event) => event.id));
+    const motion = this.soundSensorEnabled ? events.filter((event) => event.type !== "SOUND") : events;
+    const ids = new Set(motion.map((event) => event.id));
     const previous = this._motionIds;
     this._motionIds = ids;
     if (previous === null || previous === undefined) return;
-    if (events.some((event) => !previous.has(event.id))) {
-      this._setMotionActive(true);
+    const fresh = motion.filter((event) => !previous.has(event.id));
+    if (fresh.length > 0) {
+      if (fresh.some((event) => this._isRecent(event))) this._setMotionActive(true);
       if (this.plugin.config.snapshotOnMotion === false) return;
       this.plugin.log.debug?.(`[Camera] ${this.display_name}: new motion, refreshing the picture`);
       this._streamingDelegate?.refreshSnapshot?.("motion");
     }
   }
 
+  // A new sound event in the cloud list turns the Sound Sensor on. The first poll only records
+  // what is already there, so a sound from before the camera was watched does not trigger it.
+  _checkSound(events) {
+    const sounds = events.filter((event) => event.type === "SOUND");
+    const ids = new Set(sounds.map((event) => event.id));
+    const previous = this._soundIds;
+    this._soundIds = ids;
+    if (previous === null || previous === undefined) return;
+    if (sounds.some((event) => !previous.has(event.id) && this._isRecent(event))) this._setSoundActive(true);
+  }
+
   // Stop live streams so the camera isn't left with a dead viewer (shutdown).
   stopStreams() {
     clearTimeout(this._motionTimer);
     this._motionTimer = null;
+    clearTimeout(this._soundTimer);
+    this._soundTimer = null;
     if (this._motionMember) this.plugin._motionPoller?.remove(this._motionMember);
     this._motionMember = null;
     if (this._refreshMember) this.plugin._refreshScheduler?.remove(this._refreshMember);
@@ -486,6 +613,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
         );
       }
     }
+
+    this._discoverSensors(); // once per start; never throws, and does not hold up the refresh
 
     try {
       this.cameraOnline = this.plugin.client.cameraIsOnline(device);

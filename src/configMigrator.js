@@ -54,8 +54,21 @@ const CAMERA_FEATURE_KEYS = [
   ["siren", "sirenAccessory"],
   ["notifications", "notificationAccessory"],
   ["motionDetection", "motionDetectionAccessory"],
-  ["motionSensor", "motionSensorAccessory"],
 ];
+
+// The Motion and Sound sensors are "auto" (the default: added when the camera's event list shows
+// events of that kind), "on" or "off". `true` is "on". Anything else, including the `false` that
+// used to mean "not switched on", is "auto".
+const CAMERA_SENSOR_KEYS = [
+  ["motionSensor", "motionSensorAccessory", "motionSensorOff"],
+  ["soundSensor", "soundSensorAccessory", "soundSensorOff"],
+];
+
+function sensorMode(value) {
+  if (value === true || value === "on") return "on";
+  if (value === "off") return "off";
+  return "auto";
+}
 
 const ADVANCED_KEYS = [
   "deviceTypeOverrides",
@@ -140,7 +153,8 @@ function normalize(input) {
         siren: !!cam.siren,
         notifications: !!cam.notifications,
         motionDetection: !!cam.motionDetection,
-        motionSensor: !!cam.motionSensor,
+        motionSensor: sensorMode(cam.motionSensor),
+        soundSensor: sensorMode(cam.soundSensor),
       });
     }
   }
@@ -151,9 +165,24 @@ function normalize(input) {
       const row = cameraMap.get(mac) || {
         mac,
         name: "",
-        garage: false, spotlight: false, floodlight: false, siren: false, notifications: false, motionDetection: false, motionSensor: false,
+        garage: false, spotlight: false, floodlight: false, siren: false, notifications: false, motionDetection: false,
+        motionSensor: "auto", soundSensor: "auto",
       };
       row[feature] = true;
+      cameraMap.set(mac, row);
+    }
+  }
+  for (const [feature, onKey] of CAMERA_SENSOR_KEYS) {
+    const arr = Array.isArray(c[onKey]) ? c[onKey] : [];
+    for (const mac of arr) {
+      if (typeof mac !== "string" || !mac) continue;
+      const row = cameraMap.get(mac) || {
+        mac,
+        name: "",
+        garage: false, spotlight: false, floodlight: false, siren: false, notifications: false, motionDetection: false,
+        motionSensor: "auto", soundSensor: "auto",
+      };
+      row[feature] = "on";
       cameraMap.set(mac, row);
     }
   }
@@ -161,6 +190,10 @@ function normalize(input) {
   // Mirror back to legacy arrays so existing accessory code keeps working.
   for (const [feature, legacyKey] of CAMERA_FEATURE_KEYS) {
     c[legacyKey] = c.cameras.filter((cam) => cam[feature]).map((cam) => cam.mac);
+  }
+  for (const [feature, onKey, offKey] of CAMERA_SENSOR_KEYS) {
+    c[onKey] = c.cameras.filter((cam) => cam[feature] === "on").map((cam) => cam.mac);
+    c[offKey] = c.cameras.filter((cam) => cam[feature] === "off").map((cam) => cam.mac);
   }
 
   // --- Thermostat ---

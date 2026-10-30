@@ -112,7 +112,16 @@
             "siren": { "title": "Expose Siren Switch", "type": "boolean", "default": false },
             "notifications": { "title": "Expose Notifications Switch", "type": "boolean", "default": false },
             "motionDetection": { "title": "Expose Motion Detection Switch", "type": "boolean", "default": false, "description": "Toggles whether the camera looks for motion at all (different from notifications). Useful if you want to keep the camera powered on but pause motion-triggered events via HomeKit automation." },
-            "motionSensor": { "title": "Expose Motion Sensor", "type": "boolean", "default": false, "description": "A HomeKit motion sensor that turns on when Wyze reports new motion (read from the cloud event list, so it can lag by up to about 10 seconds) and off after 30 seconds without more. Use it for HomeKit automations." }
+            "motionSensor": { "title": "Motion Sensor", "type": "string", "default": "auto", "oneOf": [
+              { "title": "Automatic (add it when the camera has motion events)", "enum": ["auto"] },
+              { "title": "Always", "enum": ["on"] },
+              { "title": "Never", "enum": ["off"] }
+            ], "description": "A HomeKit motion sensor for HomeKit automations. It turns on when Wyze lists a new motion event less than 30 seconds old (read from the cloud event list, so it can lag by up to about 10 seconds) and off after 30 seconds without more. Automatic adds it only to a camera whose last week of events shows motion, so a camera without a Wyze plan does not get a sensor that never fires." },
+            "soundSensor": { "title": "Sound Sensor", "type": "string", "default": "auto", "oneOf": [
+              { "title": "Automatic (add it when the camera has sound events)", "enum": ["auto"] },
+              { "title": "Always", "enum": ["on"] },
+              { "title": "Never", "enum": ["off"] }
+            ], "description": "A second HomeKit motion sensor, named Sound, that turns on when Wyze lists a new sound event less than 30 seconds old and off after 30 seconds without more. Automatic adds it only to a camera whose last week of events shows sound. With it on, sound no longer triggers the camera's Motion Sensor or its picture refresh." }
           }
         }
       },
@@ -334,7 +343,8 @@
                         "cameras[].siren",
                         "cameras[].notifications",
                         "cameras[].motionDetection",
-                        "cameras[].motionSensor"
+                        "cameras[].motionSensor",
+                        "cameras[].soundSensor"
                       ]
                     }
                   ]

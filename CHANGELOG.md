@@ -10,6 +10,20 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 This plugin is built on the [wyze-api](https://github.com/identd113/wyze-api) library. For API-level changes (login, 2FA, device commands), see the [wyze-api changelog](https://github.com/identd113/wyze-api/blob/main/CHANGELOG.md).
 
+### Unreleased
+
+Pairs with a `wyze-api` newer than `2.0.0-beta.3`; with beta.3 the bulk read below is skipped (with one warning) and cameras read their properties one at a time, as before.
+
+**Fewer requests to Wyze**
+- **Properties are read for all cameras and lights in one request per refresh.** Cameras with a switch or floodlight configured, lights and mesh lights used to make one `getDevicePID` request each per refresh. A device that cannot be served by the bulk read (an older `wyze-api`, a failed request, a missing row) reads its own, exactly as before, and the log says so once with a warning. After a failure the bulk read is retried after 1, 3, 7 ... cycles. Lights and mesh lights are not yet verified on real hardware.
+
+**Sensors**
+- **A Motion Sensor and a Sound Sensor are added to each camera that has the events.** `motionSensor` and `soundSensor` per camera are now `auto` (the default: added when the camera's last week of events shows events of that kind), `on` or `off`. `true` still means `on`, and a saved `false` means `auto`. A sensor reacts only to an event less than 30 seconds old, so reading the same older events again never switches it. With the Sound Sensor on, sound no longer switches that camera's Motion Sensor or refreshes its picture.
+- **Fixed: the Motion Sensor was not added to a camera that had no other switch configured.**
+
+**Development**
+- `npm run lint` works: an ESLint config was added, and the script now covers all of `src/`.
+
 ### v2.0.0-beta.3
 
 Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/identd113/wyze-api/blob/2.x/CHANGELOG.md)). Requires Node.js 22 or newer.
