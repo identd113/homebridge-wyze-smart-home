@@ -37,6 +37,15 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
     return this.getService().getCharacteristic(characteristic);
   }
 
+  // For PropertyPoller: the properties updateCharacteristics switches on, and whether it will read them this cycle.
+  get propertyPids() {
+    return [PIDs.BRIGHTNESS, PIDs.COLOR_TEMP, PIDs.COLOR];
+  }
+
+  wantsProperties() {
+    return !!this.lastDevice?.device_params && this.lastDevice.conn_state !== 0;
+  }
+
   async updateCharacteristics(device) {
     const online = device.conn_state !== 0;
     markServiceOnline(this.getService(), online);
@@ -60,12 +69,13 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
       this.getCharacteristic(Characteristic.On).updateValue(isOn);
     }
 
-    // NOTE: one extra getDevicePID call per bulb per refresh on top of the
-    // bulk getObjectList. Brightness / color temp / color aren't returned
-    // by the bulk list so we have to fetch them separately.
+    // NOTE: brightness / color temp / color aren't returned by the bulk
+    // getObjectList, so we fetch them separately. The platform reads them for
+    // all lights in one request when it can; otherwise this is one extra
+    // getDevicePID call per bulb per refresh.
     let propertyList;
     try {
-      propertyList = await this.plugin.client.getDevicePID(this.mac, this.product_model);
+      propertyList = await this._readPropertyList();
     } catch (err) {
       this.plugin.log.error(
         `[MeshLight] getDevicePID failed for ${this.display_name}: ${err.message || err}`

@@ -4,9 +4,12 @@ const enums = require("../enums");
 const WyzeCameraStreamingDelegate = require("../camera/WyzeCameraStreamingDelegate");
 const RefreshScheduler = require("../camera/refreshScheduler");
 const MotionPoller = require("../camera/motionPoller");
-const PropertyPoller = require("../camera/propertyPoller");
 const { isBatteryCamera } = require("../camera/batteryModels");
 const { markServiceOnline } = require("./offlineIndicator");
+
+// The properties _refresh switches on. A property that is not named in the platform's bulk
+// property request never comes back, so tests/propertyPoller.test.js keeps this in step with that switch.
+const CAMERA_PIDS = ["P1", "P3", "P5", "P1001", "P1029", "P1049", "P1056", "P1301"];
 
 // Sizes advertised to HomeKit. The video is passed through unscaled, so these
 // must match what the camera really sends or the Home app letterboxes it.
@@ -522,17 +525,15 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     // because the bulk getObjectList doesn't include those PIDs. The platform
     // reads them for all such cameras in one request when it can; otherwise
     // this is one extra getDevicePID API call per refresh per camera.
-    let propertyList = this.plugin._propertyPoller?.take(this.mac) ?? null;
-    if (!propertyList) {
-      try {
-        propertyList = await this.plugin.client.getDevicePID(this.mac, this.product_model);
-      } catch (err) {
-        this.plugin.log.error(
-          `[Camera] getDevicePID failed for ${this.display_name}: ${err.message}`
-        );
-        markServiceOnline(this.privacySwitch, false);
-        return;
-      }
+    let propertyList;
+    try {
+      propertyList = await this._readPropertyList();
+    } catch (err) {
+      this.plugin.log.error(
+        `[Camera] getDevicePID failed for ${this.display_name}: ${err.message}`
+      );
+      markServiceOnline(this.privacySwitch, false);
+      return;
     }
     if (!propertyList?.data?.property_list) {
       this.plugin.log.error(
@@ -811,7 +812,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
 
   // For PropertyPoller: the properties _refresh switches on, and whether it will read them this cycle.
   get propertyPids() {
-    return PropertyPoller.CAMERA_PIDS;
+    return CAMERA_PIDS;
   }
 
   wantsProperties() {

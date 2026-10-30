@@ -4,7 +4,7 @@ const { homebridge, Accessory, UUIDGen, Categories } = require('./types')
 const enums = require('./enums')
 const wyzeApiVersion = require('./wyzeApiVersion')
 const plannedDevices = require('./plannedDevices')
-const PropertyPoller = require('./camera/propertyPoller')
+const PropertyPoller = require('./propertyPoller')
 const { OutdoorPlugModels, PlugModels, CommonModels, CameraModels, LeakSensorModels,
   TemperatureHumidityModels, LockModels, LockBoltV2Models, MotionSensorModels, ContactSensorModels, LightModels,
   LightStripModels, MeshLightModels, ThermostatModels, ThermostatRoomSensor, S1GatewayModels,

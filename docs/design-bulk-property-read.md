@@ -1,7 +1,22 @@
 # Design: plugin side of the bulk property read
 
-Status: proposed, not implemented. The library side, the verified facts and the risks are in
-`wyze-api/docs/design-bulk-property-read.md`. This file covers only what changes in this plugin.
+Status: implemented in `src/propertyPoller.js`. The library side, the verified facts and the risks
+are in `wyze-api/docs/design-bulk-property-read.md`. This file covers only what changes in this plugin.
+The sections below are the original proposal; where the build differs, this note wins:
+
+- One `PropertyPoller` serves cameras, lights and mesh lights. Each accessory declares
+  `propertyPids` and `wantsProperties()`; the plugin knows the exact properties it switches on, so
+  there is no per-model pid cache. A test keeps each list in step with the accessory's `switch`.
+- It runs once per refresh cycle from `refreshDevices()`, not on its own timer.
+- Every device goes through the one request, including a single device. A device reads its own
+  properties (`getDevicePID`, unchanged) when the poller has no rows for it: the installed wyze-api has
+  no bulk read, the request failed, or its row is missing.
+- A fallback logs a warning once when it begins, not every cycle, and a message when it ends.
+  After a failure the bulk request is skipped for 0, 1, 3, 7 ... cycles (at most 12).
+- Wyze rejects the whole request (`3005 unauthorized operation`) if it names a device the account
+  may not read, so one bad device sends every device to the fallback until it is gone.
+- Lights and mesh lights are covered but not verified on real hardware: the test account has none.
+  Cameras (WYZEC1-JZ, HL_DB2, WYZE_CAKP2JFUS), a lock and chimes matched on the library side.
 
 ## Problem
 

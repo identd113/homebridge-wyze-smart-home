@@ -170,4 +170,13 @@ module.exports = class WyzeAccessory {
   inCommandGrace() {
     return Date.now() <= (this._commandGraceUntil || 0);
   }
+
+  // This device's property list: from the platform's one bulk request for this refresh cycle
+  // when it has the rows, otherwise this device's own request. Rejects like getDevicePID does.
+  async _readPropertyList() {
+    return (
+      this.plugin._propertyPoller?.take(this.mac) ??
+      (await this.plugin.client.getDevicePID(this.mac, this.product_model))
+    );
+  }
 };
