@@ -3,6 +3,7 @@
 .github/
 .claude/
 .vscode/
+.eslintrc.json
 .gitmodules
 .gitattributes
 
