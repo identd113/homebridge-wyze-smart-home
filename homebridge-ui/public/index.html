@@ -1,7 +1,23 @@
 <!-- The plugin's settings page: the usual form, plus a panel of the sensors the plugin found each camera can have,
      with a button that saves the choice into the config. The plugin writes what it finds to a file at startup
      (src/detectedSensors.js); this page only reads it and edits the config through the Homebridge UI. -->
-<div id="wyze-detected" class="mt-4"></div>
+<style>
+  /* Colours come from the page (currentColor and transparency), so it reads on both the light and dark themes. */
+  #wyze-detected { margin-top: 1.5rem; }
+  #wyze-detected h5 { margin: 0 0 .25rem; }
+  #wyze-detected .wd-note { opacity: .75; font-size: .85rem; margin: 0 0 .75rem; }
+  #wyze-detected .wd-card { border: 1px solid rgba(128, 128, 128, .4); border-radius: 6px; padding: .6rem .8rem; margin-bottom: .5rem; }
+  #wyze-detected .wd-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .6rem; }
+  #wyze-detected .wd-name { font-weight: 600; }
+  #wyze-detected .wd-sub { opacity: .75; font-size: .8rem; }
+  #wyze-detected .wd-items { display: flex; flex-wrap: wrap; gap: .3rem 1.25rem; margin: .5rem 0 .25rem; }
+  #wyze-detected .wd-item { display: inline-flex; align-items: center; gap: .4rem; margin: 0; cursor: pointer; }
+  #wyze-detected .wd-item input { margin: 0; }
+  #wyze-detected .wd-tag { font-size: .7rem; padding: 0 .45rem; border: 1px solid currentColor; border-radius: 999px; opacity: .7; white-space: nowrap; }
+  #wyze-detected .wd-empty { opacity: .75; font-size: .85rem; margin: .25rem 0 0; }
+  #wyze-detected .wd-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+</style>
+<div id="wyze-detected"></div>
 
 <script src="detected.js"></script>
 <script>
@@ -16,7 +32,7 @@
     }
 
     function describe (setting) {
-      if (setting === 'auto') return 'Automatic: a sensor for each of Person, Vehicle, Pet and Package the camera has.';
+      if (setting === 'auto') return 'Automatic: Person, Vehicle, Pet and Package, where the camera has them.';
       if (setting === 'none') return 'No detection sensors.';
       return 'Chosen: ' + setting.join(', ') + '.';
     }
@@ -44,39 +60,38 @@
     }
 
     function card (cam) {
-      const box = el('div', undefined, 'card card-body mb-3');
-      box.appendChild(el('h6', cam.name + (cam.model ? ' (' + cam.model + ')' : ''), 'mb-1'));
-      box.appendChild(el('p', describe(cam.setting), 'text-muted mb-2'));
+      const box = el('div', undefined, 'wd-card');
+      const head = el('div', undefined, 'wd-head');
+      head.appendChild(el('span', cam.name, 'wd-name'));
+      if (cam.model) head.appendChild(el('span', cam.model, 'wd-sub'));
+      head.appendChild(el('span', describe(cam.setting), 'wd-sub'));
+      box.appendChild(head);
 
-      const checks = [];
       if (cam.items.length === 0) {
-        box.appendChild(el('p', 'No AI labels found on this camera’s events.', 'mb-2'));
+        box.appendChild(el('p', 'No AI labels found on this camera’s events.', 'wd-empty'));
       }
+      const list = el('div', undefined, 'wd-items');
       for (const item of cam.items) {
-        const row = el('div', undefined, 'form-check');
+        const row = el('label', undefined, 'wd-item');
         const input = document.createElement('input');
         input.type = 'checkbox';
-        input.className = 'form-check-input';
-        input.id = 'wyze-' + cam.mac + '-' + item.value;
         input.checked = item.checked;
         input.addEventListener('change', () => { item.checked = input.checked; });
-        const label = el('label', item.label, 'form-check-label');
-        label.htmlFor = input.id;
         row.appendChild(input);
-        row.appendChild(label);
-        if (item.isNew) row.appendChild(el('span', item.auto ? ' new' : ' available, not automatic', 'badge badge-info ml-2 bg-info'));
-        if (item.other) row.appendChild(el('span', ' no sensor yet', 'text-muted ml-2'));
-        if (!item.found) row.appendChild(el('span', ' not seen lately', 'text-muted ml-2'));
-        box.appendChild(row);
-        checks.push(input);
+        row.appendChild(el('span', item.label));
+        if (item.isNew) row.appendChild(el('span', item.auto ? 'new' : 'not automatic', 'wd-tag'));
+        if (item.other) row.appendChild(el('span', 'no sensor yet', 'wd-tag'));
+        if (!item.found) row.appendChild(el('span', 'not seen lately', 'wd-tag'));
+        list.appendChild(row);
       }
+      if (cam.items.length) box.appendChild(list);
       if (cam.unnamed.length) {
-        box.appendChild(el('p', 'Labels with no name here: ' + cam.unnamed.join(', ') + '. They get no sensor.', 'text-muted mt-2 mb-0'));
+        box.appendChild(el('p', 'Labels with no name here: ' + cam.unnamed.join(', ') + '. They get no sensor.', 'wd-empty'));
       }
 
-      const buttons = el('div', undefined, 'mt-3');
+      const buttons = el('div', undefined, 'wd-actions');
       if (cam.items.length) {
-        const saveButton = el('button', 'Save these to the config', 'btn btn-primary btn-sm mr-2 me-2');
+        const saveButton = el('button', 'Save these to the config', 'btn btn-primary btn-sm');
         saveButton.addEventListener('click', () => save(cam, WyzeDetected.valuesFor(cam.items)));
         buttons.appendChild(saveButton);
       }
@@ -85,7 +100,7 @@
         autoButton.addEventListener('click', () => save(cam, []));
         buttons.appendChild(autoButton);
       }
-      box.appendChild(buttons);
+      if (buttons.childNodes.length) box.appendChild(buttons);
       return box;
     }
 
@@ -97,17 +112,17 @@
       try {
         [detected, config] = await Promise.all([homebridge.request('/detected'), homebridge.getPluginConfig()]);
       } catch (e) {
-        root.appendChild(el('p', 'Could not read what the plugin found: ' + (e && e.message ? e.message : e), 'text-danger'));
+        root.appendChild(el('p', 'Could not read what the plugin found: ' + (e && e.message ? e.message : e), 'wd-empty'));
         return;
       }
       const view = WyzeDetected.buildView(detected, config);
       if (view.length === 0) {
-        root.appendChild(el('p', 'Nothing yet. Each camera is checked when Homebridge starts; this fills in a minute or so after a start.', 'text-muted'));
+        root.appendChild(el('p', 'Nothing yet. Each camera is checked when Homebridge starts; this fills in a minute or so after a start.', 'wd-note'));
       } else {
-        root.appendChild(el('p', 'What the plugin found each camera can have, from Wyze’s event list. Tick the labels you want and save them into the camera’s settings; Homebridge needs a restart to apply them. Motion and Sound sensors are added by themselves.', 'text-muted'));
+        root.appendChild(el('p', 'Labels Wyze has put on each camera’s events. Tick the ones you want, save, then restart Homebridge. Motion and Sound sensors are added by themselves.', 'wd-note'));
         for (const cam of view) root.appendChild(card(cam));
       }
-      const refresh = el('button', 'Refresh', 'btn btn-outline-secondary btn-sm');
+      const refresh = el('button', 'Refresh', 'btn btn-outline-secondary btn-sm mt-2');
       refresh.addEventListener('click', render);
       root.appendChild(refresh);
     }
