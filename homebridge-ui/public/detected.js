@@ -23,6 +23,20 @@
     return list.length > 0 ? [...new Set(list)] : "auto";
   }
 
+  // Motion and Sound are a setting each on the camera's row: "auto" (the key absent), "on" or "off".
+  const SENSORS = [
+    { key: "motionSensor", label: "Motion", found: "motion" },
+    { key: "soundSensor", label: "Sound", found: "sound" },
+  ];
+  const MODES = ["auto", "on", "off"];
+
+  function modeFor(entry, mac, key) {
+    const row = ((entry && entry.cameras) || []).find((cam) => cam && cam.mac === mac);
+    const value = row ? row[key] : undefined;
+    if (value === "on" || value === true) return "on";
+    return value === "off" ? "off" : "auto";
+  }
+
   const titleCase = (name) => name.charAt(0).toUpperCase() + name.slice(1);
 
   // What to show: one entry per camera in the plugin's file, with a row for each label it carries (or that its
@@ -50,12 +64,19 @@
         const listed = Array.isArray(setting) && setting.includes(value);
         items.push({ value, label: titleCase(value), auto: false, found: found.has(value), checked: listed, isNew: found.has(value) && !listed, other: true });
       }
+      // Motion and Sound: ticked when the camera would have the sensor under its current setting.
+      const sensors = SENSORS.map((sensor) => {
+        const mode = modeFor(entry, mac, sensor.key);
+        const seen = Boolean(cam[sensor.found]);
+        return { key: sensor.key, label: sensor.label, mode, found: seen, checked: mode === "on" || (mode === "auto" && seen) };
+      });
       return {
         mac,
         name: cam.name || mac,
         model: cam.model || "",
         setting,
         items,
+        sensors,
         unnamed: cam.unnamed || [],
         motion: Boolean(cam.motion),
         sound: Boolean(cam.sound),
@@ -70,22 +91,43 @@
     return values.length > 0 ? values : ["none"];
   }
 
+  // The Motion and Sound settings for the ticked boxes. A box that matches what automatic would do leaves the
+  // setting automatic; ticking one the camera has not reported turns it on; unticking one that would be there turns it off.
+  function modesFor(sensors) {
+    const modes = {};
+    for (const sensor of sensors) {
+      if (sensor.mode === "auto" && sensor.checked === sensor.found) modes[sensor.key] = "auto";
+      else if (sensor.checked) modes[sensor.key] = sensor.mode === "on" ? "on" : sensor.found ? "auto" : "on";
+      else modes[sensor.key] = "off";
+    }
+    return modes;
+  }
+
   // The plugin config (an array, as the settings page hands it over) with this camera's `detections` set. With no
   // values the key is removed, which is automatic. A camera not in the config yet gets an entry. Returns a copy.
-  function applyDetections(config, mac, name, values) {
+  function applyDetections(config, mac, name, values, modes) {
     const next = JSON.parse(JSON.stringify(config || []));
     const entry = next[0];
     if (!entry) return next;
     if (!Array.isArray(entry.cameras)) entry.cameras = [];
+    // `values` null leaves `detections` as it is; `modes` names Motion/Sound settings to change.
+    const keys = modes ? SENSORS.map((sensor) => sensor.key).filter((key) => modes[key] !== undefined) : [];
+    const sets = (Array.isArray(values) && values.length > 0) || keys.some((key) => modes[key] !== "auto");
     let row = entry.cameras.find((cam) => cam && cam.mac === mac);
     if (!row) {
-      if (values.length === 0) return next; // automatic is what a camera with no entry already is
+      if (!sets) return next; // automatic is what a camera with no entry already is
       row = { mac };
       if (name) row.name = name;
       entry.cameras.push(row);
     }
-    if (values.length === 0) delete row.detections;
-    else row.detections = [...values];
+    if (Array.isArray(values)) {
+      if (values.length === 0) delete row.detections;
+      else row.detections = [...values];
+    }
+    for (const key of keys) {
+      if (modes[key] === "auto") delete row[key];
+      else row[key] = modes[key];
+    }
     return next;
   }
 
@@ -108,19 +150,22 @@
     if (matching.length > 1) throw new Error("more than one entry for this camera");
     if (Array.isArray(entry.cameras)) entry.cameras = rows.filter((row) => !(row && row.mac === mac));
     const row = matching[0] ? Object.assign({}, matching[0]) : null;
-    if (row) delete row.detections;
-    return { rest: copy, row, detections: matching[0] ? matching[0].detections : undefined };
+    if (row) for (const key of ["detections", "motionSensor", "soundSensor"]) delete row[key];
+    const mine = matching[0] || {};
+    return { rest: copy, row, detections: mine.detections, motionSensor: mine.motionSensor, soundSensor: mine.soundSensor };
   }
 
   /** The reasons a change must not be saved; an empty list means it may be. */
-  function problemsWith(before, after, mac, values) {
+  function problemsWith(before, after, mac, values, modes) {
     const problems = [];
     if (!Array.isArray(before) || before.length === 0 || !before[0] || typeof before[0] !== "object") {
       return ["the plugin has no saved settings yet: save the settings once first"];
     }
     if (!Array.isArray(after) || after.length !== before.length) return ["the changed settings do not have the same shape"];
     if (typeof mac !== "string" || !MAC_PATTERN.test(mac)) problems.push("the camera has no usable id");
-    if (!Array.isArray(values)) {
+    if (values === null) {
+      // `detections` is left alone
+    } else if (!Array.isArray(values)) {
       problems.push("the list is not a list");
     } else {
       if (values.length > MAX_NAMES) problems.push("more than " + MAX_NAMES + " items");
@@ -131,6 +176,9 @@
         else seen.add(value);
       }
       if (values.includes("none") && values.length > 1) problems.push("\"none\" cannot be combined with other items");
+    }
+    for (const key of SENSORS.map((sensor) => sensor.key)) {
+      if (modes && modes[key] !== undefined && !MODES.includes(modes[key])) problems.push("\"" + String(modes[key]).slice(0, 24) + "\" is not a valid " + key + " setting");
     }
     if (problems.length > 0) return problems;
 
@@ -143,10 +191,22 @@
     } else if (now.row && !sameJson(Object.keys(now.row).sort(), now.row.name ? ["mac", "name"] : ["mac"])) {
       problems.push("the new camera entry would hold more than its id and name");
     }
-    if (values.length === 0) {
+    if (values === null) {
+      if (!sameJson(now.detections, was.detections)) problems.push("the change would alter the list it should leave alone");
+    } else if (values.length === 0) {
       if (now.detections !== undefined) problems.push("the list would not go back to automatic");
     } else if (!sameJson(now.detections, values)) {
       problems.push("the saved list would not be the list chosen");
+    }
+    for (const key of SENSORS.map((sensor) => sensor.key)) {
+      const wanted = modes ? modes[key] : undefined;
+      if (wanted === undefined) {
+        if (!sameJson(now[key], was[key])) problems.push("the change would alter " + key + ", which it should leave alone");
+      } else if (wanted === "auto") {
+        if (now[key] !== undefined) problems.push(key + " would not go back to automatic");
+      } else if (now[key] !== wanted) {
+        problems.push("the saved " + key + " would not be the one chosen");
+      }
     }
     // What is saved must survive being written out and read back unchanged.
     if (!sameJson(JSON.parse(JSON.stringify(after)), after)) problems.push("the settings cannot be saved as JSON");
@@ -157,15 +217,15 @@
    * The config to save for this camera's choice, or the reasons it must not be saved.
    * @returns {{ok: true, next: Array}|{ok: false, errors: string[]}}
    */
-  function prepareSave(config, mac, name, values) {
+  function prepareSave(config, mac, name, values, modes) {
     try {
-      const next = applyDetections(config, mac, name, values);
-      const errors = problemsWith(config, next, mac, values);
+      const next = applyDetections(config, mac, name, values, modes);
+      const errors = problemsWith(config, next, mac, values, modes);
       return errors.length > 0 ? { ok: false, errors } : { ok: true, next };
     } catch (error) {
       return { ok: false, errors: ["the change could not be checked (" + (error && error.message ? error.message : "unknown problem") + ")"] };
     }
   }
 
-  root.WyzeDetected = { LABELS, settingFor, buildView, valuesFor, applyDetections, problemsWith, prepareSave };
+  root.WyzeDetected = { LABELS, SENSORS, settingFor, modeFor, buildView, valuesFor, modesFor, applyDetections, problemsWith, prepareSave };
 })(self);

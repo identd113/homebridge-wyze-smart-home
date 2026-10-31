@@ -35,12 +35,12 @@
     }
 
     function describe (setting) {
-      if (setting === 'auto') return 'Automatic: Person, Vehicle, Pet and Package, where the camera has them.';
+      if (setting === 'auto') return 'Automatic: Person, Vehicle, Pet and Package where the camera has them. Face is never automatic.';
       if (setting === 'none') return 'No detection sensors.';
       return 'Chosen: ' + setting.join(', ') + '.';
     }
 
-    async function save (cam, values) {
+    async function save (cam, values, modes) {
       try {
         const config = await homebridge.getPluginConfig();
         if (!config.length) {
@@ -48,7 +48,7 @@
           return;
         }
         // Nothing is saved unless the change passes every check, and a check that cannot finish counts as a failure.
-        const prepared = WyzeDetected.prepareSave(config, cam.mac, cam.name, values);
+        const prepared = WyzeDetected.prepareSave(config, cam.mac, cam.name, values, modes);
         if (!prepared.ok) {
           homebridge.toast.error('Not saved: ' + prepared.errors.join('; '));
           return;
@@ -89,27 +89,26 @@
           // One short tag at most, so it is clear which label it belongs to.
           let tag = '';
           if (!item.other && item.isNew) tag = item.auto ? 'new' : 'off by default';
-          else if (!item.other && !item.found) tag = 'not seen lately';
+          else if (!item.other && item.checked && !item.found) tag = 'not seen lately';
           if (tag) row.appendChild(el('span', tag, 'wd-tag'));
           list.appendChild(row);
         }
         box.appendChild(list);
       }
-      group(cam.items.filter((item) => !item.other));
+      group([...cam.sensors, ...cam.items.filter((item) => !item.other)]);
       group(cam.items.filter((item) => item.other), 'Other labels. No sensor type for these yet, so ticking one only saves the name.');
       if (cam.unnamed.length) {
         box.appendChild(el('p', 'Labels with no name here: ' + cam.unnamed.join(', ') + '. They get no sensor.', 'wd-empty'));
       }
 
       const buttons = el('div', undefined, 'wd-actions');
-      if (cam.items.length) {
-        const saveButton = el('button', 'Save these to the config', 'btn btn-primary btn-sm');
-        saveButton.addEventListener('click', () => save(cam, WyzeDetected.valuesFor(cam.items)));
-        buttons.appendChild(saveButton);
-      }
-      if (cam.setting !== 'auto') {
+      const saveButton = el('button', 'Save these to the config', 'btn btn-primary btn-sm');
+      // With no AI labels on the camera there is no list to change, so `detections` is left as it is.
+      saveButton.addEventListener('click', () => save(cam, cam.items.length ? WyzeDetected.valuesFor(cam.items) : null, WyzeDetected.modesFor(cam.sensors)));
+      buttons.appendChild(saveButton);
+      if (cam.setting !== 'auto' || cam.sensors.some((sensor) => sensor.mode !== 'auto')) {
         const autoButton = el('button', 'Back to automatic', 'btn btn-secondary btn-sm');
-        autoButton.addEventListener('click', () => save(cam, []));
+        autoButton.addEventListener('click', () => save(cam, [], { motionSensor: 'auto', soundSensor: 'auto' }));
         buttons.appendChild(autoButton);
       }
       if (buttons.childNodes.length) box.appendChild(buttons);
@@ -136,7 +135,7 @@
       if (view.length === 0) {
         root.appendChild(el('p', 'Nothing yet. Each camera is checked when Homebridge starts; this fills in a minute or so after a start.', 'wd-note'));
       } else {
-        root.appendChild(el('p', 'Labels Wyze has put on each camera’s events. Tick the ones you want, save, then restart Homebridge. Motion and Sound sensors are added by themselves.', 'wd-note'));
+        root.appendChild(el('p', 'Labels Wyze has put on each camera’s events. Tick the sensors you want, save, then restart Homebridge. Motion and Sound are on by themselves when the camera reports them; untick one to turn it off.', 'wd-note'));
         for (const cam of view) root.appendChild(card(cam));
       }
     }

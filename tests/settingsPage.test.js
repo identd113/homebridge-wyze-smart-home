@@ -23,7 +23,8 @@ const page = {
   valuesFor: (...args) => plain(inVm.valuesFor(...args)),
   applyDetections: (...args) => plain(inVm.applyDetections(...args)),
   problemsWith: (...args) => plain(inVm.problemsWith(...args)),
-  prepareSave: (...args) => plain(inVm.prepareSave(...args))
+  prepareSave: (...args) => plain(inVm.prepareSave(...args)),
+  modesFor: (...args) => plain(inVm.modesFor(...args))
 }
 const DetectionSensors = require('../src/camera/detectionSensors')
 const { normalize } = require('../src/configMigrator')
@@ -352,4 +353,75 @@ test('the schema turns the custom settings page on, or Homebridge never loads it
   const schema = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config.schema.json'), 'utf8'))
   assert.strictEqual(schema.customUi, true)
   assert.ok(fs.existsSync(path.join(__dirname, '..', 'homebridge-ui', 'public', 'index.html')))
+})
+
+// ---- Motion and Sound sit in the panel like the labels do ----------------------------------------
+
+const wide = {
+  version: 1,
+  cameras: {
+    AABBCCDDEEFF: { name: 'Front Doorbell', model: 'HL_DB2', motion: true, sound: false, labels: ['person'], unnamed: [] },
+    BBCCDDEEFF00: { name: 'Garage', model: 'WYZE_CAKP2JFUS', motion: true, sound: true, labels: [], unnamed: [] }
+  }
+}
+const sensorsOf = (cam) => Object.fromEntries(cam.sensors.map((x) => [x.label, x.checked]))
+
+test('every camera shows Motion and Sound, ticked when it would have the sensor', () => {
+  const view = page.buildView(detected, entry([]))
+  assert.deepStrictEqual(sensorsOf(byMac(view, 'AA')), { Motion: true, Sound: false })
+  assert.deepStrictEqual(sensorsOf(byMac(view, 'BB')), { Motion: true, Sound: true }, 'a camera with no AI labels has them too')
+})
+
+test('Motion and Sound follow the camera\'s own setting', () => {
+  const off = page.buildView(detected, entry([{ mac: 'BB', motionSensor: 'off', soundSensor: 'on' }]))
+  assert.deepStrictEqual(sensorsOf(byMac(off, 'BB')), { Motion: false, Sound: true })
+  const on = page.buildView(detected, entry([{ mac: 'AA', soundSensor: 'on' }]))
+  assert.deepStrictEqual(sensorsOf(byMac(on, 'AA')), { Motion: true, Sound: true }, '"on" shows a sensor the camera has not reported')
+})
+
+test('unticking Motion saves "off", and ticking it again goes back to automatic', () => {
+  const config = entry([{ mac: 'BBCCDDEEFF00', name: 'Garage' }])
+  const view = byMac(page.buildView(wide, config), 'BBCCDDEEFF00')
+  view.sensors[0].checked = false
+  const modes = page.modesFor(view.sensors)
+  assert.deepStrictEqual(modes, { motionSensor: 'off', soundSensor: 'auto' })
+  const saved = page.prepareSave(config, 'BBCCDDEEFF00', 'Garage', null, modes)
+  assert.strictEqual(saved.ok, true)
+  assert.deepStrictEqual(saved.next[0].cameras, [{ mac: 'BBCCDDEEFF00', name: 'Garage', motionSensor: 'off' }])
+  const again = byMac(page.buildView(wide, saved.next), 'BBCCDDEEFF00')
+  again.sensors[0].checked = true
+  const back = page.prepareSave(saved.next, 'BBCCDDEEFF00', 'Garage', null, page.modesFor(again.sensors))
+  assert.strictEqual(back.ok, true)
+  assert.deepStrictEqual(back.next[0].cameras, [{ mac: 'BBCCDDEEFF00', name: 'Garage' }])
+})
+
+test('ticking a sensor the camera has not reported turns it on; a camera with no row gets one only when needed', () => {
+  const config = entry([])
+  const view = byMac(page.buildView(wide, config), 'AABBCCDDEEFF')
+  assert.strictEqual(page.prepareSave(config, 'AABBCCDDEEFF', 'Front', null, page.modesFor(view.sensors)).next[0].cameras.length, 0, 'nothing changed, so no row')
+  view.sensors[1].checked = true
+  const modes = page.modesFor(view.sensors)
+  assert.strictEqual(modes.soundSensor, 'on')
+  assert.deepStrictEqual(page.prepareSave(config, 'AABBCCDDEEFF', 'Front', null, modes).next[0].cameras, [{ mac: 'AABBCCDDEEFF', name: 'Front', soundSensor: 'on' }])
+})
+
+test('saving Motion and Sound leaves the AI list alone when the camera has none to show', () => {
+  const config = entry([{ mac: 'BBCCDDEEFF00', name: 'Garage', detections: ['person'] }])
+  const result = page.prepareSave(config, 'BBCCDDEEFF00', 'Garage', null, { motionSensor: 'off', soundSensor: 'auto' })
+  assert.strictEqual(result.ok, true)
+  assert.deepStrictEqual(result.next[0].cameras[0].detections, ['person'])
+})
+
+test('a Motion or Sound change that is not one of auto, on, off is refused, and nothing else may change', () => {
+  const config = entry([{ mac: 'BBCCDDEEFF00', name: 'Garage', cameraPollingInterval: 5 }])
+  const bad = page.prepareSave(config, 'BBCCDDEEFF00', 'Garage', null, { motionSensor: 'banana' })
+  assert.strictEqual(bad.ok, false)
+  assert.match(bad.errors.join(';'), /not a valid motionSensor/)
+  const next = JSON.parse(JSON.stringify(config))
+  next[0].cameras[0].cameraPollingInterval = 1
+  next[0].cameras[0].motionSensor = 'off'
+  assert.ok(page.problemsWith(config, next, 'BBCCDDEEFF00', null, { motionSensor: 'off' }).length > 0, 'another setting changed')
+  const stray = JSON.parse(JSON.stringify(config))
+  stray[0].cameras[0].soundSensor = 'off'
+  assert.ok(page.problemsWith(config, stray, 'BBCCDDEEFF00', null, { motionSensor: 'auto' }).length > 0, 'Sound changed when only Motion was chosen')
 })
