@@ -347,3 +347,9 @@ test('the page saves only through prepareSave, and does nothing when it says no'
   assert.ok(save.indexOf('homebridge.savePluginConfig') > update)
   assert.match(save, /catch \(e\) \{\s*homebridge\.toast\.error\('Not saved: '/, 'an unexpected failure saves nothing and says so')
 })
+
+test('the schema turns the custom settings page on, or Homebridge never loads it', () => {
+  const schema = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config.schema.json'), 'utf8'))
+  assert.strictEqual(schema.customUi, true)
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'homebridge-ui', 'public', 'index.html')))
+})
