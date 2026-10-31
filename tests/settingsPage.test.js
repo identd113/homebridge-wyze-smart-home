@@ -431,3 +431,43 @@ test('labels from Wyze\'s AI detection are marked AI, and Motion and Sound are n
   assert.ok(cam.sensors.every((x) => x.ai === false))
   assert.ok(cam.items.length >= 2 && cam.items.every((x) => x.ai === true), 'known labels and names with no sensor type alike')
 })
+
+// ---- the Sound pill is shown but cannot be changed while Wyze has sound recording off ------------------------
+
+const withRecording = (soundRecording) => ({ version: 1, cameras: { AABBCCDDEEFF: { ...wide.cameras.BBCCDDEEFF00, soundRecording } } })
+
+test('with sound recording off the Sound sensor is blocked, with a warning; Motion is not', () => {
+  const cam = byMac(page.buildView(withRecording(false), entry([])), 'AABBCCDDEEFF')
+  const sound = cam.sensors.find((x) => x.label === 'Sound')
+  const motion = cam.sensors.find((x) => x.label === 'Motion')
+  assert.strictEqual(sound.blocked, true)
+  assert.match(sound.warning, /Sound recording is off/)
+  assert.strictEqual(motion.blocked, false)
+  assert.strictEqual(motion.warning, '')
+})
+
+test('sound recording on, unknown or never recorded does not block it', () => {
+  for (const value of [true, null, undefined]) {
+    const cam = byMac(page.buildView(withRecording(value), entry([])), 'AABBCCDDEEFF')
+    assert.strictEqual(cam.sensors.find((x) => x.label === 'Sound').blocked, false, String(value))
+  }
+})
+
+test('a blocked sensor is left as it is when the camera is saved, and Motion still saves', () => {
+  const config = entry([{ mac: 'AABBCCDDEEFF', name: 'Garage', soundSensor: 'on' }])
+  const cam = byMac(page.buildView(withRecording(false), config), 'AABBCCDDEEFF')
+  cam.sensors.find((x) => x.label === 'Sound').checked = false // not reachable from the page; even so it is not saved
+  cam.sensors.find((x) => x.label === 'Motion').checked = false
+  const modes = page.modesFor(cam.sensors)
+  assert.deepStrictEqual(modes, { motionSensor: 'off' }, 'no soundSensor key')
+  const saved = page.prepareSave(config, 'AABBCCDDEEFF', 'Garage', null, modes)
+  assert.strictEqual(saved.ok, true)
+  assert.deepStrictEqual(saved.next[0].cameras, [{ mac: 'AABBCCDDEEFF', name: 'Garage', soundSensor: 'on', motionSensor: 'off' }])
+})
+
+test('the page disables a blocked pill and shows its warning', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/index.html'), 'utf8')
+  assert.ok(html.includes('if (item.blocked) row.disabled = true'))
+  assert.ok(html.includes("if (item.blocked) return;"), 'a click does nothing')
+  assert.ok(html.includes('wd-warn'))
+})

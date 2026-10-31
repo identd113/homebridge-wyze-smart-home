@@ -26,7 +26,14 @@
   // Motion and Sound are a setting each on the camera's row: "auto" (the key absent), "on" or "off".
   const SENSORS = [
     { key: "motionSensor", label: "Motion", found: "motion" },
-    { key: "soundSensor", label: "Sound", found: "sound" },
+    {
+      key: "soundSensor",
+      label: "Sound",
+      found: "sound",
+      // Wyze only lists sound events when sound recording is on for the camera, so with it off the sensor cannot fire.
+      needs: "soundRecording",
+      warning: "Sound recording is off for this camera in Wyze, so Wyze reports no sound events and this sensor cannot fire. Turn it on in the Wyze app, then restart Homebridge.",
+    },
   ];
   const MODES = ["auto", "on", "off"];
 
@@ -69,7 +76,8 @@
       const sensors = SENSORS.map((sensor) => {
         const mode = modeFor(entry, mac, sensor.key);
         const seen = Boolean(cam[sensor.found]);
-        return { key: sensor.key, label: sensor.label, ai: false, mode, found: seen, checked: mode === "on" || (mode === "auto" && seen) };
+        const blocked = Boolean(sensor.needs) && cam[sensor.needs] === false;
+        return { key: sensor.key, label: sensor.label, ai: false, blocked, warning: blocked ? sensor.warning : "", mode, found: seen, checked: mode === "on" || (mode === "auto" && seen) };
       });
       return {
         mac,
@@ -97,6 +105,7 @@
   function modesFor(sensors) {
     const modes = {};
     for (const sensor of sensors) {
+      if (sensor.blocked) continue; // cannot be changed here: left as it is
       if (sensor.mode === "auto" && sensor.checked === sensor.found) modes[sensor.key] = "auto";
       else if (sensor.checked) modes[sensor.key] = sensor.mode === "on" ? "on" : sensor.found ? "auto" : "on";
       else modes[sensor.key] = "off";

@@ -17,6 +17,8 @@
   #wyze-detected .wd-pill[aria-pressed="true"] { opacity: 1; color: #fff; background: #5c3fb5; border-color: #5c3fb5; }
   #wyze-detected .wd-pill:focus-visible { outline: 2px solid #8f7ae0; outline-offset: 2px; }
   #wyze-detected .wd-ai { position: absolute; top: -.55rem; right: .6rem; padding: 0 .35rem; font-size: .6rem; font-weight: 700; line-height: 1.1rem; letter-spacing: .03em; color: #fff; background: #1f7fbf; border-radius: 999px; }
+  #wyze-detected .wd-pill:disabled { cursor: not-allowed; opacity: .45; }
+  #wyze-detected .wd-warn { margin: .35rem 0 0; padding-left: .6rem; border-left: 3px solid #e0a030; font-size: .85rem; }
   #wyze-detected .wd-tag { font-size: .7rem; opacity: .8; white-space: nowrap; }
   #wyze-detected .wd-empty { opacity: .75; font-size: .85rem; margin: .25rem 0 0; }
   #wyze-detected .wd-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
@@ -83,7 +85,8 @@
           const row = el('button', undefined, 'wd-pill');
           row.type = 'button';
           const show = () => { row.setAttribute('aria-pressed', item.checked ? 'true' : 'false'); row.title = item.label + (item.checked ? ': on' : ': off') + ' (click to change)'; };
-          row.addEventListener('click', () => { item.checked = !item.checked; show(); });
+          if (item.blocked) row.disabled = true;
+          row.addEventListener('click', () => { if (item.blocked) return; item.checked = !item.checked; show(); });
           show();
           row.appendChild(el('span', item.label));
           // A small AI mark on top of the pill for labels that come from Wyze's AI detection.
@@ -96,6 +99,7 @@
           list.appendChild(row);
         }
         box.appendChild(list);
+        for (const item of items.filter((x) => x.blocked)) box.appendChild(el('p', '⚠ ' + item.label + ': ' + item.warning, 'wd-warn'));
       }
       group([...cam.sensors, ...cam.items.filter((item) => !item.other)]);
       group(cam.items.filter((item) => item.other), 'Other labels. No sensor type for these yet, so turning one on only saves the name.');

@@ -326,6 +326,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(`[Camera] ${this.display_name}: added a ${kind} sensor, its event list shows ${kind.toLowerCase()} events`);
       }
+      this._soundRecording = await this._readSoundRecording();
       this._recordDetected(await this.detections.discover());
       this._discoverTries = 3; // answered: not asked again until the next start
       this._startEventWatch(this._watchRing); // pick up a sensor added after the watch began
@@ -333,6 +334,20 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this.plugin.log.debug?.(`[Camera] ${this.display_name}: sensor discovery failed (${err.message}); will try again`);
     } finally {
       this._discovering = false;
+    }
+  }
+
+  // Whether Wyze is set to record sound events on this camera (property P1048). With it off, no sound event is ever
+  // listed, so a Sound sensor could not fire: the settings page warns about that. null when the camera does not say
+  // (newer cameras have no property IDs) or the read fails. Read once per start.
+  async _readSoundRecording() {
+    try {
+      if (this.plugin.client.cameraUsesDeviceMgmt(this.product_model)) return null;
+      const rows = (await this.plugin.client.getDevicePID(this.mac, this.product_model))?.data?.property_list;
+      const row = Array.isArray(rows) ? rows.find((property) => property.pid === "P1048") : undefined;
+      return row ? String(row.value) === "1" : null;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -346,6 +361,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       model: this.product_model,
       motion: this._sensorWanted("Motion"),
       sound: this._sensorWanted("Sound"),
+      soundRecording: this._soundRecording ?? null,
       labels: report.found.map((kind) => kind.toLowerCase()),
       unnamed: report.unnamed,
     });

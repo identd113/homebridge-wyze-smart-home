@@ -80,7 +80,7 @@ test('the camera records what it found, using Homebridge\'s storage path, and ne
   acc.plugin = { config: { motionSensorAccessory: ['AABBCCDDEEFF'], soundSensorAccessory: [], soundSensorOff: [], motionSensorOff: [] }, api: { user: { storagePath: () => storage } } }
   acc._recordDetected({ found: ['Person', 'Face'], unnamed: [777] })
   assert.deepStrictEqual(detectedSensors.read(storage).cameras.AABBCCDDEEFF, {
-    name: 'Front Doorbell', model: 'HL_DB2', motion: true, sound: false, labels: ['person', 'face'], unnamed: [777],
+    name: 'Front Doorbell', model: 'HL_DB2', motion: true, sound: false, soundRecording: null, labels: ['person', 'face'], unnamed: [777],
     at: detectedSensors.read(storage).cameras.AABBCCDDEEFF.at
   })
   acc.plugin.api = undefined
@@ -134,4 +134,35 @@ test('real entries pass: ordinary names, the plugin\'s labels, and the Star Trek
     assert.strictEqual(detectedSensors.isValid({ ...found, labels }), true, JSON.stringify(labels))
   }
   assert.strictEqual(detectedSensors.isValid({ ...found, mac: '80482C565064', name: 'Back Yard Cam', model: 'WYZE_CAKP2JFUS', unnamed: [901, 902] }), true)
+})
+
+// ---- sound recording: the camera's own setting, so the page can warn that a Sound sensor cannot fire ----
+
+function soundRecordingCamera (client) {
+  const MotionSensor = { name: 'MotionSensor', UUID: 'ms' }
+  require('../src/types').update({
+    hap: { Service: { MotionSensor }, Characteristic: { MotionDetected: {}, Name: {}, ConfiguredName: {}, On: {} }, uuid: {}, Categories: {} },
+    platformAccessory: class {}
+  })
+  const WyzeCamera = require('../src/accessories/WyzeCamera')
+  const acc = Object.create(WyzeCamera.prototype)
+  acc.homeKitAccessory = { displayName: 'DOGcam', context: { mac: 'AABBCCDDEEFF', product_model: 'WYZEC1-JZ' } }
+  acc.plugin = { client }
+  return acc
+}
+const rowsWith = (value) => ({ data: { property_list: [{ pid: 'P1047', value: '1' }, { pid: 'P1048', value }] } })
+
+test('sound recording is read from the camera\'s P1048: on, off, or not said', async () => {
+  const client = (rows) => ({ cameraUsesDeviceMgmt: () => false, getDevicePID: async () => rows })
+  assert.strictEqual(await soundRecordingCamera(client(rowsWith('0')))._readSoundRecording(), false)
+  assert.strictEqual(await soundRecordingCamera(client(rowsWith('1')))._readSoundRecording(), true)
+  assert.strictEqual(await soundRecordingCamera(client({ data: { property_list: [{ pid: 'P3', value: '1' }] } }))._readSoundRecording(), null, 'no P1048')
+  assert.strictEqual(await soundRecordingCamera(client(undefined))._readSoundRecording(), null)
+  assert.strictEqual(await soundRecordingCamera({ cameraUsesDeviceMgmt: () => true, getDevicePID: async () => assert.fail('no property IDs on these') })._readSoundRecording(), null)
+  assert.strictEqual(await soundRecordingCamera({ cameraUsesDeviceMgmt: () => false, getDevicePID: async () => { throw new Error('offline') } })._readSoundRecording(), null, 'a failed read is not an error')
+})
+
+test('the note accepts soundRecording as true, false, null or absent, and nothing else', () => {
+  for (const good of [true, false, null, undefined]) assert.strictEqual(detectedSensors.isValid({ ...found, soundRecording: good }), true, String(good))
+  for (const bad of ['0', 0, 1, 'yes', {}, []]) assert.strictEqual(detectedSensors.isValid({ ...found, soundRecording: bad }), false, JSON.stringify(bad))
 })
