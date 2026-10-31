@@ -425,3 +425,9 @@ test('a Motion or Sound change that is not one of auto, on, off is refused, and 
   stray[0].cameras[0].soundSensor = 'off'
   assert.ok(page.problemsWith(config, stray, 'BBCCDDEEFF00', null, { motionSensor: 'auto' }).length > 0, 'Sound changed when only Motion was chosen')
 })
+
+test('labels from Wyze\'s AI detection are marked AI, and Motion and Sound are not', () => {
+  const cam = byMac(page.buildView(wide, entry([{ mac: 'AABBCCDDEEFF', detections: ['person', 'starship'] }])), 'AABBCCDDEEFF')
+  assert.ok(cam.sensors.every((x) => x.ai === false))
+  assert.ok(cam.items.length >= 2 && cam.items.every((x) => x.ai === true), 'known labels and names with no sensor type alike')
+})

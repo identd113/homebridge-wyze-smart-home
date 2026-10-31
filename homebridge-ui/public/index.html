@@ -12,11 +12,12 @@
   #wyze-detected .wd-name { font-weight: 600; }
   #wyze-detected .wd-sub { opacity: .75; font-size: .8rem; }
   #wyze-detected .wd-setting { flex-basis: 100%; }
-  #wyze-detected .wd-items { display: flex; flex-wrap: wrap; gap: .3rem 1.25rem; margin: .5rem 0 .25rem; }
-  #wyze-detected .wd-item { display: inline-flex; align-items: center; gap: .4rem; margin: 0; cursor: pointer; }
-  #wyze-detected .wd-item input { margin: 0; }
-  #wyze-detected .wd-tag { font-size: .7rem; padding: 0 .45rem; border: 1px solid currentColor; border-radius: 999px; opacity: .7; white-space: nowrap; }
-  #wyze-detected .wd-group { opacity: .75; font-size: .8rem; margin-top: .6rem; }
+  #wyze-detected .wd-items { display: flex; flex-wrap: wrap; gap: .9rem .6rem; margin: .8rem 0 .4rem; }
+  #wyze-detected .wd-pill { position: relative; display: inline-flex; align-items: center; gap: .4rem; padding: .25rem .9rem; font: inherit; font-size: .9rem; color: inherit; background: transparent; border: 1px solid rgba(128, 128, 128, .6); border-radius: 999px; opacity: .65; cursor: pointer; }
+  #wyze-detected .wd-pill[aria-pressed="true"] { opacity: 1; color: #fff; background: #5c3fb5; border-color: #5c3fb5; }
+  #wyze-detected .wd-pill:focus-visible { outline: 2px solid #8f7ae0; outline-offset: 2px; }
+  #wyze-detected .wd-ai { position: absolute; top: -.55rem; right: .6rem; padding: 0 .35rem; font-size: .6rem; font-weight: 700; line-height: 1.1rem; letter-spacing: .03em; color: #fff; background: #1f7fbf; border-radius: 999px; }
+  #wyze-detected .wd-tag { font-size: .7rem; opacity: .8; white-space: nowrap; }
   #wyze-detected .wd-empty { opacity: .75; font-size: .85rem; margin: .25rem 0 0; }
   #wyze-detected .wd-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
 </style>
@@ -79,14 +80,15 @@
         if (heading) box.appendChild(el('div', heading, 'wd-group'));
         const list = el('div', undefined, 'wd-items');
         for (const item of items) {
-          const row = el('label', undefined, 'wd-item');
-          const input = document.createElement('input');
-          input.type = 'checkbox';
-          input.checked = item.checked;
-          input.addEventListener('change', () => { item.checked = input.checked; });
-          row.appendChild(input);
+          const row = el('button', undefined, 'wd-pill');
+          row.type = 'button';
+          const show = () => { row.setAttribute('aria-pressed', item.checked ? 'true' : 'false'); row.title = item.label + (item.checked ? ': on' : ': off') + ' (click to change)'; };
+          row.addEventListener('click', () => { item.checked = !item.checked; show(); });
+          show();
           row.appendChild(el('span', item.label));
-          // One short tag at most, so it is clear which label it belongs to.
+          // A small AI mark on top of the pill for labels that come from Wyze's AI detection.
+          if (item.ai) row.appendChild(el('span', 'AI', 'wd-ai'));
+          // One short note at most, so it is clear which pill it belongs to.
           let tag = '';
           if (!item.other && item.isNew) tag = item.auto ? 'new' : 'off by default';
           else if (!item.other && item.checked && !item.found) tag = 'not seen lately';
@@ -96,7 +98,7 @@
         box.appendChild(list);
       }
       group([...cam.sensors, ...cam.items.filter((item) => !item.other)]);
-      group(cam.items.filter((item) => item.other), 'Other labels. No sensor type for these yet, so ticking one only saves the name.');
+      group(cam.items.filter((item) => item.other), 'Other labels. No sensor type for these yet, so turning one on only saves the name.');
       if (cam.unnamed.length) {
         box.appendChild(el('p', 'Labels with no name here: ' + cam.unnamed.join(', ') + '. They get no sensor.', 'wd-empty'));
       }
@@ -135,7 +137,7 @@
       if (view.length === 0) {
         root.appendChild(el('p', 'Nothing yet. Each camera is checked when Homebridge starts; this fills in a minute or so after a start.', 'wd-note'));
       } else {
-        root.appendChild(el('p', 'Labels Wyze has put on each camera’s events. Tick the sensors you want, save, then restart Homebridge. Motion and Sound are on by themselves when the camera reports them; untick one to turn it off.', 'wd-note'));
+        root.appendChild(el('p', 'Labels Wyze has put on each camera’s events. Click a sensor to turn it on (filled) or off (outlined), save, then restart Homebridge. Motion and Sound are on by themselves when the camera reports them; AI marks labels from Wyze’s AI detection.', 'wd-note'));
         for (const cam of view) root.appendChild(card(cam));
       }
     }

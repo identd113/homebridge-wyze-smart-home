@@ -55,6 +55,7 @@
         checked: given(l),
         isNew: found.has(l.value) && !given(l),
         other: false,
+        ai: true, // these come from Wyze's AI tags, which need a plan that includes AI detection
       }));
       // Items the plugin has no name for (found, or already in the list). They can be saved into the list; the
       // plugin ignores them when it builds sensors, so they cannot create a tile.
@@ -62,13 +63,13 @@
       const unknown = new Set([...found, ...(Array.isArray(setting) ? setting : [])]);
       for (const value of [...unknown].filter((name) => !known.has(name)).sort()) {
         const listed = Array.isArray(setting) && setting.includes(value);
-        items.push({ value, label: titleCase(value), auto: false, found: found.has(value), checked: listed, isNew: found.has(value) && !listed, other: true });
+        items.push({ value, label: titleCase(value), auto: false, found: found.has(value), checked: listed, isNew: found.has(value) && !listed, other: true, ai: true });
       }
       // Motion and Sound: ticked when the camera would have the sensor under its current setting.
       const sensors = SENSORS.map((sensor) => {
         const mode = modeFor(entry, mac, sensor.key);
         const seen = Boolean(cam[sensor.found]);
-        return { key: sensor.key, label: sensor.label, mode, found: seen, checked: mode === "on" || (mode === "auto" && seen) };
+        return { key: sensor.key, label: sensor.label, ai: false, mode, found: seen, checked: mode === "on" || (mode === "auto" && seen) };
       });
       return {
         mac,
