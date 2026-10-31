@@ -4,7 +4,8 @@
 <style>
   /* Colours come from the page (currentColor and transparency), so it reads on both the light and dark themes. */
   #wyze-detected { margin-top: 1.5rem; }
-  #wyze-detected h5 { margin: 0 0 .25rem; }
+  #wyze-detected .wd-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: .25rem; }
+  #wyze-detected h5 { margin: 0; }
   #wyze-detected .wd-note { opacity: .75; font-size: .85rem; margin: 0 0 .75rem; }
   #wyze-detected .wd-card { border: 1px solid rgba(128, 128, 128, .4); border-radius: 6px; padding: .6rem .8rem; margin-bottom: .5rem; }
   #wyze-detected .wd-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .6rem; }
@@ -106,7 +107,12 @@
 
     async function render () {
       root.textContent = '';
-      root.appendChild(el('h5', 'Detected sensors'));
+      const top = el('div', undefined, 'wd-top');
+      top.appendChild(el('h5', 'Detected sensors'));
+      const refresh = el('button', 'Refresh', 'btn btn-outline-secondary btn-sm');
+      refresh.addEventListener('click', render);
+      top.appendChild(refresh);
+      root.appendChild(top);
       let detected;
       let config;
       try {
@@ -122,9 +128,6 @@
         root.appendChild(el('p', 'Labels Wyze has put on each camera’s events. Tick the ones you want, save, then restart Homebridge. Motion and Sound sensors are added by themselves.', 'wd-note'));
         for (const cam of view) root.appendChild(card(cam));
       }
-      const refresh = el('button', 'Refresh', 'btn btn-outline-secondary btn-sm mt-2');
-      refresh.addEventListener('click', render);
-      root.appendChild(refresh);
     }
 
     homebridge.showSchemaForm();
