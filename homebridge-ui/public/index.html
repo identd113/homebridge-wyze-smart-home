@@ -15,6 +15,7 @@
   #wyze-detected .wd-item { display: inline-flex; align-items: center; gap: .4rem; margin: 0; cursor: pointer; }
   #wyze-detected .wd-item input { margin: 0; }
   #wyze-detected .wd-tag { font-size: .7rem; padding: 0 .45rem; border: 1px solid currentColor; border-radius: 999px; opacity: .7; white-space: nowrap; }
+  #wyze-detected .wd-group { opacity: .75; font-size: .8rem; margin-top: .6rem; }
   #wyze-detected .wd-empty { opacity: .75; font-size: .85rem; margin: .25rem 0 0; }
   #wyze-detected .wd-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
 </style>
@@ -71,21 +72,30 @@
       if (cam.items.length === 0) {
         box.appendChild(el('p', 'No AI labels found on this camera’s events.', 'wd-empty'));
       }
-      const list = el('div', undefined, 'wd-items');
-      for (const item of cam.items) {
-        const row = el('label', undefined, 'wd-item');
-        const input = document.createElement('input');
-        input.type = 'checkbox';
-        input.checked = item.checked;
-        input.addEventListener('change', () => { item.checked = input.checked; });
-        row.appendChild(input);
-        row.appendChild(el('span', item.label));
-        if (item.isNew) row.appendChild(el('span', item.auto ? 'new' : 'not automatic', 'wd-tag'));
-        if (item.other) row.appendChild(el('span', 'no sensor yet', 'wd-tag'));
-        if (!item.found) row.appendChild(el('span', 'not seen lately', 'wd-tag'));
-        list.appendChild(row);
+      // Labels that have a sensor type come first; names with no sensor type here go in their own group.
+      function group (items, heading) {
+        if (items.length === 0) return;
+        if (heading) box.appendChild(el('div', heading, 'wd-group'));
+        const list = el('div', undefined, 'wd-items');
+        for (const item of items) {
+          const row = el('label', undefined, 'wd-item');
+          const input = document.createElement('input');
+          input.type = 'checkbox';
+          input.checked = item.checked;
+          input.addEventListener('change', () => { item.checked = input.checked; });
+          row.appendChild(input);
+          row.appendChild(el('span', item.label));
+          // One short tag at most, so it is clear which label it belongs to.
+          let tag = '';
+          if (!item.other && item.isNew) tag = item.auto ? 'new' : 'off by default';
+          else if (!item.other && !item.found) tag = 'not seen lately';
+          if (tag) row.appendChild(el('span', tag, 'wd-tag'));
+          list.appendChild(row);
+        }
+        box.appendChild(list);
       }
-      if (cam.items.length) box.appendChild(list);
+      group(cam.items.filter((item) => !item.other));
+      group(cam.items.filter((item) => item.other), 'Other labels. No sensor type for these yet, so ticking one only saves the name.');
       if (cam.unnamed.length) {
         box.appendChild(el('p', 'Labels with no name here: ' + cam.unnamed.join(', ') + '. They get no sensor.', 'wd-empty'));
       }
