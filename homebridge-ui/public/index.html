@@ -11,6 +11,7 @@
   #wyze-detected .wd-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .6rem; }
   #wyze-detected .wd-name { font-weight: 600; }
   #wyze-detected .wd-sub { opacity: .75; font-size: .8rem; }
+  #wyze-detected .wd-setting { flex-basis: 100%; }
   #wyze-detected .wd-items { display: flex; flex-wrap: wrap; gap: .3rem 1.25rem; margin: .5rem 0 .25rem; }
   #wyze-detected .wd-item { display: inline-flex; align-items: center; gap: .4rem; margin: 0; cursor: pointer; }
   #wyze-detected .wd-item input { margin: 0; }
@@ -66,7 +67,7 @@
       const head = el('div', undefined, 'wd-head');
       head.appendChild(el('span', cam.name, 'wd-name'));
       if (cam.model) head.appendChild(el('span', cam.model, 'wd-sub'));
-      head.appendChild(el('span', describe(cam.setting), 'wd-sub'));
+      head.appendChild(el('span', describe(cam.setting), 'wd-sub wd-setting'));
       box.appendChild(head);
 
       if (cam.items.length === 0) {
