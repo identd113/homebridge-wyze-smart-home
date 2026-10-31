@@ -254,6 +254,14 @@
             "default": true,
             "description": "Take a new picture as soon as Wyze reports motion on a camera."
           },
+          "sensorHoldSeconds": {
+            "title": "Sensor Stays On (seconds)",
+            "type": "integer",
+            "placeholder": "120",
+            "minimum": 5,
+            "maximum": 3600,
+            "description": "How long a camera's Motion, Sound and detection sensors stay on after the last new event Wyze reports. Leave empty for the default of 120 (2 minutes). Cameras without a Wyze plan report about one event every 5 minutes, so a longer time keeps the tile on between them."
+          },
           "warmLiveView": {
             "title": "Quick Live View",
             "type": "boolean",

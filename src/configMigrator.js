@@ -86,6 +86,7 @@ const ADVANCED_KEYS = [
   // Camera pictures and live view (see the README).
   "snapshotRefreshSeconds",
   "snapshotOnMotion",
+  "sensorHoldSeconds",
   "warmLiveView",
 ];
 

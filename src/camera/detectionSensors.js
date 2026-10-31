@@ -2,6 +2,7 @@
 
 const { Service, Characteristic } = require("../types");
 const { AiEventTag } = require("wyze-api/src/types");
+const { holdMs, remainingMs } = require("./sensorHold");
 
 // The AI labels Wyze puts on events that can get a sensor of their own, by the name used in the config (lower
 // case) and for the HomeKit service. `auto` labels are added by themselves when a camera's events carry them;
@@ -19,7 +20,6 @@ const KINDS = Object.keys(LABELS);
 const AUTO_KINDS = KINDS.filter((kind) => LABELS[kind].auto);
 const TAG = Object.fromEntries(KINDS.map((kind) => [kind, LABELS[kind].tag]));
 
-const HOLD_MS = 30_000; // how long a sensor stays on after the last new labelled event, as Motion and Sound
 const HISTORY_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
@@ -81,14 +81,22 @@ class DetectionSensors {
     this.sensors[kind] = sensor;
   }
 
-  set(kind, active) {
+  // `holdLeft` is how long to stay on from now: the hold counted from the event's own time (see sensorHold.js).
+  set(kind, active, holdLeft = holdMs(this.camera.plugin.config)) {
     const sensor = this.sensors[kind];
     if (!sensor) return;
-    clearTimeout(sensor.timer);
-    sensor.timer = null;
     if (active) {
-      sensor.timer = setTimeout(() => this.set(kind, false), HOLD_MS);
+      if (holdLeft <= 0) return; // the hold has already passed
+      const until = Date.now() + holdLeft;
+      if (sensor.active && sensor.until > until) return; // already on for longer
+      sensor.until = until;
+      clearTimeout(sensor.timer);
+      sensor.timer = setTimeout(() => this.set(kind, false), holdLeft);
       sensor.timer.unref?.();
+    } else {
+      clearTimeout(sensor.timer);
+      sensor.timer = null;
+      sensor.until = 0;
     }
     if (sensor.active === active) return;
     sensor.active = active;
@@ -105,7 +113,8 @@ class DetectionSensors {
       const previous = sensor.ids;
       sensor.ids = new Set(labelled.map((event) => event.id));
       if (previous === null) continue;
-      if (labelled.some((event) => !previous.has(event.id) && this.camera._isRecent(event))) this.set(kind, true);
+      const recent = labelled.filter((event) => !previous.has(event.id) && this.camera._isRecent(event));
+      if (recent.length > 0) this.set(kind, true, remainingMs(this.camera.plugin.config, recent));
     }
   }
 

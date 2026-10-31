@@ -296,3 +296,45 @@ test('discovery does nothing for a wyze-api without cameraGetEvents', async () =
   await cam._discoverSensors()
   assert.strictEqual(cam._sensorWanted('Motion'), false)
 })
+
+// ---- how long a tile stays on: counted from the event's own time ---------------------------------
+
+test('Motion: it stays on 2 minutes past the event, not 2 minutes from when it was noticed', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const cam = motionCam()
+  cam._checkMotion([])
+  cam._checkMotion([motion('a', 10_000)]) // Wyze listed it 10 seconds after it happened
+  assert.deepStrictEqual(cam.motionSensorService.updates, [true])
+  t.mock.timers.tick(109_000)
+  assert.deepStrictEqual(cam.motionSensorService.updates, [true], '109 seconds in: still on')
+  t.mock.timers.tick(1_500)
+  assert.deepStrictEqual(cam.motionSensorService.updates, [true, false], 'off 110 seconds after it was noticed, 120 after the event')
+})
+
+test('Motion: the hold follows the setting, and a newer event extends it but a late-listed older one cannot shorten it', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const cam = motionCam({ sensorHoldSeconds: 60 })
+  cam._checkMotion([])
+  cam._checkMotion([motion('a', 5_000)]) // on until 55 s
+  t.mock.timers.tick(30_000)
+  cam._checkMotion([motion('a', 35_000), motion('b', 2_000)]) // newer: on until 88 s
+  t.mock.timers.tick(1_000)
+  cam._checkMotion([motion('a', 36_000), motion('b', 3_000), motion('d', 10_000)]) // d happened before b: would end at 81 s
+  t.mock.timers.tick(50_000) // 81 s in
+  assert.deepStrictEqual(cam.motionSensorService.updates, [true], 'still on past the first event\'s hold and past d\'s')
+  t.mock.timers.tick(8_000) // 89 s in
+  assert.deepStrictEqual(cam.motionSensorService.updates, [true, false], 'off 60 seconds after the newest event')
+})
+
+test('Sound: an event whose hold has already passed does not switch it on', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const cam = soundCam()
+  cam.plugin.config.sensorHoldSeconds = 10
+  cam._checkSound([])
+  cam._checkSound([sound('a', 12_000)]) // recent (under 30 s) but its 10 second hold is over
+  assert.deepStrictEqual(cam.soundSensorService.updates, [])
+  cam._checkSound([sound('a', 12_000), sound('b', 4_000)])
+  assert.deepStrictEqual(cam.soundSensorService.updates, [true])
+  t.mock.timers.tick(6_500)
+  assert.deepStrictEqual(cam.soundSensorService.updates, [true, false], 'off 10 seconds after the event')
+})

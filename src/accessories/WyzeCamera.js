@@ -6,6 +6,7 @@ const RefreshScheduler = require("../camera/refreshScheduler");
 const DetectionSensors = require("../camera/detectionSensors");
 const detectedSensors = require("../detectedSensors");
 const MotionPoller = require("../camera/motionPoller");
+const { holdMs, remainingMs } = require("../camera/sensorHold");
 const { isBatteryCamera } = require("../camera/batteryModels");
 const { markServiceOnline } = require("./offlineIndicator");
 
@@ -40,10 +41,6 @@ const SNAPSHOT_REFRESH_MIN_S = 10;
 // Floodlight accessories (device parameter `dongle_product_model`) that get a light switch on
 // their own. HL_CFL is the Cam v3 floodlight, seen on a real Cam v3.
 const FLOODLIGHT_DONGLE_MODELS = new Set(["HL_CFL"]);
-// How long the Motion Sensor stays on after the last new event in Wyze's event list.
-const MOTION_SENSOR_HOLD_MS = 30_000;
-// The same for the Sound Sensor.
-const SOUND_SENSOR_HOLD_MS = 30_000;
 // A sensor only reacts to an event younger than this.
 const SENSOR_EVENT_MAX_AGE_MS = 30_000;
 // How far back Wyze's event list is read to find out whether a camera has events of a kind at all.
@@ -247,7 +244,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   }
 
   // A HomeKit Motion Sensor fed by the shared event poller: it turns on when a new event
-  // appears in Wyze's cloud list and off again after MOTION_SENSOR_HOLD_MS without another.
+  // appears in Wyze's cloud list and off again after the sensor hold time (camera/sensorHold.js) without another.
   _setupMotionSensor() {
     this.motionSensorEnabled = true;
     this._motionActive = false;
@@ -262,13 +259,21 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       .onGet(() => this._motionActive === true);
   }
 
-  _setMotionActive(active) {
+  // `holdLeft` is how long to stay on from now: the hold counted from the event's own time (see sensorHold.js).
+  _setMotionActive(active, holdLeft = holdMs(this.plugin.config)) {
     if (!this.motionSensorEnabled) return;
-    clearTimeout(this._motionTimer);
-    this._motionTimer = null;
     if (active) {
-      this._motionTimer = setTimeout(() => this._setMotionActive(false), MOTION_SENSOR_HOLD_MS);
+      if (holdLeft <= 0) return; // the hold has already passed
+      const until = Date.now() + holdLeft;
+      if (this._motionActive && this._motionUntil > until) return; // already on for longer
+      this._motionUntil = until;
+      clearTimeout(this._motionTimer);
+      this._motionTimer = setTimeout(() => this._setMotionActive(false), holdLeft);
       this._motionTimer.unref?.();
+    } else {
+      clearTimeout(this._motionTimer);
+      this._motionTimer = null;
+      this._motionUntil = 0;
     }
     if (this._motionActive === active) return;
     this._motionActive = active;
@@ -370,7 +375,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   }
 
   // A second HomeKit Motion Sensor, named Sound, that turns on when a new sound event appears
-  // in Wyze's cloud event list and off again after SOUND_SENSOR_HOLD_MS without another.
+  // in Wyze's cloud event list and off again after the sensor hold time (camera/sensorHold.js) without another.
   // HomeKit has no sound sensor, so a motion sensor is the usual stand-in.
   _setupSoundSensor() {
     this.soundSensorEnabled = true;
@@ -386,13 +391,20 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       .onGet(() => this._soundActive === true);
   }
 
-  _setSoundActive(active) {
+  _setSoundActive(active, holdLeft = holdMs(this.plugin.config)) {
     if (!this.soundSensorEnabled) return;
-    clearTimeout(this._soundTimer);
-    this._soundTimer = null;
     if (active) {
-      this._soundTimer = setTimeout(() => this._setSoundActive(false), SOUND_SENSOR_HOLD_MS);
+      if (holdLeft <= 0) return;
+      const until = Date.now() + holdLeft;
+      if (this._soundActive && this._soundUntil > until) return;
+      this._soundUntil = until;
+      clearTimeout(this._soundTimer);
+      this._soundTimer = setTimeout(() => this._setSoundActive(false), holdLeft);
       this._soundTimer.unref?.();
+    } else {
+      clearTimeout(this._soundTimer);
+      this._soundTimer = null;
+      this._soundUntil = 0;
     }
     if (this._soundActive === active) return;
     this._soundActive = active;
@@ -512,7 +524,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     if (previous === null || previous === undefined) return;
     const fresh = motion.filter((event) => !previous.has(event.id));
     if (fresh.length > 0) {
-      if (fresh.some((event) => this._isRecent(event))) this._setMotionActive(true);
+      const recent = fresh.filter((event) => this._isRecent(event));
+      if (recent.length > 0) this._setMotionActive(true, remainingMs(this.plugin.config, recent));
       if (this.plugin.config.snapshotOnMotion === false) return;
       this.plugin.log.debug?.(`[Camera] ${this.display_name}: new motion, refreshing the picture`);
       this._streamingDelegate?.refreshSnapshot?.("motion");
@@ -527,7 +540,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     const previous = this._soundIds;
     this._soundIds = ids;
     if (previous === null || previous === undefined) return;
-    if (sounds.some((event) => !previous.has(event.id) && this._isRecent(event))) this._setSoundActive(true);
+    const recent = sounds.filter((event) => !previous.has(event.id) && this._isRecent(event));
+    if (recent.length > 0) this._setSoundActive(true, remainingMs(this.plugin.config, recent));
   }
 
   // Stop live streams so the camera isn't left with a dead viewer (shutdown).
