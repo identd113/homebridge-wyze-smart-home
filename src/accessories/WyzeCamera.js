@@ -926,9 +926,13 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   // ---- Set handlers --------------------------------------------------------
 
   async handleOnSetPrivacySwitch(value) {
-    return this._set("Privacy", () =>
+    await this._set("Privacy", () =>
       this.plugin.client.cameraPrivacy(this.mac, this.product_model, value ? "power_on" : "power_off")
     );
+    // Wyze accepted it: keep what the plugin believes in step now, rather than at the next check, so the picture
+    // HomeKit asks for (the "camera off" one) changes with the switch.
+    this.power_switch = value ? 1 : 0;
+    if (this.on !== undefined) this.on = this.power_switch;
   }
 
   async handleOnSetAlarmSwitch(value) {

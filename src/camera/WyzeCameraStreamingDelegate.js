@@ -2,6 +2,8 @@
 
 const nodeCrypto = require("crypto");
 const axios = require("axios");
+const fs = require("fs");
+const path = require("path");
 const { isBatteryCamera } = require("./batteryModels");
 
 const SNAPSHOT_CACHE_MS = 10_000;
@@ -34,6 +36,21 @@ const WARM_MAX_PICTURE_AGE_MS = 6000;
 // A motion-triggered refresh is skipped if the last picture is newer than this.
 const MOTION_REFRESH_MIN_GAP_MS = 10_000;
 const STREAM_START_TIMEOUT_MS = 60_000; // a start that has not settled by then no longer counts as active
+
+// The picture HomeKit shows while the camera is switched off (privacy): black with a red dot, so a tile that is
+// not live does not look like one that is. Read once; null (and the old behaviour) if the file cannot be read.
+let privacyPicture;
+function privacyJpeg() {
+  if (privacyPicture === undefined) {
+    try {
+      privacyPicture = fs.readFileSync(path.join(__dirname, "assets", "privacy.jpg"));
+    } catch (_) {
+      privacyPicture = null;
+    }
+  }
+  return privacyPicture;
+}
+const poweredOff = (v) => v === 0 || v === "0" || v === false;
 
 class WyzeCameraStreamingDelegate {
   constructor(camera) {
@@ -204,6 +221,14 @@ class WyzeCameraStreamingDelegate {
     // logs "snapshot handler slow to respond".
     if (this.camera.cameraOnline === false) {
       callback(new Error("Camera is offline"));
+      return;
+    }
+
+    // Switched off in Wyze: no picture can be taken, and the last one would look like a live camera.
+    const placeholder = poweredOff(this.camera.power_switch) ? privacyJpeg() : null;
+    if (placeholder) {
+      this._snapshotCache = null; // the picture from before it went off must not come back the moment it is on again
+      callback(undefined, placeholder);
       return;
     }
 

@@ -166,3 +166,26 @@ test('the note accepts soundRecording as true, false, null or absent, and nothin
   for (const good of [true, false, null, undefined]) assert.strictEqual(detectedSensors.isValid({ ...found, soundRecording: good }), true, String(good))
   for (const bad of ['0', 0, 1, 'yes', {}, []]) assert.strictEqual(detectedSensors.isValid({ ...found, soundRecording: bad }), false, JSON.stringify(bad))
 })
+
+test('flipping the Privacy switch updates what the plugin believes at once, and not when Wyze refuses', async () => {
+  require('../src/types').update({ hap: { Service: {}, Characteristic: {} }, platformAccessory: class {} })
+  const WyzeCamera = require('../src/accessories/WyzeCamera')
+  const make = (cameraPrivacy) => {
+    const acc = Object.create(WyzeCamera.prototype)
+    acc.homeKitAccessory = { displayName: 'Garage', context: { mac: 'AABBCCDDEEFF', product_model: 'WYZE_CAKP2JFUS' } }
+    acc.power_switch = 1
+    acc.plugin = { config: {}, log: Object.assign(() => {}, { error: () => {} }), client: { cameraPrivacy } }
+    return acc
+  }
+  const sent = []
+  const acc = make(async (...args) => { sent.push(args[2]) })
+  await acc.handleOnSetPrivacySwitch(false)
+  assert.strictEqual(acc.power_switch, 0)
+  await acc.handleOnSetPrivacySwitch(true)
+  assert.strictEqual(acc.power_switch, 1)
+  assert.deepStrictEqual(sent, ['power_off', 'power_on'])
+
+  const refused = make(async () => { throw new Error('no') })
+  await assert.rejects(refused.handleOnSetPrivacySwitch(false))
+  assert.strictEqual(refused.power_switch, 1, 'a refused change leaves it as it was')
+})

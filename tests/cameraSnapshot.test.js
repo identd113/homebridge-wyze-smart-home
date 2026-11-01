@@ -174,3 +174,43 @@ test('with no earlier picture, a refused capture is still an error', async () =>
   const r = await snap(delegate)
   assert.match(r.err.message, /live stream open/)
 })
+
+// ---- privacy: a camera switched off shows a placeholder, not its last picture ----
+
+const isJpeg = (buf) => buf[0] === 0xff && buf[1] === 0xd8 && buf[buf.length - 2] === 0xff && buf[buf.length - 1] === 0xd9
+
+test('a camera that is switched off answers with the placeholder picture and takes no capture', async () => {
+  let calls = 0
+  const { delegate } = make(async () => { calls += 1; return Buffer.from('jpg') })
+  await snap(delegate) // a real picture is cached while it is on
+  delegate.camera.power_switch = 0
+  const r = await snap(delegate)
+  assert.strictEqual(calls, 1, 'no new capture while it is off')
+  assert.ok(isJpeg(r.buf), 'a JPEG')
+  assert.notStrictEqual(r.buf.toString(), 'jpg', 'not the picture from before it went off')
+  assert.strictEqual(delegate._snapshotCache, null)
+})
+
+test('the placeholder is dropped as soon as the camera is on, and the next picture is a real one', async () => {
+  let calls = 0
+  const { delegate } = make(async () => { calls += 1; return Buffer.from('live') })
+  delegate.camera.power_switch = 0
+  assert.ok(isJpeg((await snap(delegate)).buf))
+  delegate.camera.power_switch = 1
+  const r = await snap(delegate)
+  assert.strictEqual(r.buf.toString(), 'live')
+  assert.strictEqual(calls, 1)
+})
+
+test('only a camera known to be off gets the placeholder: an unknown power state takes a normal picture', async () => {
+  for (const state of [undefined, null, 1, '1']) {
+    const { delegate } = make(async () => Buffer.from('live'))
+    delegate.camera.power_switch = state
+    assert.strictEqual((await snap(delegate)).buf.toString(), 'live', String(state))
+  }
+  for (const off of [0, '0', false]) {
+    const { delegate } = make(async () => Buffer.from('live'))
+    delegate.camera.power_switch = off
+    assert.ok(isJpeg((await snap(delegate)).buf), String(off))
+  }
+})
