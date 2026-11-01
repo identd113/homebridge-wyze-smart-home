@@ -10,9 +10,9 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 This plugin is built on the [wyze-api](https://github.com/identd113/wyze-api) library. For API-level changes (login, 2FA, device commands), see the [wyze-api changelog](https://github.com/identd113/wyze-api/blob/main/CHANGELOG.md).
 
-### Unreleased
+### v2.0.0-beta.4
 
-Pairs with a `wyze-api` newer than `2.0.0-beta.3`; with beta.3 the bulk read below is skipped (with one warning) and cameras read their properties one at a time, as before.
+Pairs with `wyze-api` 2.0.0-beta.4, which the dependency range requires. With beta.3 the bulk read below is skipped (with one warning), cameras read their properties one at a time as before, and the Cam Plus plan lines are left out. Release notes: [docs/releases/2.0.0-beta.4.md](docs/releases/2.0.0-beta.4.md).
 
 **Breaking**
 - **Breaking: the Privacy switch is now on when the camera is off.** It used to be on when the camera was on, the opposite of its name. Turning Privacy on now powers the camera off, and turning it off powers it on. There is no setting to keep the old direction. Any scene, automation or Siri phrase that uses a camera's Privacy switch now does the opposite and needs to be changed: where it turned Privacy on to switch the camera on, it must turn Privacy off, and the other way round. After upgrading, check each such automation once.
