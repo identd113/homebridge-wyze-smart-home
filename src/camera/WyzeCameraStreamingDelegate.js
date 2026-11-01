@@ -430,7 +430,6 @@ class WyzeCameraStreamingDelegate {
               audioSrtpKey: session.audioSrtpKey,
               audioSrtpSalt: session.audioSrtpSalt,
               audioSsrc: session.audioSsrc,
-              bitrate: request.video?.max_bit_rate ?? 300,
               label: this.camera.display_name,
               logger: this.camera.plugin.config.pluginLoggingEnabled
                 ? this.camera.plugin.log
