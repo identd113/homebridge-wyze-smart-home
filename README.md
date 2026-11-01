@@ -266,7 +266,7 @@ Everything else is optional. This example shows every common setting at the valu
 }
 ```
 
-The `cameras` entry is only an example. Cameras not listed there still appear, with the camera and its Privacy switch (the Doorbell v2 has no Privacy switch). The switch is **on when the camera is off**: turning Privacy on powers the camera off, and the Home app then shows a black picture with a crossed-out red dot instead of the last picture. Live view of a camera that is off fails.
+The `cameras` entry is only an example. Cameras not listed there still appear, with the camera and its Privacy switch (the Doorbell v2 has no Privacy switch). Each camera that can be switched off also gets HomeKit's own camera on/off control (the Camera Operating Mode service), kept in step with the switch; `advanced.nativeCameraPower` turns it off. The switch is **on when the camera is off**: turning Privacy on powers the camera off, and the Home app then shows a black picture with a crossed-out red dot instead of the last picture. Live view of a camera that is off fails.
 
 ### Optional fields
 
