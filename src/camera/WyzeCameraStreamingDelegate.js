@@ -126,7 +126,7 @@ class WyzeCameraStreamingDelegate {
     const cam = this.camera;
     const name = cam.display_name;
     if (cam.cameraOnline === false) return cam.plugin.log.debug?.(`[Camera] [Snapshot] Skipping startup picture for ${name}: offline`);
-    if (cam.power_switch === 0) return cam.plugin.log.debug?.(`[Camera] [Snapshot] Skipping startup picture for ${name}: camera is off`);
+    if (poweredOff(cam.power_switch)) return cam.plugin.log.debug?.(`[Camera] [Snapshot] Skipping startup picture for ${name}: camera is off`);
     if (this._streamActive() || this._snapshotCache) return;
     try {
       if (!this._snapshotInFlight) {
@@ -159,7 +159,7 @@ class WyzeCameraStreamingDelegate {
     const name = cam.display_name
     const skip = (why) => cam.plugin.log.debug?.(`[Camera] [Snapshot] Skipped ${reason} refresh for ${name}: ${why}`)
     if (cam.cameraOnline === false) return skip('offline')
-    if (cam.power_switch === 0) return skip('camera is off')
+    if (poweredOff(cam.power_switch)) return skip('camera is off')
     if (this._streamActive()) return skip('live stream open')
     const age = this._lastRefreshAt ? Date.now() - this._lastRefreshAt : Infinity
     // A picture taken for motion resets this camera's regular timer: its next slot is
@@ -205,7 +205,7 @@ class WyzeCameraStreamingDelegate {
     if (!this._warmEnabled()) return;
     const cam = this.camera;
     // A connection opened now would end a capture that is running on the camera; the next request (a few seconds later) opens it.
-    if (cam.power_switch === 0 || cam.cameraOnline === false || this._streamActive() || this._snapshotInFlight) return;
+    if (poweredOff(cam.power_switch) || cam.cameraOnline === false || this._streamActive() || this._snapshotInFlight) return;
     const opening = !this._warmState();
     const ready = cam.plugin.client.cameraWarmUp(cam.mac, cam.product_model, { label: cam.display_name, ttlMs: WARM_TTL_MS });
     if (opening) {

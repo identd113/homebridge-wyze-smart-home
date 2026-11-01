@@ -48,6 +48,8 @@ const SENSOR_EVENT_MAX_AGE_MS = 30_000;
 const SENSOR_HISTORY_MS = 7 * 24 * 60 * 60 * 1000;
 // Wyze sends on/off properties as strings ("1" on, "2" or "0" off), and any non-empty string is truthy.
 const isOn = (v) => v === 1 || v === "1" || v === true;
+// A power value as 1 or 0 (Wyze sends "1" and "0" in a property list, a number in the device list), or undefined.
+const powerFlag = (v) => (v === 1 || v === "1" || v === true ? 1 : v === 0 || v === "0" || v === false ? 0 : undefined);
 // The Privacy switch is on when the camera is off. A power state not known yet is not "off".
 const privacyOf = (power) => (power === undefined || power === null || isOn(power) ? 0 : 1);
 
@@ -754,6 +756,9 @@ module.exports = class WyzeCamera extends WyzeAccessory {
           break;
         case "P3": // Privacy
           this.on = property.value;
+          // The camera-off picture and the snapshot skips read power_switch, so it follows P3 here too: on a camera
+          // with an attached accessory this path is the only one that runs, and it used to leave power_switch stale.
+          this.power_switch = powerFlag(property.value) ?? this.power_switch;
           this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(privacyOf(this.on));
           summary.push(`power=${isOn(this.on) ? "on" : "off"}`);
           break;
