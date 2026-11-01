@@ -45,11 +45,19 @@
       return 'Chosen: ' + setting.join(', ') + '.';
     }
 
+    // The config the page was last built from. Saving refuses to go on when the config has changed since, so edits
+    // made in the settings form above (not saved yet) are not written along with this camera's change.
+    let baseConfig;
+
     async function save (cam, values, modes) {
       try {
         const config = await homebridge.getPluginConfig();
         if (!config.length) {
           homebridge.toast.error('Save the plugin settings once first, then try again.');
+          return;
+        }
+        if (WyzeDetected.unsavedChanges(baseConfig, config)) {
+          homebridge.toast.error('Not saved: the settings form has changes that are not saved yet. Save them with the form\'s own Save button, press Refresh here, then try again.');
           return;
         }
         // Nothing is saved unless the change passes every check, and a check that cannot finish counts as a failure.
@@ -114,7 +122,7 @@
       const buttons = el('div', undefined, 'wd-actions');
       const saveButton = el('button', 'Save these to the config', 'btn btn-primary btn-sm');
       // With no AI labels on the camera there is no list to change, so `detections` is left as it is.
-      saveButton.addEventListener('click', () => save(cam, cam.items.length ? WyzeDetected.valuesFor(cam.items) : null, WyzeDetected.modesFor(cam.sensors)));
+      saveButton.addEventListener('click', () => save(cam, WyzeDetected.detectionsToSave(cam.items), WyzeDetected.modesFor(cam.sensors)));
       buttons.appendChild(saveButton);
       if (cam.setting !== 'auto' || cam.sensors.some((sensor) => sensor.mode !== 'auto')) {
         const autoButton = el('button', 'Back to automatic', 'btn btn-secondary btn-sm');
@@ -141,6 +149,7 @@
         root.appendChild(el('p', 'Could not read what the plugin found: ' + (e && e.message ? e.message : e), 'wd-empty'));
         return;
       }
+      baseConfig = JSON.parse(JSON.stringify(config));
       const view = WyzeDetected.buildView(detected, config);
       if (view.length === 0) {
         root.appendChild(el('p', 'Nothing yet. Each camera is checked when Homebridge starts; this fills in a minute or so after a start.', 'wd-note'));

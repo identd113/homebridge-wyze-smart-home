@@ -60,6 +60,7 @@
         auto: l.auto,
         found: found.has(l.value),
         checked: given(l),
+        initial: given(l), // what the camera's setting gave when the page was built: a changed tick is told apart from a kept one
         isNew: found.has(l.value) && !given(l),
         other: false,
         ai: true, // these come from Wyze's AI tags, which need a plan that includes AI detection
@@ -70,7 +71,7 @@
       const unknown = new Set([...found, ...(Array.isArray(setting) ? setting : [])]);
       for (const value of [...unknown].filter((name) => !known.has(name)).sort()) {
         const listed = Array.isArray(setting) && setting.includes(value);
-        items.push({ value, label: titleCase(value), auto: false, found: found.has(value), checked: listed, isNew: found.has(value) && !listed, other: true, ai: true });
+        items.push({ value, label: titleCase(value), auto: false, found: found.has(value), checked: listed, initial: listed, isNew: found.has(value) && !listed, other: true, ai: true });
       }
       // Motion and Sound: ticked when the camera would have the sensor under its current setting.
       const sensors = SENSORS.map((sensor) => {
@@ -125,6 +126,21 @@
   function valuesFor(items) {
     const values = items.filter((item) => item.checked).map((item) => item.value);
     return values.length > 0 ? values : ["none"];
+  }
+
+  // What to save into `detections`: null (leave it alone) unless a detection pill was actually changed. Saving the ticks
+  // every time pinned an automatic camera to the labels found so far, so a Pet or Package label that showed up later
+  // got no sensor, after the user had only changed Motion or Sound.
+  function detectionsToSave(items) {
+    if (items.length === 0 || items.every((item) => item.checked === item.initial)) return null;
+    return valuesFor(items);
+  }
+
+  // True when the config now differs from the one the page was built from, for example edits made in the settings
+  // form above this panel that are not saved yet. Saving then would write them too.
+  function unsavedChanges(baseline, current) {
+    if (baseline === undefined || baseline === null) return true; // no baseline: cannot tell, so do not save
+    return JSON.stringify(baseline) !== JSON.stringify(current);
   }
 
   // The Motion and Sound settings for the ticked boxes. A box that matches what automatic would do leaves the
@@ -264,5 +280,5 @@
     }
   }
 
-  root.WyzeDetected = { LABELS, SENSORS, planLine, planSummary, settingFor, modeFor, buildView, valuesFor, modesFor, applyDetections, problemsWith, prepareSave };
+  root.WyzeDetected = { LABELS, SENSORS, planLine, planSummary, settingFor, modeFor, buildView, valuesFor, detectionsToSave, unsavedChanges, modesFor, applyDetections, problemsWith, prepareSave };
 })(self);

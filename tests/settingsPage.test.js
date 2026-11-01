@@ -25,7 +25,9 @@ const page = {
   problemsWith: (...args) => plain(inVm.problemsWith(...args)),
   prepareSave: (...args) => plain(inVm.prepareSave(...args)),
   modesFor: (...args) => plain(inVm.modesFor(...args)),
-  planLine: (...args) => inVm.planLine(...args)
+  planLine: (...args) => inVm.planLine(...args),
+  detectionsToSave: (...args) => plain(inVm.detectionsToSave(...args)),
+  unsavedChanges: (...args) => inVm.unsavedChanges(...args)
 }
 const DetectionSensors = require('../src/camera/detectionSensors')
 const { normalize } = require('../src/configMigrator')
@@ -486,4 +488,44 @@ test('buildView carries the plan to the card, and null when the note has none', 
   const withPlan = { version: 1, cameras: { AABBCCDDEEFF: { ...wide.cameras.AABBCCDDEEFF, plan } } }
   assert.deepStrictEqual(byMac(page.buildView(withPlan, entry([])), 'AABBCCDDEEFF').plan, plan)
   assert.strictEqual(byMac(page.buildView(wide, entry([])), 'AABBCCDDEEFF').plan, null)
+})
+
+// ---- Save changes only what the user changed ----------------------------------------------------
+
+test('changing only Motion or Sound leaves the detections list alone', () => {
+  const cam = byMac(page.buildView(wide, entry([])), 'AABBCCDDEEFF')
+  assert.ok(cam.items.length > 0 && cam.items.every((item) => item.initial === item.checked), 'nothing starts changed')
+  assert.strictEqual(page.detectionsToSave(cam.items), null)
+  const sound = cam.sensors.find((sensor) => sensor.key === 'soundSensor')
+  sound.checked = !sound.checked // the user ticks Sound, and nothing else
+  assert.strictEqual(page.detectionsToSave(cam.items), null, 'a sensor tick is not a detection change')
+  const config = entry([])
+  const prepared = page.prepareSave(config, 'AABBCCDDEEFF', 'Front Doorbell', page.detectionsToSave(cam.items), page.modesFor(cam.sensors))
+  assert.strictEqual(prepared.ok, true)
+  assert.strictEqual('detections' in (prepared.next[0].cameras.find((row) => row.mac === 'AABBCCDDEEFF') || {}), false, 'detections was not written')
+})
+
+test('changing a detection pill saves the ticked list', () => {
+  const cam = byMac(page.buildView(wide, entry([])), 'AABBCCDDEEFF')
+  const person = cam.items.find((item) => item.value === 'person')
+  person.checked = false
+  assert.deepStrictEqual(page.detectionsToSave(cam.items), ['none'], 'nothing ticked is "none"')
+  person.checked = true
+  assert.strictEqual(page.detectionsToSave(cam.items), null, 'put back as it was: nothing to save')
+})
+
+test('a camera with no detection pills never writes detections', () => {
+  const cam = byMac(page.buildView(wide, entry([])), 'BBCCDDEEFF00')
+  assert.strictEqual(cam.items.length, 0)
+  assert.strictEqual(page.detectionsToSave(cam.items), null)
+})
+
+test('unsaved edits in the settings form are noticed, and a missing baseline fails closed', () => {
+  const config = entry([{ mac: 'AABBCCDDEEFF', name: 'Cam' }])
+  assert.strictEqual(page.unsavedChanges(JSON.parse(JSON.stringify(config)), config), false)
+  const edited = JSON.parse(JSON.stringify(config))
+  edited[0].refreshInterval = 99999 // an edit made in the form, not saved yet
+  assert.strictEqual(page.unsavedChanges(config, edited), true)
+  assert.strictEqual(page.unsavedChanges(undefined, config), true)
+  assert.strictEqual(page.unsavedChanges(null, config), true)
 })
