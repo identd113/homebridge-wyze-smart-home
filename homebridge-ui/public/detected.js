@@ -89,9 +89,19 @@
         unnamed: cam.unnamed || [],
         motion: Boolean(cam.motion),
         sound: Boolean(cam.sound),
+        plan: cam.plan || null,
         at: cam.at || "",
       };
     });
+  }
+
+  // One line about the camera's Cam Plus plan for its card, or "" when the plugin could not find out.
+  function planLine(plan, now = Date.now()) {
+    if (!plan) return "";
+    const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+    if (plan.state === "active") return "Cam Plus: " + plan.name + (plan.expires ? ", until " + day(plan.expires) : "") + ".";
+    if (plan.state === "expired") return "Cam Plus plan expired" + (plan.expires ? " " + day(plan.expires) : "") + ". Wyze lists about one event per 5 minutes now.";
+    return "No Cam Plus plan. Wyze lists about one event per 5 minutes, so Motion and Sound can lag or skip.";
   }
 
   // The `detections` list for the ticked rows. Nothing ticked is "none": an empty list would mean automatic.
@@ -237,5 +247,5 @@
     }
   }
 
-  root.WyzeDetected = { LABELS, SENSORS, settingFor, modeFor, buildView, valuesFor, modesFor, applyDetections, problemsWith, prepareSave };
+  root.WyzeDetected = { LABELS, SENSORS, planLine, settingFor, modeFor, buildView, valuesFor, modesFor, applyDetections, problemsWith, prepareSave };
 })(self);

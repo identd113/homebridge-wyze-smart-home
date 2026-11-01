@@ -6,6 +6,7 @@ const RefreshScheduler = require("../camera/refreshScheduler");
 const DetectionSensors = require("../camera/detectionSensors");
 const detectedSensors = require("../detectedSensors");
 const MotionPoller = require("../camera/motionPoller");
+const camPlan = require("../camera/plan");
 const { holdMs, remainingMs } = require("../camera/sensorHold");
 const { isBatteryCamera } = require("../camera/batteryModels");
 const { markServiceOnline } = require("./offlineIndicator");
@@ -327,6 +328,9 @@ module.exports = class WyzeCamera extends WyzeAccessory {
           this.plugin.log(`[Camera] ${this.display_name}: added a ${kind} sensor, its event list shows ${kind.toLowerCase()} events`);
       }
       this._soundRecording = await this._readSoundRecording();
+      this._plan = camPlan.summarize(await camPlan.plansOnce(this.plugin), this.mac);
+      const planWarning = camPlan.warning(this._plan);
+      if (planWarning) this.plugin.log.warn?.(`[Camera] ${this.display_name}: ${planWarning}`);
       this._recordDetected(await this.detections.discover());
       this._discoverTries = 3; // answered: not asked again until the next start
       this._startEventWatch(this._watchRing); // pick up a sensor added after the watch began
@@ -362,6 +366,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       motion: this._sensorWanted("Motion"),
       sound: this._sensorWanted("Sound"),
       soundRecording: this._soundRecording ?? null,
+      plan: this._plan ?? null,
       labels: report.found.map((kind) => kind.toLowerCase()),
       unnamed: report.unnamed,
     });

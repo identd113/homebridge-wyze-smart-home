@@ -19,6 +19,7 @@
   #wyze-detected .wd-ai { position: absolute; top: -.55rem; right: .6rem; padding: 0 .35rem; font-size: .6rem; font-weight: 700; line-height: 1.1rem; letter-spacing: .03em; color: #fff; background: #1f7fbf; border-radius: 999px; }
   #wyze-detected .wd-pill:disabled { cursor: not-allowed; opacity: .45; }
   #wyze-detected .wd-warn { margin: .35rem 0 0; padding-left: .6rem; border-left: 3px solid #e0a030; font-size: .85rem; }
+  #wyze-detected .wd-noplan { opacity: 1; font-weight: 600; }
   #wyze-detected .wd-tag { font-size: .7rem; opacity: .8; white-space: nowrap; }
   #wyze-detected .wd-empty { opacity: .75; font-size: .85rem; margin: .25rem 0 0; }
   #wyze-detected .wd-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
@@ -70,6 +71,8 @@
       const head = el('div', undefined, 'wd-head');
       head.appendChild(el('span', cam.name, 'wd-name'));
       if (cam.model) head.appendChild(el('span', cam.model, 'wd-sub'));
+      const plan = WyzeDetected.planLine(cam.plan);
+      if (plan) head.appendChild(el('span', plan, 'wd-sub wd-setting' + (cam.plan.state === 'active' ? '' : ' wd-noplan')));
       head.appendChild(el('span', describe(cam.setting), 'wd-sub wd-setting'));
       box.appendChild(head);
 

@@ -80,7 +80,7 @@ test('the camera records what it found, using Homebridge\'s storage path, and ne
   acc.plugin = { config: { motionSensorAccessory: ['AABBCCDDEEFF'], soundSensorAccessory: [], soundSensorOff: [], motionSensorOff: [] }, api: { user: { storagePath: () => storage } } }
   acc._recordDetected({ found: ['Person', 'Face'], unnamed: [777] })
   assert.deepStrictEqual(detectedSensors.read(storage).cameras.AABBCCDDEEFF, {
-    name: 'Front Doorbell', model: 'HL_DB2', motion: true, sound: false, soundRecording: null, labels: ['person', 'face'], unnamed: [777],
+    name: 'Front Doorbell', model: 'HL_DB2', motion: true, sound: false, soundRecording: null, plan: null, labels: ['person', 'face'], unnamed: [777],
     at: detectedSensors.read(storage).cameras.AABBCCDDEEFF.at
   })
   acc.plugin.api = undefined

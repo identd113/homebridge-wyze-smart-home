@@ -24,7 +24,8 @@ const page = {
   applyDetections: (...args) => plain(inVm.applyDetections(...args)),
   problemsWith: (...args) => plain(inVm.problemsWith(...args)),
   prepareSave: (...args) => plain(inVm.prepareSave(...args)),
-  modesFor: (...args) => plain(inVm.modesFor(...args))
+  modesFor: (...args) => plain(inVm.modesFor(...args)),
+  planLine: (...args) => inVm.planLine(...args)
 }
 const DetectionSensors = require('../src/camera/detectionSensors')
 const { normalize } = require('../src/configMigrator')
@@ -470,4 +471,19 @@ test('the page disables a blocked pill and shows its warning', () => {
   assert.ok(html.includes('if (item.blocked) row.disabled = true'))
   assert.ok(html.includes("if (item.blocked) return;"), 'a click does nothing')
   assert.ok(html.includes('wd-warn'))
+})
+
+test('planLine says what a camera has, in plain words', () => {
+  const day = 1804106553000
+  assert.strictEqual(page.planLine(null), '')
+  assert.strictEqual(page.planLine({ state: 'active', name: 'Annual Plan', expires: day }), 'Cam Plus: Annual Plan, until 2027-03-03.')
+  assert.match(page.planLine({ state: 'none', name: '', expires: null }), /^No Cam Plus plan\..*5 minutes/)
+  assert.match(page.planLine({ state: 'expired', name: 'Monthly Plan', expires: day }), /expired 2027-03-03/)
+})
+
+test('buildView carries the plan to the card, and null when the note has none', () => {
+  const plan = { state: 'none', name: '', expires: null }
+  const withPlan = { version: 1, cameras: { AABBCCDDEEFF: { ...wide.cameras.AABBCCDDEEFF, plan } } }
+  assert.deepStrictEqual(byMac(page.buildView(withPlan, entry([])), 'AABBCCDDEEFF').plan, plan)
+  assert.strictEqual(byMac(page.buildView(wide, entry([])), 'AABBCCDDEEFF').plan, null)
 })

@@ -6,7 +6,8 @@ const path = require("path");
 // What the plugin found each camera can have, for the plugin's settings page in the Homebridge UI. The page
 // reads this file and offers to save a choice into the config; the plugin never writes the config itself.
 //
-//   { "version": 1, "cameras": { "<mac>": { name, model, motion, sound, soundRecording: true|false|null, labels: ["person", ...],
+//   { "version": 1, "cameras": { "<mac>": { name, model, motion, sound, soundRecording: true|false|null,
+//                                           plan: { state: "active"|"expired"|"none", name, expires: <ms>|null } | null, labels: ["person", ...],
 //                                           unnamed: [<label numbers with no name here>], at: "<ISO time>" } } }
 const FOLDER = "homebridge-wyze-smart-home";
 const FILE = "detected-sensors.json";
@@ -31,15 +32,26 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const NAME = /^[a-z0-9][a-z0-9 _-]{0,31}$/;
 const MAC = /^[A-Za-z0-9._:-]{4,64}$/;
 
+const PLAN_STATES = ["active", "expired", "none"];
+function validPlan(plan) {
+  return (
+    typeof plan === "object" && !Array.isArray(plan) &&
+    PLAN_STATES.includes(plan.state) &&
+    typeof plan.name === "string" && plan.name.length <= 100 &&
+    (plan.expires === null || (Number.isFinite(plan.expires) && plan.expires >= 0))
+  );
+}
+
 function isValid(camera) {
   if (!camera || typeof camera !== "object") return false;
-  const { mac, name, model, motion, sound, soundRecording, labels, unnamed } = camera;
+  const { mac, name, model, motion, sound, soundRecording, plan, labels, unnamed } = camera;
   return (
     typeof mac === "string" && MAC.test(mac) &&
     typeof name === "string" && name.length <= 100 &&
     typeof model === "string" && model.length <= 64 &&
     typeof motion === "boolean" && typeof sound === "boolean" &&
     (soundRecording === undefined || soundRecording === null || typeof soundRecording === "boolean") &&
+    (plan === undefined || plan === null || validPlan(plan)) &&
     Array.isArray(labels) && labels.length <= 50 &&
     labels.every((label) => typeof label === "string" && NAME.test(label)) &&
     new Set(labels).size === labels.length &&
