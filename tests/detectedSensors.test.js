@@ -133,7 +133,7 @@ test('real entries pass: ordinary names, the plugin\'s labels, and the Star Trek
   for (const labels of [[], ['person', 'vehicle', 'pet', 'package', 'face'], ['starship', 'tribble', 'photon', 'cloaking']]) {
     assert.strictEqual(detectedSensors.isValid({ ...found, labels }), true, JSON.stringify(labels))
   }
-  assert.strictEqual(detectedSensors.isValid({ ...found, mac: '80482C565064', name: 'Back Yard Cam', model: 'WYZE_CAKP2JFUS', unnamed: [901, 902] }), true)
+  assert.strictEqual(detectedSensors.isValid({ ...found, mac: 'CCDDEEFF0011', name: 'Back Yard Cam', model: 'WYZE_CAKP2JFUS', unnamed: [901, 902] }), true)
 })
 
 // ---- sound recording: the camera's own setting, so the page can warn that a Sound sensor cannot fire ----
