@@ -34,3 +34,15 @@ test('.gitignore keeps the agent instruction files out', () => {
     assert.ok(wanted.some((line) => lines.includes(line)), `.gitignore must list ${wanted[0]}`)
   }
 })
+
+test('the npm package holds no local or private files', (t) => {
+  let listing
+  try {
+    listing = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }))
+  } catch (_) {
+    return t.skip('npm pack is not available here')
+  }
+  const forbidden = [...PRIVATE, /(^|\/)\.env(\.|$)/, /(^|\/)wyze-[^/]*\.json$/, /(^|\/)config\.json$/, /(^|\/)(persist|backups|testing)\//, /\.(log|tgz|bak)$/]
+  const packed = listing[0].files.map((file) => file.path)
+  assert.deepStrictEqual(packed.filter((file) => forbidden.some((pattern) => pattern.test(file))), [])
+})

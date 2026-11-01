@@ -22,3 +22,9 @@ config.json.old
 # agent instruction files stay local
 CLAUDE.md
 AGENTS.md
+
+# credentials, saved logins, logs and build output never belong in the repository
+.env
+wyze-*.json
+*.log
+*.tgz

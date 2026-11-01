@@ -8,6 +8,17 @@
     "pluginAlias": "WyzeSmartHome",
     "platform": "WyzeSmartHome"
   },
+  "files": [
+    "src",
+    "homebridge-ui",
+    "config.schema.json",
+    "configSample.json",
+    "logo.png",
+    "license.txt",
+    "CONTRIBUTORS.md",
+    "CHANGELOG.md",
+    "README.md"
+  ],
   "scripts": {
     "test": "node --test tests/*.test.js",
     "lint": "eslint src --max-warnings=0",
