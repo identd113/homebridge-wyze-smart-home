@@ -195,7 +195,9 @@ For more information about our version updates, please check our [change log](CH
 
 The easiest way is the settings screen in Homebridge Config UI X. You can also edit the `platforms` section of `config.json` yourself.
 
-### Quick start
+There are three example configs below: [minimum](#minimum-config), [recommended](#recommended-config) and [maximum](#maximum-config), followed by a [table of what each one adds](#what-each-config-adds). Start with the minimum and add lines as you need them.
+
+### Minimum config
 
 Four fields are **required**. With only these, the plugin finds your Wyze devices and adds them to Homebridge automatically, using the default settings:
 
@@ -229,9 +231,36 @@ If your Wyze account uses an authenticator app for 2-factor authentication, also
 
 To get the Key ID and API key, sign in to the [Wyze developer portal](https://developer-api-console.wyze.com/) with the same account you use in the Wyze app, then choose **Create an API key**. Wyze emails you to say a key was created. Use **view** to see the full key.
 
-### Recommended settings
+### Recommended config
 
-Everything else is optional. This example shows every common setting at the value the plugin uses when you leave it out, so you only need to write a line to change it:
+What most people want: the credentials kept out of `config.json`, the extra switches for the cameras that have the hardware, quicker live view, and the noisy or unused devices hidden. Change or delete any line that does not apply to you:
+
+```json
+{
+  "platforms": [
+    {
+      "platform": "WyzeSmartHome",
+      "name": "Wyze",
+      "auth": {
+        "secretsFile": "/path/to/wyze-secrets.json"
+      },
+      "cameras": [
+        { "mac": "MAC_ADDRESS_1", "name": "Garage cam", "garage": true, "siren": true },
+        { "mac": "MAC_ADDRESS_2", "name": "Front door", "notifications": true }
+      ],
+      "excludes": { "macs": ["MAC_ADDRESS_OF_A_DEVICE_YOU_DO_NOT_WANT"] },
+      "logging": { "level": "info" },
+      "advanced": { "warmLiveView": true }
+    }
+  ]
+}
+```
+
+`wyze-secrets.json` is a private file (mode 600) holding `username`, `password`, `keyId`, `apiKey` and, with 2-factor authentication, `totpSecret`. See `auth.secretsFile` below.
+
+### Maximum config
+
+Every setting a person normally changes, set to a value that differs from its default (or, for the on/off ones, switched on). It is a reference for what exists, not something to copy as it is: several lines add tiles and cost extra requests. `deviceTypeOverrides` and the custom base URLs are left out on purpose, as they are for troubleshooting only.
 
 ```json
 {
@@ -244,29 +273,77 @@ Everything else is optional. This example shows every common setting at the valu
         "password": "YOUR_PASSWORD",
         "keyId": "YOUR_KEY_ID",
         "apiKey": "YOUR_API_KEY",
-        "totpSecret": ""
+        "totpSecret": "YOUR_2FA_KEY"
       },
       "polling": {
-        "refreshInterval": 30000,
-        "lowBatteryPercentage": 30
+        "refreshInterval": 60000,
+        "lowBatteryPercentage": 20
       },
+      "securityRefreshInterval": 10000,
       "cameras": [
-        { "mac": "MAC_ADDRESS_1", "name": "Garage cam", "garage": true, "siren": true }
+        {
+          "mac": "MAC_ADDRESS_1",
+          "name": "Garage cam",
+          "garage": true,
+          "spotlight": true,
+          "floodlight": true,
+          "siren": true,
+          "notifications": true,
+          "motionDetection": true,
+          "motionSensor": "on",
+          "soundSensor": "on",
+          "detections": ["person", "vehicle", "pet", "package", "face"]
+        },
+        {
+          "mac": "MAC_ADDRESS_2",
+          "name": "Nursery",
+          "motionSensor": "off",
+          "soundSensor": "on",
+          "detections": ["none"]
+        }
       ],
-      "excludes": { "macs": [], "types": [] },
-      "hms": { "enabled": false },
-      "logging": { "level": "info" },
+      "thermostat": { "exposeRoomSensors": true, "mode": "heat-only" },
+      "vacuum": { "perRoomSwitches": true },
+      "hms": { "enabled": true },
+      "excludes": {
+        "macs": ["MAC_ADDRESS_OF_A_DEVICE_YOU_DO_NOT_WANT"],
+        "types": ["Plug"]
+      },
+      "logging": { "level": "debug", "disableRedaction": false },
       "advanced": {
-        "snapshotRefreshSeconds": 30,
+        "snapshotRefreshSeconds": 60,
         "snapshotOnMotion": true,
-        "warmLiveView": false
+        "sensorHoldSeconds": 300,
+        "warmLiveView": true
       }
     }
   ]
 }
 ```
 
-The `cameras` entry is only an example. Cameras not listed there still appear, with the camera and its Privacy switch (the Doorbell v2 has no Privacy switch). The switch is **on when the camera is off**: turning Privacy on powers the camera off, and the Home app then shows a black picture with a crossed-out red dot instead of the last picture. Live view of a camera that is off fails.
+Do not use `"logging": { "level": "debug" }` all the time: the logs are long.
+
+### What each config adds
+
+| | Minimum | Recommended | Maximum |
+|---|---|---|---|
+| All devices found and shown | yes | yes | yes |
+| Camera live view, pictures every 30 s, Privacy switch | yes | yes | yes |
+| Motion, Sound and AI sensors, added automatically when the camera's events show them | yes | yes | yes (set by hand per camera) |
+| Credentials | in `config.json` | in a private file | in `config.json` |
+| 2-factor authentication | only with `totpSecret` or `mfaCode` added | in the secrets file | `totpSecret` |
+| Garage, light, siren, notification and motion-detection switches on a camera | no | the ones you list | all of them |
+| Face sensor and a fixed list of AI sensors | no | no | yes |
+| Quick Live View (`warmLiveView`) | no | yes | yes |
+| Devices hidden (`excludes`) | none | the ones you list | by MAC and by type |
+| Thermostat room sensors, mode limit | no | no | yes |
+| Vacuum room switches | no | no | yes |
+| Home Monitoring System | no | no | yes (needs a subscription) |
+| Slower polling, lower battery warning, longer sensor hold | defaults | defaults | changed |
+
+Cameras not listed under `cameras` still appear, with the camera and its Privacy switch (the Doorbell v2 has no Privacy switch). The switch is **on when the camera is off**: turning Privacy on powers the camera off, and the Home app then shows a black picture with a crossed-out red dot instead of the last picture. Live view of a camera that is off fails.
+
+The Optional fields tables below list every setting with its default.
 
 ### Optional fields
 

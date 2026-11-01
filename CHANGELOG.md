@@ -29,6 +29,9 @@ Pairs with `wyze-api` 2.0.0-beta.4, which the dependency range requires. With be
 - **Person, Vehicle, Pet and Package sensors** for a camera whose events carry Wyze's AI labels (a Wyze plan with AI detection), with the same rules as Motion and Sound. `detections` per camera is empty (automatic: a sensor for each of those four labels the camera's last week of events carries), a list such as `["person", "pet", "face"]` for exactly those, or `["none"]`. Face is available only by naming it, and only labels the plugin has a name for can become sensors, so a camera never gets a tile per label Wyze invents. The log names the labels each camera's events carry and mentions Face events when they exist. The plugin's settings page in the Homebridge UI has a **Detected sensors** panel that lists what each camera has, with Motion and Sound boxes beside the labels, and saves a choice into the camera's `detections`, `motionSensor` and `soundSensor`; it reads a note the plugin leaves in Homebridge's storage folder (`homebridge-wyze-smart-home/detected-sensors.json`). The plugin never writes your `config.json` itself. The panel checks each change before saving it and saves nothing if a check fails or cannot be completed; the plugin's own note is likewise written only for an entry that passes its checks. New dependency: `@homebridge/plugin-ui-utils`.
 - **Fixed: the Motion Sensor was not added to a camera that had no other switch configured.**
 
+**Documentation**
+- **The README shows a minimum, a recommended and a maximum config,** with a table of what each one adds. A test checks that every setting in them exists in the settings schema.
+
 **Development**
 - `npm run lint` works: an ESLint config was added, and the script now covers all of `src/`.
 
