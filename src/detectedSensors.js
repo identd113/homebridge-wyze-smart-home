@@ -6,7 +6,7 @@ const path = require("path");
 // What the plugin found each camera can have, for the plugin's settings page in the Homebridge UI. The page
 // reads this file and offers to save a choice into the config; the plugin never writes the config itself.
 //
-//   { "version": 1, "cameras": { "<mac>": { name, model, motion, sound, soundRecording: true|false|null,
+//   { "version": 1, "plans": [{ name, status, active, expires, quantity, used, macs }], "cameras": { "<mac>": { name, model, motion, sound, soundRecording: true|false|null,
 //                                           plan: { state: "active"|"expired"|"none", name, expires: <ms>|null } | null, labels: ["person", ...],
 //                                           unnamed: [<label numbers with no name here>], at: "<ISO time>" } } }
 const FOLDER = "homebridge-wyze-smart-home";
@@ -59,6 +59,45 @@ function isValid(camera) {
   );
 }
 
+const PLAN_STATUS = /^[A-Za-z_ -]{0,32}$/;
+function validPlans(plans) {
+  return (
+    Array.isArray(plans) && plans.length <= 20 &&
+    plans.every((plan) =>
+      plan && typeof plan === "object" &&
+      typeof plan.name === "string" && plan.name.length <= 100 &&
+      typeof plan.status === "string" && PLAN_STATUS.test(plan.status) &&
+      typeof plan.active === "boolean" &&
+      (plan.expires === null || (Number.isFinite(plan.expires) && plan.expires >= 0)) &&
+      Number.isInteger(plan.quantity) && Number.isInteger(plan.used) &&
+      Array.isArray(plan.macs) && plan.macs.length <= 50 && plan.macs.every((mac) => typeof mac === "string" && MAC.test(mac))
+    )
+  );
+}
+
+/**
+ * Record the account's Cam Plus plans (live ones first), for the settings page's plan line. Same rules as `record`:
+ * rewritten only when different, never throws, and an odd entry means nothing is written.
+ * @returns {boolean} true when the file was written
+ */
+function recordPlans(storagePath, plans, now = () => new Date()) {
+  try {
+    if (!validPlans(plans)) return false;
+    const data = read(storagePath);
+    if (data.plans && same(data.plans, plans)) return false;
+    data.plans = plans;
+    data.plansAt = now().toISOString();
+    const target = filePath(storagePath);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    const temporary = `${target}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, JSON.stringify(data, null, 2), { mode: 0o600 });
+    fs.renameSync(temporary, target);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 /**
  * Record what one camera was found to have. Rewrites the file only when that differs from what is there,
  * so a restart that finds the same thing leaves the file (and its `at` time) alone. Never throws: this is a
@@ -87,4 +126,4 @@ function record(storagePath, camera, now = () => new Date()) {
   }
 }
 
-module.exports = { read, record, isValid, filePath, FOLDER, FILE };
+module.exports = { read, record, recordPlans, isValid, validPlans, filePath, FOLDER, FILE };

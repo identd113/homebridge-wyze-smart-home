@@ -19,6 +19,7 @@
   #wyze-detected .wd-ai { position: absolute; top: -.55rem; right: .6rem; padding: 0 .35rem; font-size: .6rem; font-weight: 700; line-height: 1.1rem; letter-spacing: .03em; color: #fff; background: #1f7fbf; border-radius: 999px; }
   #wyze-detected .wd-pill:disabled { cursor: not-allowed; opacity: .45; }
   #wyze-detected .wd-warn { margin: .35rem 0 0; padding-left: .6rem; border-left: 3px solid #e0a030; font-size: .85rem; }
+  #wyze-detected .wd-plan { margin: 0 0 .5rem; font-size: .9rem; }
   #wyze-detected .wd-noplan { opacity: 1; font-weight: 600; }
   #wyze-detected .wd-tag { font-size: .7rem; opacity: .8; white-space: nowrap; }
   #wyze-detected .wd-empty { opacity: .75; font-size: .85rem; margin: .25rem 0 0; }
@@ -144,6 +145,8 @@
       if (view.length === 0) {
         root.appendChild(el('p', 'Nothing yet. Each camera is checked when Homebridge starts; this fills in a minute or so after a start.', 'wd-note'));
       } else {
+        const names = Object.fromEntries(view.map((cam) => [cam.mac, cam.name]));
+        for (const line of WyzeDetected.planSummary(detected.plans, names)) root.appendChild(el('p', line.text, 'wd-plan' + (line.soon ? ' wd-warn' : '')));
         root.appendChild(el('p', 'Labels Wyze has put on each camera’s events. Click a sensor to turn it on (filled) or off (outlined), save, then restart Homebridge. Motion and Sound are on by themselves when the camera reports them; AI marks labels from Wyze’s AI detection.', 'wd-note'));
         for (const cam of view) root.appendChild(card(cam));
       }

@@ -37,6 +37,20 @@ function summarize(plans, mac, now = Date.now()) {
   return { state: "none", name: "", expires: null };
 }
 
+/** The account's plans as the settings page note keeps them: live ones first, then by end date, newest first. */
+function forNote(plans) {
+  if (!Array.isArray(plans)) return null;
+  return plans
+    .map((plan) => ({
+      name: String(plan.name ?? ""), status: String(plan.status ?? ""), active: Boolean(plan.active),
+      expires: Number.isFinite(plan.expires) ? plan.expires : null,
+      quantity: Number(plan.quantity) || 0, used: Number(plan.used) || 0,
+      macs: Array.isArray(plan.macs) ? plan.macs.map(String) : []
+    }))
+    .sort((a, b) => Number(b.active) - Number(a.active) || (b.expires || 0) - (a.expires || 0))
+    .slice(0, 20);
+}
+
 /** A line for the log, or "" when there is nothing to say. */
 function warning(plan, now = Date.now()) {
   if (!plan) return "";
@@ -46,4 +60,4 @@ function warning(plan, now = Date.now()) {
   return "";
 }
 
-module.exports = { plansOnce, summarize, warning, SOON_MS };
+module.exports = { plansOnce, summarize, forNote, warning, SOON_MS };

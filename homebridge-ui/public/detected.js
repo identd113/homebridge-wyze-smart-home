@@ -104,6 +104,23 @@
     return "No Cam Plus plan. Wyze lists about one event per 5 minutes, so Motion and Sound can lag or skip.";
   }
 
+  // The account line above the cards: each live plan with its seats and cameras, and a flag when one ends soon.
+  // `names` maps a camera id to its name; `plans` is what the plugin noted. Returns [{ text, soon }]; empty when the plugin has not noted any.
+  function planSummary(plans, names, now = Date.now()) {
+    if (!Array.isArray(plans)) return [];
+    const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+    const live = plans.filter((plan) => plan && plan.active);
+    if (live.length === 0) return [{ text: "No active Cam Plus plan on this account.", soon: true }];
+    return live.map((plan) => {
+      const cams = (plan.macs || []).map((mac) => (names && names[mac]) || "a camera").join(", ");
+      const soon = Boolean(plan.expires) && plan.expires - now <= 14 * 24 * 3600 * 1000;
+      return {
+        text: "Cam Plus: " + plan.name + ", " + plan.used + " of " + plan.quantity + " seat" + (plan.quantity === 1 ? "" : "s") + " used" + (cams ? " (" + cams + ")" : "") + (plan.expires ? ", until " + day(plan.expires) : "") + (soon ? ". Ending soon." : "."),
+        soon
+      };
+    });
+  }
+
   // The `detections` list for the ticked rows. Nothing ticked is "none": an empty list would mean automatic.
   function valuesFor(items) {
     const values = items.filter((item) => item.checked).map((item) => item.value);
@@ -247,5 +264,5 @@
     }
   }
 
-  root.WyzeDetected = { LABELS, SENSORS, planLine, settingFor, modeFor, buildView, valuesFor, modesFor, applyDetections, problemsWith, prepareSave };
+  root.WyzeDetected = { LABELS, SENSORS, planLine, planSummary, settingFor, modeFor, buildView, valuesFor, modesFor, applyDetections, problemsWith, prepareSave };
 })(self);

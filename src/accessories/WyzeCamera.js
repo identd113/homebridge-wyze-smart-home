@@ -328,9 +328,14 @@ module.exports = class WyzeCamera extends WyzeAccessory {
           this.plugin.log(`[Camera] ${this.display_name}: added a ${kind} sensor, its event list shows ${kind.toLowerCase()} events`);
       }
       this._soundRecording = await this._readSoundRecording();
-      this._plan = camPlan.summarize(await camPlan.plansOnce(this.plugin), this.mac);
+      const plans = await camPlan.plansOnce(this.plugin);
+      this._plan = camPlan.summarize(plans, this.mac);
       const planWarning = camPlan.warning(this._plan);
       if (planWarning) this.plugin.log.warn?.(`[Camera] ${this.display_name}: ${planWarning}`);
+      else if (this._plan?.state === "active") this.plugin.log(`[Camera] ${this.display_name}: Cam Plus ${this._plan.name}${this._plan.expires ? `, until ${new Date(this._plan.expires).toISOString().slice(0, 10)}` : ""}`);
+      const storagePath = this.plugin.api?.user?.storagePath?.();
+      const forNote = camPlan.forNote(plans);
+      if (storagePath && forNote) detectedSensors.recordPlans(storagePath, forNote);
       this._recordDetected(await this.detections.discover());
       this._discoverTries = 3; // answered: not asked again until the next start
       this._startEventWatch(this._watchRing); // pick up a sensor added after the watch began
