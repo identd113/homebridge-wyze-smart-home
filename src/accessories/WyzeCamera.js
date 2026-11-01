@@ -46,6 +46,11 @@ const FLOODLIGHT_DONGLE_MODELS = new Set(["HL_CFL"]);
 const SENSOR_EVENT_MAX_AGE_MS = 30_000;
 // How far back Wyze's event list is read to find out whether a camera has events of a kind at all.
 const SENSOR_HISTORY_MS = 7 * 24 * 60 * 60 * 1000;
+// Discovery is repeated, so a camera with no events when Homebridge started still gets its sensors later. Often while
+// a Motion or Sound sensor is still missing, rarely once they all exist (only new AI labels are left to find).
+const REDISCOVER_PENDING_MS = 30 * 60 * 1000;
+const REDISCOVER_SETTLED_MS = 6 * 60 * 60 * 1000;
+const REDISCOVER_RETRY_MS = 5 * 60 * 1000;
 // Wyze sends on/off properties as strings ("1" on, "2" or "0" off), and any non-empty string is truthy.
 const isOn = (v) => v === 1 || v === "1" || v === true;
 // A power value as 1 or 0 (Wyze sends "1" and "0" in a property list, a number in the device list), or undefined.
@@ -305,23 +310,24 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     return mode === "on" || (mode === "auto" && Boolean(this._sensorsSeen?.[kind]));
   }
 
-  // Add each automatic sensor this camera has events for. Wyze's event list is read a week back,
-  // once per start: a camera with no Wyze plan, or one that never hears a sound, would otherwise
-  // get a sensor that never fires. Sound asks Wyze for sound events alone, so a week of motion
-  // cannot crowd them out of the 20 events one request returns.
+  // Add each automatic sensor this camera has events for. Wyze's event list is read a week back: a camera with no
+  // Wyze plan, or one that never hears a sound, would otherwise get a sensor that never fires. Sound asks Wyze for
+  // sound events alone, so a week of motion cannot crowd them out of the 20 events one request returns, and Motion
+  // asks for motion-like events only, so a week of sounds cannot crowd those out. It is repeated (see REDISCOVER_*),
+  // so a camera that had no events at start gets its sensors when they appear, and a new AI label is found later.
   async _discoverSensors() {
-    const pending = ["Motion", "Sound"].filter((kind) => this._sensorMode(kind) === "auto" && !this._sensorWanted(kind));
-    if ((pending.length === 0 && this.detections.scanned) || this._discovering || (this._discoverTries || 0) >= 3) return;
+    if (this._discovering || Date.now() < (this._discoverNextAt || 0)) return;
     if (!Object.values(enums.CameraModels).includes(this.product_model)) return;
     if (typeof this.plugin.client?.cameraGetEvents !== "function") return;
     this._discovering = true;
-    this._discoverTries = (this._discoverTries || 0) + 1;
+    const first = !this._discoveredOnce;
     try {
+      const pending = ["Motion", "Sound"].filter((kind) => this._sensorMode(kind) === "auto" && !this._sensorWanted(kind));
       for (const kind of pending) {
         const events = await this.plugin.client.cameraGetEvents(this.mac, {
           sinceMs: SENSOR_HISTORY_MS,
           count: 20,
-          types: kind === "Sound" ? ["SOUND"] : [],
+          types: kind === "Sound" ? ["SOUND"] : ["MOTION", "DOORBELL_RANG"],
         });
         // Motion is any event that is not a sound (a press, a person, ...), as _checkMotion treats it.
         if (!events.some((event) => (kind === "Sound") === (event.type === "SOUND"))) continue;
@@ -331,23 +337,34 @@ module.exports = class WyzeCamera extends WyzeAccessory {
         if (this.plugin.config.pluginLoggingEnabled)
           this.plugin.log(`[Camera] ${this.display_name}: added a ${kind} sensor, its event list shows ${kind.toLowerCase()} events`);
       }
-      this._soundRecording = await this._readSoundRecording();
-      const plans = await camPlan.plansOnce(this.plugin);
-      this._plan = camPlan.summarize(plans, this.mac);
-      const planWarning = camPlan.warning(this._plan);
-      if (planWarning) this.plugin.log.warn?.(`[Camera] ${this.display_name}: ${planWarning}`);
-      else if (this._plan?.state === "active") this.plugin.log(`[Camera] ${this.display_name}: Cam Plus ${this._plan.name}${this._plan.expires ? `, until ${new Date(this._plan.expires).toISOString().slice(0, 10)}` : ""}`);
-      const storagePath = this.plugin.api?.user?.storagePath?.();
-      const forNote = camPlan.forNote(plans);
-      if (storagePath && forNote) detectedSensors.recordPlans(storagePath, forNote);
+      const factsRead = first ? await this._readStartupFacts() : true;
       this._recordDetected(await this.detections.discover());
-      this._discoverTries = 3; // answered: not asked again until the next start
+      this._discoveredOnce = factsRead; // the plan lookup failed: the start-up facts are read again next time
+      const stillPending = ["Motion", "Sound"].some((kind) => this._sensorMode(kind) === "auto" && !this._sensorWanted(kind));
+      this._discoverNextAt = Date.now() + (!factsRead ? REDISCOVER_RETRY_MS : stillPending ? REDISCOVER_PENDING_MS : REDISCOVER_SETTLED_MS);
       this._startEventWatch(this._watchRing); // pick up a sensor added after the watch began
     } catch (err) {
+      this._discoverNextAt = Date.now() + REDISCOVER_RETRY_MS;
       this.plugin.log.debug?.(`[Camera] ${this.display_name}: sensor discovery failed (${err.message}); will try again`);
     } finally {
       this._discovering = false;
     }
+  }
+
+  // Read once per start: whether sound recording is on, and the camera's Cam Plus plan (logged, and noted for the
+  // settings page). Kept out of the repeated discovery so they are not logged again every time. Returns false when
+  // the plan lookup failed, so the caller reads them again later.
+  async _readStartupFacts() {
+    this._soundRecording = await this._readSoundRecording();
+    const plans = await camPlan.plansOnce(this.plugin);
+    this._plan = camPlan.summarize(plans, this.mac);
+    const planWarning = camPlan.warning(this._plan);
+    if (planWarning) this.plugin.log.info?.(`[Camera] ${this.display_name}: ${planWarning}`);
+    else if (this._plan?.state === "active") this.plugin.log(`[Camera] ${this.display_name}: Cam Plus ${this._plan.name}${this._plan.expires ? `, until ${new Date(this._plan.expires).toISOString().slice(0, 10)}` : ""}`);
+    const storagePath = this.plugin.api?.user?.storagePath?.();
+    const forNote = camPlan.forNote(plans);
+    if (storagePath && forNote) detectedSensors.recordPlans(storagePath, forNote);
+    return plans !== null;
   }
 
   // Whether Wyze is set to record sound events on this camera (property P1048). With it off, no sound event is ever

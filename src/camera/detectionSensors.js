@@ -165,7 +165,11 @@ class DetectionSensors {
 
     const shown = found.filter((kind) => LABELS[kind].auto || this.wanted(kind));
     const available = found.filter((kind) => !LABELS[kind].auto && !this.wanted(kind));
-    if (found.length + unnamed.length > 0) {
+    // Discovery is repeated: say what it found when that is news, not every time it looks.
+    const signature = JSON.stringify([found, unnamed]);
+    const news = signature !== this._reported;
+    this._reported = signature;
+    if (news && found.length + unnamed.length > 0) {
       const parts = [];
       if (shown.length) parts.push(`events carry the AI labels ${shown.join(", ")}`);
       if (available.length) parts.push(`${available.join(", ")} events exist too: add "${available.map((k) => k.toLowerCase()).join('", "')}" to this camera's detections for ${available.length > 1 ? "sensors" : "a sensor"}`);

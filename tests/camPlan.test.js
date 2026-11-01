@@ -52,6 +52,21 @@ test('plansOnce asks Wyze once however many cameras ask, and a failure is rememb
   assert.strictEqual(await camPlan.plansOnce({ client: {} }), null)
 })
 
+test('a failed plan lookup is retried after a few minutes, not kept for the life of the process', async () => {
+  let calls = 0
+  let fail = true
+  const plugin = { client: { getCamPlusPlans: async () => { calls++; if (fail) throw new Error('Wyze is down'); return plans } } }
+  const t0 = 1_000_000
+  assert.strictEqual(await camPlan.plansOnce(plugin, t0), null)
+  assert.strictEqual(await camPlan.plansOnce(plugin, t0 + 60_000), null, 'asked again at once by another camera: the failure is shared')
+  assert.strictEqual(calls, 1)
+  fail = false
+  assert.deepStrictEqual(await camPlan.plansOnce(plugin, t0 + camPlan.RETRY_MS), plans, 'after the wait it asks again, and now has the plans')
+  assert.strictEqual(calls, 2)
+  await camPlan.plansOnce(plugin, t0 + camPlan.RETRY_MS * 5)
+  assert.strictEqual(calls, 2, 'a good answer is kept')
+})
+
 const camera = (plan) => ({ mac: 'AABBCCDDEEFF', name: 'Cam', model: 'HL_DB2', motion: true, sound: false, labels: [], unnamed: [], plan })
 
 test('the note accepts a well-formed plan, null or none, and rejects anything else', () => {

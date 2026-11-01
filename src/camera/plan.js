@@ -5,21 +5,28 @@
 // its events: with a plan they come with video and AI labels; without one, about one picture every 5 minutes.
 const SOON_MS = 14 * 24 * 3600 * 1000;
 
-// One lookup per account, shared by every camera of the plugin. A failed lookup is remembered as null, so a camera
-// that cannot be told its plan simply shows none rather than the lookup being retried by each camera.
-function plansOnce(plugin) {
-  if (!plugin._camPlusPlans) {
-    plugin._camPlusPlans = (async () => {
-      try {
-        if (typeof plugin.client?.getCamPlusPlans !== "function") return null;
-        const plans = await plugin.client.getCamPlusPlans();
-        return Array.isArray(plans) ? plans : null;
-      } catch (_) {
-        return null;
-      }
-    })();
-  }
-  return plugin._camPlusPlans;
+// One lookup per account, shared by every camera of the plugin. A lookup that failed is remembered as null for a few
+// minutes, so the cameras do not each retry it at once, and tried again after that: one error at start-up must not
+// switch the plan information off until the next restart.
+const RETRY_MS = 10 * 60 * 1000;
+
+function plansOnce(plugin, now = Date.now()) {
+  const cached = plugin._camPlusPlans;
+  if (cached && !(cached.failed && now - cached.at >= RETRY_MS)) return cached.promise;
+  const entry = { at: now, failed: false, promise: null };
+  entry.promise = (async () => {
+    try {
+      if (typeof plugin.client?.getCamPlusPlans !== "function") throw new Error("this wyze-api has no getCamPlusPlans");
+      const plans = await plugin.client.getCamPlusPlans();
+      if (!Array.isArray(plans)) throw new Error("no list of plans");
+      return plans;
+    } catch (_) {
+      entry.failed = true;
+      return null;
+    }
+  })();
+  plugin._camPlusPlans = entry;
+  return entry.promise;
 }
 
 /**
@@ -60,4 +67,4 @@ function warning(plan, now = Date.now()) {
   return "";
 }
 
-module.exports = { plansOnce, summarize, forNote, warning, SOON_MS };
+module.exports = { plansOnce, summarize, forNote, warning, SOON_MS, RETRY_MS };

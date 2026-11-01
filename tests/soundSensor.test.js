@@ -55,6 +55,7 @@ function camera ({ cfg = config(), events = [], seen } = {}) {
     config: cfg,
     log: Object.assign(() => {}, { debug: () => {} }),
     client: {
+      getCamPlusPlans: async () => [],
       cameraGetEvents: async (mac, options) => { asked.push(options); return typeof events === 'function' ? events(options) : events }
     }
   }
@@ -251,7 +252,7 @@ test('discovery adds a sensor when the last week shows events of its kind, and n
   })
   await cam._discoverSensors()
   const forKinds = cam.asked.filter((o) => o.types)
-  assert.deepStrictEqual(forKinds.map((o) => o.types), [[], ['SOUND']], 'motion asks for every type, sound for sound alone')
+  assert.deepStrictEqual(forKinds.map((o) => o.types), [['MOTION', 'DOORBELL_RANG'], ['SOUND']], 'motion asks for motion-like types, sound for sound alone')
   assert.ok(cam.asked.every((o) => o.sinceMs === 7 * 24 * 60 * 60 * 1000 && o.count === 20))
   assert.strictEqual(cam._sensorWanted('Sound'), true)
   assert.strictEqual(cam._sensorWanted('Motion'), false, 'no motion events, so no Motion sensor')
@@ -260,7 +261,7 @@ test('discovery adds a sensor when the last week shows events of its kind, and n
 })
 
 test('discovery counts any event that is not a sound as motion', async () => {
-  const cam = camera({ events: (options) => (options.types.length === 0 ? [{ id: 'p', type: 'DOORBELL_RANG' }] : []) })
+  const cam = camera({ events: (options) => ((options.types || []).includes('DOORBELL_RANG') ? [{ id: 'p', type: 'DOORBELL_RANG' }] : []) })
   await cam._discoverSensors()
   assert.strictEqual(cam._sensorWanted('Motion'), true)
   assert.strictEqual(cam._sensorWanted('Sound'), false)
@@ -277,17 +278,51 @@ test('discovery leaves alone a sensor that is on or off, and asks nothing when n
   assert.strictEqual(cam._sensorWanted('Sound'), false)
 })
 
-test('discovery asks once per start, and a failure is retried a few times without throwing', async () => {
+test('discovery repeats on a timer, not on every refresh, and a failure is retried after a few minutes without throwing', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'] })
   const answered = camera({ events: [] })
   await answered._discoverSensors()
   await answered._discoverSensors()
-  assert.strictEqual(answered.asked.length, 3, 'motion, sound and the detection labels, asked once each')
+  assert.strictEqual(answered.asked.length, 3, 'motion, sound and the detection labels, asked once each, not again at the next refresh')
+  t.mock.timers.tick(31 * 60 * 1000) // a Motion or Sound sensor is still missing: look again
+  await answered._discoverSensors()
+  assert.strictEqual(answered.asked.length, 6)
 
   let tries = 0
   const failing = camera()
   failing.plugin.client.cameraGetEvents = async () => { tries += 1; throw new Error('Wyze is down') }
   for (let i = 0; i < 6; i++) await failing._discoverSensors()
-  assert.strictEqual(tries, 3, 'gives up after three tries')
+  assert.strictEqual(tries, 1, 'not hammered while it is down')
+  t.mock.timers.tick(6 * 60 * 1000)
+  await failing._discoverSensors()
+  assert.strictEqual(tries, 2, 'tried again after the retry wait')
+})
+
+test('a camera with no events at start gets its sensor when events appear, without a restart', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'] })
+  let live = false
+  const cam = camera({ events: (options) => (live && (options.types || []).includes('SOUND') ? [sound('s', 1)] : []) })
+  await cam._discoverSensors()
+  assert.strictEqual(cam._sensorWanted('Sound'), false)
+  live = true
+  t.mock.timers.tick(31 * 60 * 1000)
+  await cam._discoverSensors()
+  assert.strictEqual(cam._sensorWanted('Sound'), true)
+})
+
+test('with both sensors in place, discovery waits hours, not minutes, before looking for a new AI label', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'] })
+  const cam = camera({ events: (options) => ((options.types || []).includes('SOUND') ? [sound('s', 1)] : [{ id: 'm', type: 'MOTION' }]) })
+  await cam._discoverSensors()
+  assert.strictEqual(cam._sensorWanted('Sound'), true)
+  assert.strictEqual(cam._sensorWanted('Motion'), true)
+  const asked = cam.asked.length
+  t.mock.timers.tick(31 * 60 * 1000)
+  await cam._discoverSensors()
+  assert.strictEqual(cam.asked.length, asked, 'nothing is missing: not asked after 31 minutes')
+  t.mock.timers.tick(6 * 60 * 60 * 1000)
+  await cam._discoverSensors()
+  assert.ok(cam.asked.length > asked, 'asked again after six hours')
 })
 
 test('discovery does nothing for a wyze-api without cameraGetEvents', async () => {
