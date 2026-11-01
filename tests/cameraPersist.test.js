@@ -58,7 +58,7 @@ test('devicemgmt cameras refresh state through cameraGetDeviceMgmtState, not get
     }
   }
   await acc._refreshFromDeviceMgmt()
-  assert.deepStrictEqual(updates, [['privacy', 1], ['siren', 0], ['spot', 1]])
+  assert.deepStrictEqual(updates, [['privacy', 0], ['siren', 0], ['spot', 1]]) // camera on: privacy off
   assert.strictEqual(acc.floodLight, 1)
   assert.strictEqual(flushed, 0) // camera state stays out of the platform cache
 })
@@ -81,9 +81,9 @@ test('privacy-only devicemgmt cameras (Pan v4) still refresh through devicemgmt 
     }
   }
   await acc.updateCharacteristics({ device_params: { power_switch: 0 } })
-  assert.deepStrictEqual(privacy, [1])
+  assert.deepStrictEqual(privacy, [0]) // camera on: privacy off
   assert.strictEqual(acc.power_switch, 1)
-  assert.strictEqual(await acc.handleOnGetPrivacySwitch(), 1)
+  assert.strictEqual(await acc.handleOnGetPrivacySwitch(), 0)
 })
 
 test('a devicemgmt state failure marks every camera service offline', async () => {
@@ -114,6 +114,6 @@ test('a devicemgmt read failure on a privacy-only camera keeps working from the 
     client: { cameraGetDeviceMgmtState: async () => { throw new Error('503') } }
   }
   await acc._refreshFromDeviceMgmt({ device_params: { power_switch: 1 } })
-  assert.deepStrictEqual(privacy, [1])
+  assert.deepStrictEqual(privacy, [0]) // camera on: privacy off
   assert.deepStrictEqual(offline, [], 'must not mark the camera inactive')
 })

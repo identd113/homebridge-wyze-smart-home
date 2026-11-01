@@ -48,6 +48,8 @@ const SENSOR_EVENT_MAX_AGE_MS = 30_000;
 const SENSOR_HISTORY_MS = 7 * 24 * 60 * 60 * 1000;
 // Wyze sends on/off properties as strings ("1" on, "2" or "0" off), and any non-empty string is truthy.
 const isOn = (v) => v === 1 || v === "1" || v === true;
+// The Privacy switch is on when the camera is off. A power state not known yet is not "off".
+const privacyOf = (power) => (power === undefined || power === null || isOn(power) ? 0 : 1);
 
 module.exports = class WyzeCamera extends WyzeAccessory {
 
@@ -752,7 +754,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
           break;
         case "P3": // Privacy
           this.on = property.value;
-          this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(this.on);
+          this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(privacyOf(this.on));
           summary.push(`power=${isOn(this.on) ? "on" : "off"}`);
           break;
         case "P5": // Available
@@ -826,7 +828,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   _applyBulkPower(device) {
     const powerSwitch = device.device_params?.power_switch;
     this.power_switch = powerSwitch;
-    this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(powerSwitch);
+    this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(privacyOf(powerSwitch));
     this.persistState({ power_switch: powerSwitch });
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
@@ -858,7 +860,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     if (state.on !== undefined) {
       this.on = flag(state.on);
       this.power_switch = this.on;
-      this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(this.on);
+      this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(privacyOf(this.on));
       summary.push(`power=${this.on ? "on" : "off"}`);
     }
     if (state.siren !== undefined && this._isInConfig("sirenAccessory")) {
@@ -902,7 +904,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     // Pull from the right cached field depending on whether we have an
     // attached accessory (PID-driven flow) or just the bulk list field.
     const value = this.cameraAccessoryAttached() ? this.on : this.power_switch;
-    return value ?? 0;
+    return privacyOf(value);
   }
 
   async handleOnGetSpotlight()    { return this.floodLight ?? 0; }
@@ -925,13 +927,15 @@ module.exports = class WyzeCamera extends WyzeAccessory {
 
   // ---- Set handlers --------------------------------------------------------
 
+  // Privacy on means the camera is off, as the name says: the switch value is the opposite of the camera's power.
   async handleOnSetPrivacySwitch(value) {
+    const powerOn = !value;
     await this._set("Privacy", () =>
-      this.plugin.client.cameraPrivacy(this.mac, this.product_model, value ? "power_on" : "power_off")
+      this.plugin.client.cameraPrivacy(this.mac, this.product_model, powerOn ? "power_on" : "power_off")
     );
     // Wyze accepted it: keep what the plugin believes in step now, rather than at the next check, so the picture
     // HomeKit asks for (the "camera off" one) changes with the switch.
-    this.power_switch = value ? 1 : 0;
+    this.power_switch = powerOn ? 1 : 0;
     if (this.on !== undefined) this.on = this.power_switch;
   }
 

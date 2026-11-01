@@ -179,13 +179,30 @@ test('flipping the Privacy switch updates what the plugin believes at once, and 
   }
   const sent = []
   const acc = make(async (...args) => { sent.push(args[2]) })
-  await acc.handleOnSetPrivacySwitch(false)
+  await acc.handleOnSetPrivacySwitch(true) // privacy on: the camera goes off
   assert.strictEqual(acc.power_switch, 0)
-  await acc.handleOnSetPrivacySwitch(true)
+  await acc.handleOnSetPrivacySwitch(false) // privacy off: the camera comes on
   assert.strictEqual(acc.power_switch, 1)
   assert.deepStrictEqual(sent, ['power_off', 'power_on'])
 
   const refused = make(async () => { throw new Error('no') })
-  await assert.rejects(refused.handleOnSetPrivacySwitch(false))
+  await assert.rejects(refused.handleOnSetPrivacySwitch(true))
   assert.strictEqual(refused.power_switch, 1, 'a refused change leaves it as it was')
+})
+
+test('the Privacy switch reads on when the camera is off, off when it is on, and off when the power is not known', async () => {
+  require('../src/types').update({ hap: { Service: {}, Characteristic: {} }, platformAccessory: class {} })
+  const WyzeCamera = require('../src/accessories/WyzeCamera')
+  const read = (power) => {
+    const acc = Object.create(WyzeCamera.prototype)
+    acc.power_switch = power
+    acc.cameraAccessoryAttached = () => false
+    return acc.handleOnGetPrivacySwitch()
+  }
+  assert.strictEqual(await read(0), 1)
+  assert.strictEqual(await read('0'), 1)
+  assert.strictEqual(await read(1), 0)
+  assert.strictEqual(await read('1'), 0)
+  assert.strictEqual(await read(undefined), 0)
+  assert.strictEqual(await read(null), 0)
 })
