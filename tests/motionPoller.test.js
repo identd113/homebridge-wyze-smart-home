@@ -98,3 +98,38 @@ test('the beat follows the fastest camera, and every camera is read on each beat
   assert.strictEqual(poller.beatMs, 10_000)
   poller.stop()
 })
+
+// ---- one busy camera must not hide another's events ----------------------------------------------------
+
+const events = (mac, n) => Array.from({ length: n }, (_, i) => ({ id: `${mac}-${i}` }))
+
+test('a full answer from one busy camera is followed by asking for the cameras that came back empty', async () => {
+  const asked = []
+  const fetch = async (list) => {
+    asked.push([...list])
+    // Wyze caps the answer at 20 events in all, newest first: the busy camera takes every one of them
+    if (list.includes('BUSY')) return { BUSY: events('BUSY', 20), QUIET1: [], QUIET2: [] }
+    return Object.fromEntries(list.map((mac) => [mac, events(mac, 2)]))
+  }
+  const { poller, members } = setup(['BUSY', 'QUIET1', 'QUIET2'], { fetch })
+  await poller.poll()
+  assert.deepStrictEqual(asked, [['BUSY', 'QUIET1', 'QUIET2'], ['QUIET1', 'QUIET2']], 'the second request leaves the busy camera out')
+  const byMac = Object.fromEntries(members.map((m) => [m.mac, m.got[0].length]))
+  assert.deepStrictEqual(byMac, { BUSY: 20, QUIET1: 2, QUIET2: 2 })
+})
+
+test('an answer that is not full means nothing was crowded out: one request only', async () => {
+  const asked = []
+  const fetch = async (list) => { asked.push(list); return { A: events('A', 3), B: [], C: [] } }
+  const { poller } = setup(['A', 'B', 'C'], { fetch })
+  await poller.poll()
+  assert.strictEqual(asked.length, 1)
+})
+
+test('the asking again stops after a few rounds', async () => {
+  let calls = 0
+  const fetch = async (list) => { calls += 1; return { [list[0]]: events(list[0], 20), ...Object.fromEntries(list.slice(1).map((m) => [m, []])) } }
+  const { poller } = setup(['A', 'B', 'C', 'D', 'E'], { fetch })
+  await poller.poll()
+  assert.strictEqual(calls, 3, 'bounded, so a very busy account cannot make a request storm')
+})
