@@ -4,6 +4,7 @@
 [![npm](https://img.shields.io/npm/dt/homebridge-wyze-smart-home)](https://www.npmjs.com/package/homebridge-wyze-smart-home)
 [![npm](https://img.shields.io/npm/v/homebridge-wyze-smart-home.svg?style=flat-square)](https://www.npmjs.com/package/homebridge-wyze-smart-home)
 [![GitHub last commit](https://img.shields.io/github/last-commit/identd113/homebridge-wyze-smart-home)](https://github.com/identd113/homebridge-wyze-smart-home)
+[![CI](https://github.com/identd113/homebridge-wyze-smart-home/actions/workflows/ci.yml/badge.svg?branch=2.x)](https://github.com/identd113/homebridge-wyze-smart-home/actions/workflows/ci.yml)
 [![Chat](https://img.shields.io/discord/1134601590762913863)](https://discord.gg/Mjkpq2x9)
 
 [![homebridge-wyze-smart-home: Wyze Connected Home plugin for Homebridge](https://github.com/identd113/homebridge-wyze-smart-home/blob/main/logo.png?raw=true)](https://github.com/identd113/homebridge-wyze-smart-home)
@@ -333,6 +334,21 @@ The older flat format (`username`, `password`, `keyId`, `apiKey`, `filterByMacAd
 - **From 2.0.0-beta.2:** nothing in your config needs to change. Update Node.js to 22 or newer first. Newly recognised cameras need pairing (see above).
 - **From 0.5.x or 1.x:** your flat config is converted on first start (see Configuration). Update Node.js to 22 or newer first.
 - If the installed `wyze-api` is older than this plugin needs, the log shows one `[FATAL]` line and the plugin stays inactive without removing your paired accessories.
+
+## Development
+
+```
+git clone https://github.com/identd113/homebridge-wyze-smart-home.git
+cd homebridge-wyze-smart-home
+npm install
+npm test
+npm run lint
+```
+
+- **Tests** are in [`tests/`](tests/). They use stubs for Homebridge and Wyze, so they need no Homebridge install, no network and no Wyze account. CI runs them, and `npm run lint`, on every pull request.
+- **Against a local `wyze-api`:** the plugin depends on the published [wyze-api](https://github.com/identd113/wyze-api). A change that needs an unreleased `wyze-api` fails against the registry copy until it is published. To work on both together, clone `wyze-api` next to this folder and run `npm run dev-link`. A later `npm install` can replace the link, so run it again if the tests start failing on a missing method.
+- **Documentation** for contributors is indexed in [`docs/`](docs/README.md): the design notes, release notes, and archived branches.
+- **Run it in Homebridge:** `npm run start` starts Homebridge from the parent folder with this plugin loaded.
 
 ## History
 
