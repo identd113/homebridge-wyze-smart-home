@@ -254,12 +254,6 @@
             "default": true,
             "description": "Take a new picture as soon as Wyze reports motion on a camera."
           },
-          "nativeCameraPower": {
-            "title": "Camera On/Off in the Home App",
-            "type": "boolean",
-            "default": true,
-            "description": "Adds HomeKit's own camera power control (the Camera Operating Mode service) to each camera that can be switched off, kept in step with the Privacy switch. Turn it off if the Home app shows the camera oddly. Restart Homebridge to apply it."
-          },
           "sensorHoldSeconds": {
             "title": "Sensor Stays On (seconds)",
             "type": "integer",

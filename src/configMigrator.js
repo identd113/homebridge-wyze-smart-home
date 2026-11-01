@@ -87,7 +87,6 @@ const ADVANCED_KEYS = [
   "snapshotRefreshSeconds",
   "snapshotOnMotion",
   "sensorHoldSeconds",
-  "nativeCameraPower",
   "warmLiveView",
 ];
 

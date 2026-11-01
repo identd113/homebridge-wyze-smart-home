@@ -631,39 +631,6 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       .getCharacteristic(Characteristic.On)
       .onGet(this.handleOnGetPrivacySwitch.bind(this))
       .onSet(this.handleOnSetPrivacySwitch.bind(this));
-    this._setupNativeCameraPower();
-  }
-
-  // HomeKit's own camera power control: the Camera Operating Mode service with HomeKitCameraActive (1 = the camera is
-  // on). HAP-NodeJS adds that service itself only for a camera set up for Secure Video, so it is added here, for every
-  // camera that can be switched off, and kept in step with the Privacy switch (which stays). Turning it off with
-  // `nativeCameraPower: false` removes it.
-  _setupNativeCameraPower() {
-    const stale = this.homeKitAccessory.getService?.(Service.CameraOperatingMode);
-    if (this.plugin.config.nativeCameraPower === false || !Service.CameraOperatingMode || !Characteristic.HomeKitCameraActive) {
-      if (stale) this.homeKitAccessory.removeService(stale);
-      this.nativePower = null;
-      return;
-    }
-    this.nativePower = stale || this.homeKitAccessory.addService(Service.CameraOperatingMode);
-    this.nativePower
-      .getCharacteristic(Characteristic.HomeKitCameraActive)
-      .onGet(async () => this._nativePowerValue())
-      .onSet((value) => this.handleOnSetNativePower(value));
-  }
-
-  // 1 when the camera is on. A power state not known yet counts as on, as it does for the Privacy switch.
-  _nativePowerValue() {
-    const power = this.cameraAccessoryAttached() ? this.on : this.power_switch;
-    return power === undefined || power === null || isOn(power) ? 1 : 0;
-  }
-
-  // Show the camera's power on both HomeKit controls: the Privacy switch (on = camera off) and the native one.
-  _showPower(power) {
-    this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(privacyOf(power));
-    if (power !== undefined && power !== null) {
-      this.nativePower?.getCharacteristic(Characteristic.HomeKitCameraActive).updateValue(isOn(power) ? 1 : 0);
-    }
   }
 
   // ---- HomeKit camera controller -------------------------------------------
@@ -785,7 +752,6 @@ module.exports = class WyzeCamera extends WyzeAccessory {
         `[Camera] getDevicePID failed for ${this.display_name}: ${err.message}`
       );
       markServiceOnline(this.privacySwitch, false);
-      markServiceOnline(this.nativePower, false);
       return;
     }
     if (!propertyList?.data?.property_list) {
@@ -810,7 +776,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
           // The camera-off picture and the snapshot skips read power_switch, so it follows P3 here too: on a camera
           // with an attached accessory this path is the only one that runs, and it used to leave power_switch stale.
           this.power_switch = powerFlag(property.value) ?? this.power_switch;
-          this._showPower(this.on);
+          this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(privacyOf(this.on));
           summary.push(`power=${isOn(this.on) ? "on" : "off"}`);
           break;
         case "P5": // Available
@@ -872,7 +838,6 @@ module.exports = class WyzeCamera extends WyzeAccessory {
 
   _markServicesOnline(online) {
     markServiceOnline(this.privacySwitch, online);
-    markServiceOnline(this.nativePower, online);
     markServiceOnline(this.sirenSwitch, online);
     markServiceOnline(this.floodLightService, online);
     markServiceOnline(this.spotLightService, online);
@@ -885,7 +850,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   _applyBulkPower(device) {
     const powerSwitch = device.device_params?.power_switch;
     this.power_switch = powerSwitch;
-    this._showPower(powerSwitch);
+    this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(privacyOf(powerSwitch));
     this.persistState({ power_switch: powerSwitch });
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
@@ -917,7 +882,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     if (state.on !== undefined) {
       this.on = flag(state.on);
       this.power_switch = this.on;
-      this._showPower(this.on);
+      this.privacySwitch?.getCharacteristic(Characteristic.On).updateValue(privacyOf(this.on));
       summary.push(`power=${this.on ? "on" : "off"}`);
     }
     if (state.siren !== undefined && this._isInConfig("sirenAccessory")) {
@@ -985,24 +950,15 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   // ---- Set handlers --------------------------------------------------------
 
   // Privacy on means the camera is off, as the name says: the switch value is the opposite of the camera's power.
-  handleOnSetPrivacySwitch(value) {
-    return this._setPower(!value, "Privacy");
-  }
-
-  // HomeKit's own control: HomeKitCameraActive 1 is on.
-  handleOnSetNativePower(value) {
-    return this._setPower(Boolean(value), "Camera power");
-  }
-
-  async _setPower(powerOn, label) {
-    await this._set(label, () =>
+  async handleOnSetPrivacySwitch(value) {
+    const powerOn = !value;
+    await this._set("Privacy", () =>
       this.plugin.client.cameraPrivacy(this.mac, this.product_model, powerOn ? "power_on" : "power_off")
     );
     // Wyze accepted it: keep what the plugin believes in step now, rather than at the next check, so the picture
-    // HomeKit asks for (the "camera off" one) changes with the control, and the other control follows this one.
+    // HomeKit asks for (the "camera off" one) changes with the switch.
     this.power_switch = powerOn ? 1 : 0;
     if (this.on !== undefined) this.on = this.power_switch;
-    this._showPower(this.power_switch);
   }
 
   async handleOnSetAlarmSwitch(value) {
