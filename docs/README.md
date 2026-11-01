@@ -5,6 +5,7 @@ Notes for people working on the plugin. The user-facing guide is the [README](..
 | File | What it covers |
 |---|---|
 | [design-bulk-property-read.md](design-bulk-property-read.md) | The plugin side of the bulk property read (`src/propertyPoller.js`), the verified facts and the risks |
+| [releasing.md](releasing.md) | How a release reaches npm: the workflows, the staged publish, the checklist, and why `wyze-api` goes first |
 | [releases/](releases/) | Release notes for whoever ships and supports a release |
 | [branch-archive.md](branch-archive.md) | Old branches that were cleaned out, what each held, and where that work lives now |
 
