@@ -133,7 +133,8 @@ class DetectionSensors {
   // Find out which labels this camera's events carry. In automatic mode a sensor is added for each automatic
   // label found. In every mode the result is returned, so it can be logged and offered in the settings page: a
   // label that turns up on a camera whose list was chosen earlier is exactly what the owner wants to hear about.
-  // A camera whose newest events carry no label at all has no AI detection, so nothing more is asked. Otherwise
+  // A camera whose newest events carry no label is asked once more for any label at all (see below); with none it has
+  // no AI detection and nothing more is asked. Otherwise
   // each label not already in those events is asked for on its own: a rare one, like a package, would not show in
   // the 20 newest events of a busy camera. Returns { found, unnamed } once Wyze has answered.
   async discover() {
@@ -144,10 +145,16 @@ class DetectionSensors {
 
     const recent = await client.cameraGetEvents(mac, { sinceMs: HISTORY_MS, count: 20 });
     const inRecent = new Set(tagsOf(recent));
+    // Newest events with no label do not yet mean "no AI detection": Wyze labels an event some time after it
+    // happened, so a burst of motion right now looks unlabelled. One request for every label settles it.
+    let seen = inRecent;
+    if (inRecent.size === 0) {
+      seen = new Set(tagsOf(await client.cameraGetEvents(mac, { sinceMs: HISTORY_MS, count: 20, tags: KINDS.map((kind) => kind.toUpperCase()) })));
+    }
     const found = [];
-    if (inRecent.size > 0) {
+    if (seen.size > 0) {
       for (const kind of KINDS) {
-        if (inRecent.has(TAG[kind]) || tagsOf(await ask(kind)).includes(TAG[kind])) found.push(kind);
+        if (seen.has(TAG[kind]) || tagsOf(await ask(kind)).includes(TAG[kind])) found.push(kind);
       }
     }
     // Labels in the newest events that this plugin has no name for.

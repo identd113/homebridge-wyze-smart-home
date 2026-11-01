@@ -273,7 +273,7 @@ test('discovery leaves alone a sensor that is on or off, and asks nothing when n
     events: [sound('s', 1)]
   })
   await cam._discoverSensors()
-  assert.strictEqual(cam.asked.length, 1, 'only the scan for AI labels; nothing for Motion or Sound')
+  assert.strictEqual(cam.asked.length, 2, 'only the scan for AI labels (the newest events, then any label); nothing for Motion or Sound')
   assert.ok(cam.asked.every((o) => !o.types))
   assert.strictEqual(cam._sensorWanted('Sound'), false)
 })
@@ -283,10 +283,10 @@ test('discovery repeats on a timer, not on every refresh, and a failure is retri
   const answered = camera({ events: [] })
   await answered._discoverSensors()
   await answered._discoverSensors()
-  assert.strictEqual(answered.asked.length, 3, 'motion, sound and the detection labels, asked once each, not again at the next refresh')
+  assert.strictEqual(answered.asked.length, 4, 'motion, sound and the label scan (two requests), asked once each, not again at the next refresh')
   t.mock.timers.tick(31 * 60 * 1000) // a Motion or Sound sensor is still missing: look again
   await answered._discoverSensors()
-  assert.strictEqual(answered.asked.length, 6)
+  assert.strictEqual(answered.asked.length, 8)
 
   let tries = 0
   const failing = camera()

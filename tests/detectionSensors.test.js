@@ -209,11 +209,26 @@ test('stopping clears the hold timers', () => {
 
 // ---- finding out which labels a camera has ------------------------------------------------------------
 
-test('a camera whose newest events carry no label has no AI detection: nothing more is asked', async () => {
+test('a camera with no label anywhere has no AI detection: one more request for any label, then nothing more is asked', async () => {
   const cam = camera({ events: () => [labelled('a', []), labelled('b', [])] })
   await cam.detections.discover()
-  assert.strictEqual(cam.asked.length, 1)
+  assert.strictEqual(cam.asked.length, 2, 'the newest events, then one request naming every label')
+  assert.deepStrictEqual(cam.asked[1].tags, ['PERSON', 'VEHICLE', 'PET', 'PACKAGE', 'FACE'])
   assert.strictEqual(cam.detections.any(), false)
+})
+
+test('newest events that are only not labelled yet do not hide the labels the camera has', async () => {
+  // A motion burst right now: Wyze has not put its labels on the newest 20 events, but the week has labelled ones.
+  const cam = camera({
+    events: (options) => {
+      if (!options.tags) return [labelled('fresh1', []), labelled('fresh2', [])]
+      return options.tags.length > 1 || options.tags[0] === 'PACKAGE' || options.tags[0] === 'PERSON' ? [labelled('old', [PERSON, PACKAGE])] : []
+    }
+  })
+  await cam.detections.discover()
+  assert.deepStrictEqual(Object.keys(cam.detections.sensors).sort(), ['Package', 'Person'])
+  assert.strictEqual(cam.detections.any(), true)
+  assert.deepStrictEqual(cam.asked.slice(2).map((o) => o.tags), [['VEHICLE'], ['PET'], ['FACE']], 'Person and Package are already known from the one request')
 })
 
 test('otherwise each label is asked for on its own, and only the ones that exist are added', async () => {
