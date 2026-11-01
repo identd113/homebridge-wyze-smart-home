@@ -22,7 +22,7 @@ How a release gets to npm, and the order to do things in. This plugin depends on
 5. `npm audit --omit=dev` is clean, or you know why not. The plugin has no lockfile, so run it in a copy after `npm install`.
 6. Bump `version` in `package.json`, and give the new section of `CHANGELOG.md` its version heading. Anything that changes behavior for existing users goes first in it.
 7. Add release notes under `docs/releases/` if needed, and say which `wyze-api` version it pairs with.
-8. Check the README shows the three example configs (minimum, recommended, maximum) and the table of what each adds, and that they match the settings you added or changed. `tests/readmeConfigs.test.js` fails when an example uses a setting the schema no longer has, or when the maximum config leaves a new setting out.
+8. Rewrite the README section "What's new in <version>" (it sits above Support) for this release: the user-facing features and improvements, and a boxed warning for any breaking change. It is replaced each release, with the older items living on in the change log. Also check the README shows the three example configs (minimum, recommended, maximum) and the table of what each adds, and that they match the settings you added or changed. `tests/readmeConfigs.test.js` fails when an example uses a setting the schema no longer has, or when the maximum config leaves a new setting out.
 
 ## Releasing
 

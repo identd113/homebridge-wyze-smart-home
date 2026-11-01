@@ -13,6 +13,26 @@
 
 > **Coming soon:** gun safe support.
 
+## What's new in 2.0.0-beta.4
+
+> [!WARNING]
+> **Breaking change: the Privacy switch is now on when the camera is off.** It used to be on when the camera was on, the opposite of its name. Turning Privacy **on** now powers the camera **off**, and turning it off powers it on. There is no setting to keep the old direction. **Any scene, automation or Siri phrase that uses a camera's Privacy switch now does the opposite.** Check each one after you update: where it turned Privacy on to switch the camera on, it must turn Privacy off, and the other way round.
+
+**New in HomeKit**
+- **Motion, Sound and AI sensors for your cameras.** Each camera gets a Motion Sensor and a Sound Sensor when its recent events show them, and cameras on a Wyze plan with AI detection also get Person, Vehicle, Pet and Package sensors (Face if you ask for it). Use them in HomeKit automations: turn on a light when a person is seen, or notify you about a package. They appear by themselves, so HomeKit may start sending notifications for them. Turn any of them off per camera.
+- **A camera that is switched off shows a black picture with a crossed-out red dot** in the Home app, instead of its last picture, which looked live.
+
+**New in the settings page**
+- **A Detected sensors panel** shows what each camera has, lets you switch each sensor on or off, and warns when a camera's sound recording is off in Wyze (Wyze lists no sound events then).
+- **Each camera card shows its Cam Plus plan,** and the log tells you about a camera with no plan, a lapsed plan, or one that ends within 14 days.
+
+**Better**
+- **Fewer requests to Wyze:** the properties of all cameras and lights are read in one request per refresh, not one request each.
+- **Example configs:** the [minimum, recommended and maximum configs](#configuration) below show what to write and what each one adds, and the [advanced settings](#advanced-settings-and-when-to-use-them) say when each is worth changing.
+- **Safer, tidier package:** the published package holds only what it needs (it no longer carries unused libraries), and the project is tested and linted on every change.
+
+Needs `wyze-api` 2.0.0-beta.4, which installs with the plugin. The full list is in the [change log](CHANGELOG.md), and the notes for maintainers are in [docs/releases/2.0.0-beta.4.md](docs/releases/2.0.0-beta.4.md). Going back: `npm install homebridge-wyze-smart-home@2.0.0-beta.3` (the Privacy switch then has its old direction again).
+
 ## Support
 
 If this plugin is useful to you, please look into supporting [Homebridge](https://github.com/sponsors/homebridge) first. None of this could happen without them.
@@ -392,6 +412,19 @@ The Optional fields tables below list every setting with its default.
 | `advanced.warmLiveView` | `false` | "Quick Live View". While the Home app is looking at a camera, the plugin opens a connection to it ahead of time (kept about 45 seconds after the Home app stops asking), so live view starts almost at once. Worth turning on if live view is slow to start. While a camera's connection is open the Wyze app cannot watch it, and all the cameras on screen are connected at once. |
 
 Other advanced settings (`deviceTypeOverrides` and custom base URLs) are for troubleshooting and are explained in the settings screen.
+
+### Advanced settings and when to use them
+
+Everything under `advanced` works at its default. Change one only for the reason given here.
+
+| Setting | Change it when | What to expect |
+|---|---|---|
+| `snapshotRefreshSeconds` | The pictures in the Home app are too old (lower it), or the Wyze app keeps getting cut off while you watch a camera (raise it, or set `0`). | Each refresh is a short live connection to the camera, and a camera serves one viewer at a time. `0` turns the regular refresh off. |
+| `snapshotOnMotion` | You want the picture to update the moment motion is seen (leave it on), or you want no extra connections on motion (turn it off). | Off, a motion event no longer triggers a new picture. |
+| `sensorHoldSeconds` | A Motion, Sound or AI tile switches off too soon or lingers too long for your automations. Raise it for cameras without a Wyze plan, which report only about one event every 5 minutes, so the tile stays on between events. Lower it if you want a quick "motion stopped" signal. | Counted from the time of the event on Wyze's clock, between 5 and 3600 seconds. A newer event extends it. |
+| `warmLiveView` | Live view takes several seconds to start. | The plugin opens a connection to a camera ahead of time while the Home app is looking at it, and keeps it about 45 seconds. While it is open the Wyze app cannot watch that camera, and every camera on screen is connected at once. |
+| `deviceTypeOverrides` | Wyze has a new product code the plugin does not know yet, and you want to try it as an existing kind of device before official support. | Troubleshooting only. A wrong override can show a device as the wrong kind. Please also [report the new model](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml). |
+| `dangerouslyAllowCustomBaseUrls`, `authBaseUrl`, `apiBaseUrl` | You send Wyze traffic through your own proxy or test server. | Off by default, because the plugin otherwise accepts only Wyze's own hosts: your login and token go wherever these point. Do not set them unless you control that server. |
 
 ### Older configs
 

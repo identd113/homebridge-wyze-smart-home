@@ -79,3 +79,20 @@ test('the maximum config sets every option the schema offers, except the trouble
   walk(schema.properties, platform, 'config')
   assert.deepStrictEqual(missing, [])
 })
+
+test('the README opens with a "What\'s new" section for the version in package.json, with the breaking notice', () => {
+  const version = require('../package.json').version
+  const start = readme.indexOf("## What's new in ")
+  assert.ok(start >= 0, 'README has no "What\'s new" section')
+  assert.ok(start < readme.indexOf('## Support'), '"What\'s new" must come before Support')
+  assert.ok(readme.slice(start).startsWith(`## What's new in ${version}\n`), `"What's new" must be for ${version}`)
+  const section = readme.slice(start, readme.indexOf('\n## ', start + 5))
+  if (section.includes('Breaking change')) assert.match(section, /\[!WARNING\]/)
+})
+
+test('every README link to a heading in the README points at a heading that exists', () => {
+  const slug = (heading) => heading.toLowerCase().replace(/[^a-z0-9 -]/g, '').trim().replace(/ /g, '-')
+  const headings = new Set([...readme.matchAll(/^#{1,6} (.+)$/gm)].map((match) => slug(match[1])))
+  const missing = [...readme.matchAll(/\]\(#([a-z0-9-]+)\)/g)].map((match) => match[1]).filter((anchor) => !headings.has(anchor))
+  assert.deepStrictEqual(missing, [])
+})
