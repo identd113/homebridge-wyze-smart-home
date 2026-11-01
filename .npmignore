@@ -2,6 +2,8 @@
 # CI/CD and editor config
 .github/
 .claude/
+CLAUDE.md
+AGENTS.md
 .vscode/
 .eslintrc.json
 .gitmodules

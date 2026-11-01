@@ -19,3 +19,6 @@ config.json.old
 
 # Claude Code worktree state
 /.claude
+# agent instruction files stay local
+CLAUDE.md
+AGENTS.md
