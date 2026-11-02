@@ -22,12 +22,12 @@ How a release gets to npm, and the order to do things in. This plugin depends on
 5. `npm audit --omit=dev` is clean, or you know why not. The plugin has no lockfile, so run it in a copy after `npm install`.
 6. Bump `version` in `package.json`, and give the new section of `CHANGELOG.md` its version heading. Anything that changes behavior for existing users goes first in it.
 7. Add release notes under `docs/releases/` if needed, and say which `wyze-api` version it pairs with.
-8. Rewrite the README section "What's new in <version>" (it sits above Support) for this release: the user-facing features and improvements, and a boxed warning for any breaking change. It is replaced each release, with the older items living on in the change log. Also check the README shows the three example configs (minimum, recommended, maximum) and the table of what each adds, and that they match the settings you added or changed. `tests/readmeConfigs.test.js` fails when an example uses a setting the schema no longer has, or when the maximum config leaves a new setting out.
+8. Check the README "Supported hardware" grid against what the code recognises (`tests/readmeGrid.test.js` fails on a model code that is missing or unknown, a wrong group count, or a wrong doorbell or no-Privacy claim). Rewrite the README section "What's new in <version>" (it sits above Support) for this release: the user-facing features and improvements, and a boxed warning for any breaking change. It is replaced each release, with the older items living on in the change log. Also check the README shows the three example configs (minimum, recommended, maximum) and the table of what each adds, and that they match the settings you added or changed. `tests/readmeConfigs.test.js` fails when an example uses a setting the schema no longer has, or when the maximum config leaves a new setting out.
 
 ## Releasing
 
-1. Push `2.x`.
-2. Make the GitHub Release (`v<version>`, target `2.x`, pre-release ticked for a beta).
+1. Make sure `release/<version>` is level with the commit you mean to ship, and pushed (`git branch -f release/<version> 2.x`, then `git push origin release/<version>`). Push `2.x` too, so the two match.
+2. Make the GitHub Release (`v<version>`, **target `release/<version>`, not `2.x`**, pre-release ticked for a beta). The tag then sits on the release branch, so a later commit on `2.x` cannot slip into it.
 3. Approve the staged publish on npmjs.com.
 4. Check the tags: `npm view homebridge-wyze-smart-home dist-tags`. For a beta, `beta` points at the new version and `latest` is unchanged.
 
