@@ -8,7 +8,7 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 ## Releases
 
-This plugin is built on the [wyze-api](https://github.com/identd113/wyze-api) library. For API-level changes (login, 2FA, device commands), see the [wyze-api changelog](https://github.com/identd113/wyze-api/blob/main/CHANGELOG.md).
+This plugin is built on the [wyze-api](https://github.com/identd113/wyze-api) library. For API-level changes (login, 2FA, device commands), see the [wyze-api changelog](https://github.com/identd113/wyze-api/blob/2.x/CHANGELOG.md).
 
 ### v2.0.0-beta.4
 
@@ -28,6 +28,14 @@ Pairs with `wyze-api` 2.0.0-beta.4, which the dependency range requires. With be
 - **Sensors stay on for 2 minutes** (`advanced.sensorHoldSeconds`, 5 to 3600) for Motion, Sound and the detection sensors, counted from the time of the event on Wyze's clock and not from when the plugin noticed it. A newer event extends it; an event whose hold has already passed does not switch a sensor on.
 - **Person, Vehicle, Pet and Package sensors** for a camera whose events carry Wyze's AI labels (a Wyze plan with AI detection), with the same rules as Motion and Sound. `detections` per camera is empty (automatic: a sensor for each of those four labels the camera's last week of events carries), a list such as `["person", "pet", "face"]` for exactly those, or `["none"]`. Face is available only by naming it, and only labels the plugin has a name for can become sensors, so a camera never gets a tile per label Wyze invents. The log names the labels each camera's events carry and mentions Face events when they exist. The plugin's settings page in the Homebridge UI has a **Detected sensors** panel that lists what each camera has, with Motion and Sound boxes beside the labels, and saves a choice into the camera's `detections`, `motionSensor` and `soundSensor`; it reads a note the plugin leaves in Homebridge's storage folder (`homebridge-wyze-smart-home/detected-sensors.json`). The plugin never writes your `config.json` itself. The panel checks each change before saving it and saves nothing if a check fails or cannot be completed; the plugin's own note is likewise written only for an entry that passes its checks. New dependency: `@homebridge/plugin-ui-utils`.
 - **Fixed: the Motion Sensor was not added to a camera that had no other switch configured.**
+
+**From wyze-api 2.0.0-beta.4** (the library the plugin is built on; its own list is in the [wyze-api change log](https://github.com/identd113/wyze-api/blob/2.x/CHANGELOG.md))
+- **Fixed: logging in at start-up could happen twice.** Several requests that found the login missing at once each started their own login, which could fail a one-time 2FA code on the repeat. They now share one login.
+- **Fixed: a missing or broken ffmpeg no longer takes Homebridge down.** Starting a live view with an ffmpeg that cannot run used to crash the whole process. The live view now fails with a reason in the log.
+- **Fixed: a live view is no longer cut off by Quick Live View.** With a stream open, the connection kept ready ahead of time no longer takes the camera's one connection slot.
+- **Requests to Wyze time out after 30 seconds,** so a stalled connection can no longer freeze login and every refresh that waits on it.
+- **The Cam OG Telephoto 3x is now recognised** (Wyze reports it as `GW_GC2`; it was never matched before). Not tested on a real one.
+- **Fewer libraries installed:** `koffi` and `querystring` are no longer pulled in.
 
 **Documentation**
 - **The README shows a minimum, a recommended and a maximum config,** with a table of what each one adds. A test checks that every setting in them exists in the settings schema.
