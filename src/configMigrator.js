@@ -54,6 +54,7 @@ const CAMERA_FEATURE_KEYS = [
   ["siren", "sirenAccessory"],
   ["notifications", "notificationAccessory"],
   ["motionDetection", "motionDetectionAccessory"],
+  ["nightVision", "nightVisionAccessory"],
 ];
 
 // The Motion and Sound sensors are "auto" (the default: added when the camera's event list shows

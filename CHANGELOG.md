@@ -20,6 +20,9 @@ Pairs with `wyze-api` 2.0.0-beta.4, which the dependency range requires. With be
 **Fewer requests to Wyze**
 - **Properties are read for all cameras and lights in one request per refresh.** Cameras with a switch or floodlight configured, lights and mesh lights used to make one `getDevicePID` request each per refresh. A device that cannot be served by the bulk read (an older `wyze-api`, a failed request, a missing row) reads its own, exactly as before, and the log says so once with a warning. After a failure the bulk read is retried after 1, 3, 7 ... cycles. Lights and mesh lights are not yet verified on real hardware.
 
+**Night vision**
+- **Night vision switches for cameras** (`cameras[].nightVision`): two HomeKit switches, Night Vision and Night Vision Auto, set on the camera over the home network (needs `wyze-api` with `setCameraNightVision`).
+
 **Sensors**
 - **A Motion Sensor and a Sound Sensor are added to each camera that has the events.** `motionSensor` and `soundSensor` per camera are now `auto` (the default: added when the camera's last week of events shows events of that kind), `on` or `off`. `true` still means `on`, and a saved `false` means `auto`. A sensor reacts only to an event less than 30 seconds old, so reading the same older events again never switches it. With the Sound Sensor on, sound no longer switches that camera's Motion Sensor or refreshes its picture.
 - **The settings panel warns when a camera's sound recording is off.** The plugin reads the camera's sound-recording setting once at startup and records it in its note. With it off, the camera's Sound pill is shown greyed out and unclickable with a warning, because Wyze lists no sound events then. The panel leaves that sensor's setting as it is when you save.

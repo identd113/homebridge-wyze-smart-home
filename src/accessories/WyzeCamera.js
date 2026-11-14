@@ -36,6 +36,9 @@ const NATIVE_STREAM_RESOLUTIONS = {
 const DOORBELL_POLL_MS = 5000;
 // Cameras without a doorbell button are checked for motion this often.
 const MOTION_POLL_MS = 10_000;
+// Night vision is read from the camera itself, which takes a short conversation each time: once soon after start, then slowly.
+const NIGHT_VISION_FIRST_READ_MS = 20_000;
+const NIGHT_VISION_READ_MS = 30 * 60_000;
 // How often each camera's picture is refreshed by default; `snapshotRefreshSeconds` overrides it (0 = off).
 const SNAPSHOT_REFRESH_DEFAULT_S = 30;
 const SNAPSHOT_REFRESH_MIN_S = 10;
@@ -187,7 +190,12 @@ module.exports = class WyzeCamera extends WyzeAccessory {
         .onGet(this.getMotionDetection.bind(this))
         .onSet(this.setMotionDetection.bind(this));
     }
+
+    // Night vision has no HomeKit service of its own, so it is two switches: "Night Vision" (always on) and
+    // "Night Vision Auto"; both off is off. The camera is asked directly over the home network.
+    if (this._isInConfig("nightVisionAccessory")) this._setupNightVision();
   }
+
 
   /**
    * Cameras are published as external accessories, so they are not part of
@@ -597,6 +605,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     this._motionTimer = null;
     clearTimeout(this._soundTimer);
     this._soundTimer = null;
+    clearTimeout(this._nightVisionFirst);
+    clearInterval(this._nightVisionTimer);
     this.detections.stop();
     if (this._motionMember) this.plugin._motionPoller?.remove(this._motionMember);
     this._motionMember = null;
@@ -844,6 +854,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     markServiceOnline(this.garageDoorService, online);
     markServiceOnline(this.notificationSwitch, online);
     markServiceOnline(this.motionDetectionSwitch, online);
+    markServiceOnline(this.nightVisionSwitch, online);
+    markServiceOnline(this.nightVisionAutoSwitch, online);
   }
 
   // Privacy-only path: no extra API call, just read the bulk-list field.
@@ -1026,6 +1038,78 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     }
   }
 
+  // ---- Night vision (two switches, over the local network) ----
+
+  _setupNightVision() {
+    this.nightVisionEnabled = true;
+    this.nightVisionSwitch = this._getOrAddService({
+      ServiceType: Service.Switch,
+      subtype: "NightVision",
+      defaultName: "Night Vision",
+      label: "Night Vision",
+    });
+    this.nightVisionSwitch
+      .getCharacteristic(Characteristic.On)
+      .onGet(() => this.nightVision === "on")
+      .onSet((value) => this._setNightVision(value ? "on" : "off"));
+    this.nightVisionAutoSwitch = this._getOrAddService({
+      ServiceType: Service.Switch,
+      subtype: "NightVisionAuto",
+      defaultName: "Night Vision Auto",
+      label: "Night Vision Auto",
+    });
+    this.nightVisionAutoSwitch
+      .getCharacteristic(Characteristic.On)
+      .onGet(() => this.nightVision === "auto")
+      .onSet((value) => this._setNightVision(value ? "auto" : "off"));
+    // Read it once soon after start, then now and then, because it can also be changed in the Wyze app. Each read
+    // is a short conversation with the camera, so it is slow on purpose.
+    this._nightVisionFirst = setTimeout(() => this._readNightVision(), NIGHT_VISION_FIRST_READ_MS);
+    this._nightVisionFirst.unref?.();
+    this._nightVisionTimer = setInterval(() => this._readNightVision(), NIGHT_VISION_READ_MS);
+    this._nightVisionTimer.unref?.();
+  }
+
+  _showNightVision() {
+    this.nightVisionSwitch?.getCharacteristic(Characteristic.On).updateValue(this.nightVision === "on");
+    this.nightVisionAutoSwitch?.getCharacteristic(Characteristic.On).updateValue(this.nightVision === "auto");
+  }
+
+  async _readNightVision() {
+    const client = this.plugin.client;
+    if (typeof client?.getCameraNightVision !== "function") {
+      if (!this._nightVisionWarned) this.plugin.log.warn?.(`[Camera] ${this.display_name}: night vision needs a newer wyze-api; update it and restart.`);
+      this._nightVisionWarned = true;
+      return;
+    }
+    try {
+      this.nightVision = await client.getCameraNightVision(this.mac);
+      this._nightVisionWarned = false;
+      this._showNightVision();
+    } catch (err) {
+      // Not worth a warning every time: the camera may be busy, off or on another network. Said once, then at debug.
+      const said = this._nightVisionWarned;
+      this._nightVisionWarned = true;
+      this.plugin.log[said ? "debug" : "warn"]?.(`[Camera] ${this.display_name}: could not read night vision: ${err.message || err}`);
+    }
+  }
+
+  async _setNightVision(mode) {
+    if (typeof this.plugin.client?.setCameraNightVision !== "function") {
+      throw new Error("night vision needs a newer wyze-api; update it and restart");
+    }
+    if (this.nightVision === mode) return;
+    try {
+      await this._set("Night Vision", async () => {
+        const result = await this.plugin.client.setCameraNightVision(this.mac, mode);
+        if (!result?.matches) throw new Error(`the camera answered ${result?.after ?? "nothing"} instead of ${mode}`);
+        this.nightVision = mode;
+      });
+    } finally {
+      this._showNightVision(); // on a failure the switches go back to what the camera had
+    }
+  }
+
   cameraAccessoryAttached() {
     return (
       this._isInConfig("garageDoorAccessory") ||
@@ -1034,7 +1118,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this._isInConfig("floodLightAccessory") ||
       this._hasFloodlightDongle() ||
       this._isInConfig("notificationAccessory") ||
-      this._isInConfig("motionDetectionAccessory")
+      this._isInConfig("motionDetectionAccessory") ||
+      this._isInConfig("nightVisionAccessory")
     );
   }
 

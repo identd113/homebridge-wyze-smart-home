@@ -113,6 +113,7 @@
             "siren": { "title": "Expose Siren Switch", "type": "boolean", "default": false },
             "notifications": { "title": "Expose Notifications Switch", "type": "boolean", "default": false },
             "motionDetection": { "title": "Expose Motion Detection Switch", "type": "boolean", "default": false, "description": "Toggles whether the camera looks for motion at all (different from notifications). Useful if you want to keep the camera powered on but pause motion-triggered events via HomeKit automation." },
+            "nightVision": { "title": "Expose Night Vision Switches", "type": "boolean", "default": false, "description": "Two HomeKit switches, Night Vision (always on) and Night Vision Auto; with both off, night vision is off. The camera is asked directly over your home network, so Homebridge must be on the same network as the camera, and only cameras that answer there (Cam v2, Cam v3 and Doorbell v2 tested) can use it. Each change takes a few seconds, and the Wyze app cannot watch that camera while it happens." },
             "motionSensor": { "title": "Motion Sensor", "type": "string", "default": "auto", "oneOf": [
               { "title": "Automatic (add it when the camera has motion events)", "enum": ["auto"] },
               { "title": "Always", "enum": ["on"] },
@@ -360,6 +361,7 @@
                     "cameras[].siren",
                     "cameras[].notifications",
                     "cameras[].motionDetection",
+                    "cameras[].nightVision",
                     "cameras[].motionSensor",
                     "cameras[].soundSensor",
                     {
