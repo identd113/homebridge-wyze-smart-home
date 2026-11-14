@@ -135,14 +135,18 @@ body:
       description: |
         The product name, if it is not in the list (for example "Wyze Window Cam"). What it does in the Wyze app (for example "turns a light on and off, shows battery, has a siren"). For a device that is not supported yet, what you would like in HomeKit; for one the plugin handles, what works and what does not.
 
+        If you collected a report with the plugin's camera test page and it was too long for the link, **drag the downloaded file into this box**. (The device information box below cannot take files.)
+
   - type: textarea
     id: blob
     attributes:
       label: Device information
       description: |
-        **Needed when the device is not supported yet; optional when it works.** Paste what the plugin knows about the device. With debug logging on, restart Homebridge and find the `get_object_list` response in the log. Copy **only the entry for this device** (the part with its model code), including its firmware version, not the whole list.
+        **Needed when the device is not supported yet; optional when it works.** The easiest way: turn on the plugin's camera test page (set `advanced.webServerPort` to 1024 or higher in the plugin settings, restart Homebridge, and use the Open camera test page button), open its **Other devices** tab and press **Test and collect report** for your device, then **Report this device on GitHub**. That opens this form with the model, type and a report filled in. The report is read-only, names the endpoints it asked, and already has your MAC address, device name, IP address and Wi-Fi name removed.
 
-        **Edit it before you paste.** The log entry includes details that identify you or your network: the device's MAC address, its name, its IP address and your Wi-Fi network name (`mac`, `nickname`, `ip`, `ssid`). Replace those values with `REDACTED`.
+        Without the test page: with debug logging on, restart Homebridge and find the `get_object_list` response in the log. Copy **only the entry for this device** (the part with its model code), including its firmware version, not the whole list. **Edit it before you paste.** That entry includes details that identify you or your network: the device's MAC address, its name, its IP address and your Wi-Fi network name (`mac`, `nickname`, `ip`, `ssid`). Replace those values with `REDACTED`.
+
+        Either way, read it once before you submit.
       render: json
 
   - type: textarea

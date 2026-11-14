@@ -9,6 +9,8 @@ body:
       value: |
         Thanks for reporting this. It also covers the `wyze-api` library the plugin is built on: problems with login, the Wyze API or camera streaming belong here too. For one device that works, partly works or does not work, the **Wyze device report** form is quicker.
 
+        **For one camera that will not connect or stream,** the plugin's camera test page can ask the camera directly and shows where it stops (set `advanced.webServerPort` to 1024 or higher in the plugin settings and restart Homebridge). Its **Report this camera on GitHub** link opens the device report form with the result filled in; use this form for a problem that is not about one device.
+
         **Logs and config contain details that identify you or your network** (device names, MAC and IP addresses, your Wi-Fi name, your Wyze email). Replace those with `REDACTED` before you paste. **Never post your password, API key, key ID or tokens**: if you do, change them in the Wyze developer portal, then edit them out of the issue.
 
   - type: checkboxes
