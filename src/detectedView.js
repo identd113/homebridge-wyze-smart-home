@@ -158,14 +158,15 @@
 
   // The plugin config (an array, as the settings page hands it over) with this camera's `detections` set. With no
   // values the key is removed, which is automatic. A camera not in the config yet gets an entry. Returns a copy.
-  function applyDetections(config, mac, name, values, modes) {
+  function applyDetections(config, mac, name, values, modes, extras) {
     const next = JSON.parse(JSON.stringify(config || []));
     const entry = next[0];
     if (!entry) return next;
     if (!Array.isArray(entry.cameras)) entry.cameras = [];
     // `values` null leaves `detections` as it is; `modes` names Motion/Sound settings to change.
     const keys = modes ? SENSORS.map((sensor) => sensor.key).filter((key) => modes[key] !== undefined) : [];
-    const sets = (Array.isArray(values) && values.length > 0) || keys.some((key) => modes[key] !== "auto");
+    const nightVision = extras ? extras.nightVision : undefined; // true or false to set the Night Vision switches, undefined to leave them
+    const sets = (Array.isArray(values) && values.length > 0) || keys.some((key) => modes[key] !== "auto") || nightVision === true;
     let row = entry.cameras.find((cam) => cam && cam.mac === mac);
     if (!row) {
       if (!sets) return next; // automatic is what a camera with no entry already is
@@ -181,6 +182,8 @@
       if (modes[key] === "auto") delete row[key];
       else row[key] = modes[key];
     }
+    if (nightVision === true) row.nightVision = true;
+    else if (nightVision === false) delete row.nightVision;
     return next;
   }
 
@@ -205,13 +208,13 @@
     if (Array.isArray(entry.cameras)) entry.cameras = rows.filter((row) => !(row && row.mac === mac));
     if (Array.isArray(entry.cameras) && entry.cameras.length === 0) delete entry.cameras;
     const row = matching[0] ? Object.assign({}, matching[0]) : null;
-    if (row) for (const key of ["detections", "motionSensor", "soundSensor"]) delete row[key];
+    if (row) for (const key of ["detections", "motionSensor", "soundSensor", "nightVision"]) delete row[key];
     const mine = matching[0] || {};
-    return { rest: copy, row, detections: mine.detections, motionSensor: mine.motionSensor, soundSensor: mine.soundSensor };
+    return { rest: copy, row, detections: mine.detections, motionSensor: mine.motionSensor, soundSensor: mine.soundSensor, nightVision: mine.nightVision };
   }
 
   /** The reasons a change must not be saved; an empty list means it may be. */
-  function problemsWith(before, after, mac, values, modes) {
+  function problemsWith(before, after, mac, values, modes, extras) {
     const problems = [];
     if (!Array.isArray(before) || before.length === 0 || !before[0] || typeof before[0] !== "object") {
       return ["the plugin has no saved settings yet: save the settings once first"];
@@ -263,6 +266,13 @@
         problems.push("the saved " + key + " would not be the one chosen");
       }
     }
+    const wantedNightVision = extras ? extras.nightVision : undefined;
+    if (wantedNightVision !== undefined && typeof wantedNightVision !== "boolean") problems.push("nightVision must be true or false");
+    else if (wantedNightVision === undefined) {
+      if (!sameJson(now.nightVision, was.nightVision)) problems.push("the change would alter nightVision, which it should leave alone");
+    } else if (wantedNightVision === true ? now.nightVision !== true : now.nightVision !== undefined) {
+      problems.push("the saved nightVision would not be the one chosen");
+    }
     // What is saved must survive being written out and read back unchanged.
     if (!sameJson(JSON.parse(JSON.stringify(after)), after)) problems.push("the settings cannot be saved as JSON");
     return problems;
@@ -272,10 +282,10 @@
    * The config to save for this camera's choice, or the reasons it must not be saved.
    * @returns {{ok: true, next: Array}|{ok: false, errors: string[]}}
    */
-  function prepareSave(config, mac, name, values, modes) {
+  function prepareSave(config, mac, name, values, modes, extras) {
     try {
-      const next = applyDetections(config, mac, name, values, modes);
-      const errors = problemsWith(config, next, mac, values, modes);
+      const next = applyDetections(config, mac, name, values, modes, extras);
+      const errors = problemsWith(config, next, mac, values, modes, extras);
       return errors.length > 0 ? { ok: false, errors } : { ok: true, next };
     } catch (error) {
       return { ok: false, errors: ["the change could not be checked (" + (error && error.message ? error.message : "unknown problem") + ")"] };
@@ -288,6 +298,13 @@
     if (setting === "none") return "No detection sensors.";
     return "Chosen: " + setting.join(", ") + ".";
   };
+
+  // Whether the camera's row asks for the Night Vision switches.
+  function nightVisionOf(config, mac) {
+    const entry = Array.isArray(config) && config.length > 0 ? config[0] : null;
+    const row = ((entry && entry.cameras) || []).find((cam) => cam && cam.mac === mac);
+    return Boolean(row && row.nightVision === true);
+  }
 
   /**
    * The cameras as the panel shows them: Motion and Sound first, then the labels with a sensor type, then names with
@@ -302,6 +319,7 @@
       planActive: Boolean(cam.plan && cam.plan.state === "active"),
       setting: describeSetting(cam.setting),
       notAuto: cam.setting !== "auto" || cam.sensors.some((s) => s.mode !== "auto"),
+      nightVision: nightVisionOf(config, cam.mac),
       items: [
         ...cam.sensors.map((s) => ({ key: s.key, label: s.label, ai: false, checked: s.checked, blocked: s.blocked, warning: s.warning, tag: "", other: false })),
         ...cam.items.map((i) => ({
@@ -328,12 +346,16 @@
   function prepareChoice(detected, config, id, choice) {
     const cam = buildView(detected, config).find((c) => c.mac === id);
     if (!cam) return { ok: false, errors: ["that camera is not one the plugin has found"] };
-    const { ticks, auto } = choice || {};
+    const { ticks, auto, nightVision } = choice || {};
+    const extras = nightVision === undefined ? undefined : { nightVision };
     let values;
     let modes;
     if (auto === true) {
       values = [];
       modes = { motionSensor: "auto", soundSensor: "auto" };
+    } else if (ticks === undefined && nightVision !== undefined) {
+      values = null; // only the Night Vision switches change; the AI list and the sensors are left as they are
+      modes = {};
     } else {
       if (!ticks || typeof ticks !== "object" || Array.isArray(ticks)) return { ok: false, errors: ["no changes given"] };
       const known = new Set([...cam.items.map((i) => i.value), ...cam.sensors.map((s) => s.key)]);
@@ -346,7 +368,7 @@
       values = detectionsToSave(cam.items);
       modes = modesFor(cam.sensors);
     }
-    const prepared = prepareSave(config, id, cam.name, values, modes);
+    const prepared = prepareSave(config, id, cam.name, values, modes, extras);
     return prepared.ok ? { ok: true, next: prepared.next, name: cam.name } : prepared;
   }
 

@@ -25,6 +25,7 @@
   #wyze-detected .wd-tag { font-size: .7rem; opacity: .8; white-space: nowrap; }
   #wyze-detected .wd-empty { opacity: .75; font-size: .85rem; margin: .25rem 0 0; }
   #wyze-detected .wd-link { margin: 0 0 .75rem; padding: .6rem .8rem; border: 1px solid rgba(128, 128, 128, .4); border-radius: 6px; font-size: .9rem; }
+  #wyze-detected .wd-night { display: block; margin: .6rem 0 .2rem; }
   #wyze-detected .wd-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
 </style>
 <div id="wyze-detected"></div>
@@ -82,6 +83,7 @@
 
       const saveButton = el('button', 'Save these to the config', 'btn btn-primary btn-sm');
       saveButton.disabled = true;
+      let nightVision = cam.nightVision;
       function group (items, heading) {
         if (items.length === 0) return;
         if (heading) box.appendChild(el('div', heading, 'wd-group'));
@@ -97,7 +99,7 @@
             const next = !on();
             if (next === item.checked) ticks.delete(item.key); else ticks.set(item.key, next);
             show();
-            saveButton.disabled = ticks.size === 0;
+            saveButton.disabled = ticks.size === 0 && nightVision === cam.nightVision;
           });
           show();
           row.appendChild(el('span', item.label));
@@ -114,8 +116,24 @@
       group(cam.items.filter((item) => item.other), 'Other labels. No sensor type for these yet, so turning one on only saves the name.');
       if (cam.unnamed.length) box.appendChild(el('p', 'Labels with no name here: ' + cam.unnamed.join(', ') + '. They get no sensor.', 'wd-empty'));
 
+      // Night vision has no sensor to switch: it adds two HomeKit switches, set on the camera over the home network.
+      const nightRow = el('label', undefined, 'wd-night');
+      const nightBox = document.createElement('input');
+      nightBox.type = 'checkbox';
+      nightBox.checked = cam.nightVision;
+      nightBox.addEventListener('change', () => { nightVision = nightBox.checked; saveButton.disabled = ticks.size === 0 && nightVision === cam.nightVision; });
+      nightRow.appendChild(nightBox);
+      nightRow.appendChild(el('span', ' Night Vision switches (Night Vision and Night Vision Auto)'));
+      box.appendChild(nightRow);
+      box.appendChild(el('p', 'Sets night vision on the camera over your home network, so Homebridge must be on the same network as the camera. A change takes a few seconds and the Wyze app cannot watch that camera meanwhile.', 'wd-empty'));
+
       const buttons = el('div', undefined, 'wd-actions');
-      saveButton.addEventListener('click', () => save(cam, { ticks: Object.fromEntries(ticks) }));
+      saveButton.addEventListener('click', () => {
+        const choice = {};
+        if (ticks.size > 0) choice.ticks = Object.fromEntries(ticks);
+        if (nightVision !== cam.nightVision) choice.nightVision = nightVision;
+        save(cam, choice);
+      });
       buttons.appendChild(saveButton);
       if (cam.notAuto) {
         const autoButton = el('button', 'Back to automatic', 'btn btn-secondary btn-sm');

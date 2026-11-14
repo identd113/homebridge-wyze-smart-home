@@ -192,3 +192,40 @@ test('the camera test page does not write the config', () => {
     assert.ok(!/writeFile|renameSync/.test(source), `${name} writes a file`)
   }
 })
+
+// ---- the Night Vision switches checkbox ----
+
+test('the checkbox sets cameras[].nightVision for that camera, and unticking removes it', () => {
+  const on = view.prepareChoice(detectedFile(), entryWith(), MAC, { nightVision: true })
+  assert.strictEqual(on.ok, true)
+  assert.deepStrictEqual(on.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell', nightVision: true }])
+  assert.strictEqual(view.presentCameras(detectedFile(), on.next)[0].nightVision, true)
+  const off = view.prepareChoice(detectedFile(), on.next, MAC, { nightVision: false })
+  assert.strictEqual(off.ok, true)
+  assert.deepStrictEqual(off.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell' }])
+  assert.strictEqual(view.presentCameras(detectedFile(), off.next)[0].nightVision, false)
+})
+
+test('the checkbox can go with sensor choices, and a sensor change leaves nightVision as it was', () => {
+  const both = view.prepareChoice(detectedFile(), entryWith(), MAC, { ticks: { package: false }, nightVision: true })
+  assert.deepStrictEqual(both.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell', detections: ['person'], nightVision: true }])
+  const sensorOnly = view.prepareChoice(detectedFile(), both.next, MAC, { ticks: { motionSensor: false } })
+  assert.strictEqual(sensorOnly.next[0].cameras[0].nightVision, true)
+  const back = view.prepareChoice(detectedFile(), both.next, MAC, { auto: true })
+  assert.strictEqual(back.next[0].cameras[0].nightVision, true, 'back to automatic is about sensors, not night vision')
+})
+
+test('only true or false is accepted for the checkbox, and it changes nothing else', () => {
+  for (const nightVision of ['yes', 1, null]) {
+    assert.strictEqual(view.prepareChoice(detectedFile(), entryWith(), MAC, { nightVision }).ok, false, String(nightVision))
+  }
+  const config = entryWith({ cameras: [{ mac: MAC, name: 'Front Doorbell', siren: true, detections: ['person'] }] })
+  const result = view.prepareChoice(detectedFile(), config, MAC, { nightVision: true })
+  assert.deepStrictEqual(result.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell', siren: true, detections: ['person'], nightVision: true }])
+})
+
+test('the settings page has the checkbox, and sends the choice only when it changed', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/index.html'), 'utf8')
+  assert.match(html, /nightBox\.type = 'checkbox'/)
+  assert.match(html, /if \(nightVision !== cam\.nightVision\) choice\.nightVision = nightVision/)
+})
