@@ -7,8 +7,11 @@ const assert = require('node:assert')
 
 // The accessory modules take Service, Characteristic and the homebridge handle from types at load time.
 const LockCurrentState = { SECURED: 1, UNSECURED: 0, UNKNOWN: 3 }
+const Brightness = 'Brightness'
+const ColorTemperature = 'ColorTemperature'
+const On = 'On'
 require('../src/types').update({
-  hap: { Service: {}, Characteristic: { LockCurrentState }, uuid: {}, Categories: {} },
+  hap: { Service: {}, Characteristic: { LockCurrentState, Brightness, ColorTemperature, On }, uuid: {}, Categories: {} },
   platformAccessory: class {},
   user: { persistPath: () => require('os').tmpdir() },
   registerPlatform: () => {}
@@ -17,6 +20,8 @@ require('../src/types').update({
 const { normalize, toCanonical2x } = require('../src/configMigrator')
 const WyzeSmartHome = require('../src/WyzeSmartHome')
 const WyzeLock = require('../src/accessories/WyzeLock')
+const WyzeLight = require('../src/accessories/WyzeLight')
+const { propertyIds: PIDs } = require('wyze-api')
 const { Characteristic } = require('../src/types')
 
 const flat = { platform: 'WyzeSmartHome', username: 'a', password: 'b', keyId: 'k', apiKey: 'x' }
@@ -86,4 +91,26 @@ test('a lock that has not been read reports UNKNOWN, not SECURED', async () => {
   assert.strictEqual(await current(undefined), Characteristic.LockCurrentState.UNKNOWN)
   assert.strictEqual(await current(1), Characteristic.LockCurrentState.SECURED)
   assert.strictEqual(await current(2), Characteristic.LockCurrentState.UNSECURED)
+})
+
+test('a bulb that has not synced does not overwrite brightness or colour temperature', async () => {
+  const pushed = {}
+  const bulb = {
+    plugin: { config: {}, log: () => {}, client: { checkBrightnessValue: (v) => v, kelvinToMired: (v) => v, checkColorTemp: (v) => v } },
+    inCommandGrace: () => false,
+    getService: () => ({ testCharacteristic: () => true, addCharacteristic () {}, getCharacteristic: () => ({ updateValue () {} }) }),
+    getCharacteristic: (c) => ({ updateValue: (v) => { pushed[c] = v } }),
+    _readPropertyList: async () => ({ data: { property_list: [
+      { pid: PIDs.BRIGHTNESS, value: 'undefi' },
+      { pid: PIDs.COLOR_TEMP, value: '0' }
+    ] } }),
+    isValidProperty: WyzeLight.prototype.isValidProperty
+  }
+  await WyzeLight.prototype.updateCharacteristics.call(bulb, { conn_state: 1, device_params: { switch_state: 1 } })
+  assert.ok(!('Brightness' in pushed), 'brightness')
+  assert.ok(!('ColorTemperature' in pushed), 'colour temperature')
+
+  bulb._readPropertyList = async () => ({ data: { property_list: [{ pid: PIDs.BRIGHTNESS, value: '80' }] } })
+  await WyzeLight.prototype.updateCharacteristics.call(bulb, { conn_state: 1, device_params: { switch_state: 1 } })
+  assert.strictEqual(pushed.Brightness, 80)
 })

@@ -90,6 +90,7 @@ module.exports = class WyzeLight extends WyzeAccessory {
     let brightness = null;
     let colorTempK = null;
     for (const property of propertyList?.data?.property_list ?? []) {
+      if (!this.isValidProperty(property)) continue;
       switch (property.pid) {
         case PIDs.BRIGHTNESS:
           brightness = Number(property.value);
@@ -112,6 +113,16 @@ module.exports = class WyzeLight extends WyzeAccessory {
           (brightness != null ? `, ${brightness}%` : "") +
           (colorTempK != null ? `, ${colorTempK}K` : "")
       );
+  }
+
+  isValidProperty(property) {
+    // Wyze reports placeholder values ("undefi" is a truncated "undefined") when a bulb has not
+    // synced yet. Skip them, as WyzeMeshLight does, so they do not overwrite the real state.
+    const v = property.value;
+    if (v != null && v !== "0" && v !== "undefi" && Number.isFinite(Number(v))) return true;
+    if (this.plugin.config.pluginLoggingEnabled)
+      this.plugin.log(`[Light] Skipping invalid property: ${JSON.stringify(property)}`);
+    return false;
   }
 
   async setOn(value) {
