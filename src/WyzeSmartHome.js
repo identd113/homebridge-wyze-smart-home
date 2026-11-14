@@ -47,6 +47,8 @@ const DEFAULT_SECURITY_REFRESH_INTERVAL = 10000
 // window as long as (or longer than) the poll loop itself and silently disable
 // fast polling whenever refreshInterval <= securityRefreshInterval.
 const FULL_REFRESH_SKIP_WINDOW_MS = 10000
+// Empty device lists in a row before the accessories are treated as gone (see refreshDevices).
+const EMPTY_LIST_REFRESHES = 3
 
 // Accessories that make their own API call in updateCharacteristics and return
 // a boolean indicating whether state changed — safe to fast-poll independently.
@@ -299,6 +301,19 @@ module.exports = class WyzeSmartHome {
         return
       }
 
+      // An empty list while accessories exist is most likely a Wyze outage. Acting on it would
+      // unregister every bridged accessory (and with it the user's HomeKit rooms and automations),
+      // so it is ignored until it has been empty for several refreshes in a row.
+      if (devices.length === 0 && this.accessories.length > 0) {
+        this._emptyListCount = (this._emptyListCount || 0) + 1
+        if (this._emptyListCount < EMPTY_LIST_REFRESHES) {
+          this.log.warn(`Wyze returned no devices (${this._emptyListCount}/${EMPTY_LIST_REFRESHES}); keeping the ${this.accessories.length} known accessories`)
+          return
+        }
+      } else {
+        this._emptyListCount = 0
+      }
+
       if (this.config.pluginLoggingEnabled) this.log(`Found ${devices.length} device(s)`)
 
       // Wyze Room Sensors (CO_TH1) aren't returned by the bulk getObjectList
@@ -501,7 +516,7 @@ module.exports = class WyzeSmartHome {
       if (this.config.pluginLoggingEnabled) this.log(`[${device.product_type}] Ignoring (${safeName}) (MAC: ${device.mac}) because it is in the Ignore Device list`)
       return
     }
-    else if (device.product_type == 'S1Gateway' && !this.config.hmsEnabled) {
+    else if (device.product_type == 'S1Gateway' && !(this.config.hmsEnabled ?? this.config.hms?.enabled)) {
       if (this.config.pluginLoggingEnabled) this.log(`[${device.product_type}] Ignoring (${safeName}) (MAC: ${device.mac}) because it is not enabled`)
       return
     }

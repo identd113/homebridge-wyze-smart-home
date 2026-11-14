@@ -102,6 +102,13 @@ const PASSTHROUGH_KEYS = [
   "userAgent",
   "sc",
   "sv",
+  // Read by WyzeSmartHome (locks, thermostat) and WyzeIrrigation.
+  "irrigationZone",
+  "fordAppKey",
+  "fordAppSecret",
+  "oliveSigningSecret",
+  "oliveAppId",
+  "appInfo",
 ];
 
 function isPlainObject(v) {

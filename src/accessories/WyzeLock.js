@@ -149,6 +149,8 @@ module.exports = class WyzeLock extends WyzeAccessory {
   }
 
   async getLockCurrentState() {
+    // Never read yet: say so, rather than show a door that has not been seen as locked.
+    if (this.hardlock === undefined) return Characteristic.LockCurrentState.UNKNOWN;
     return this.hardlock === 2
       ? Characteristic.LockCurrentState.UNSECURED
       : Characteristic.LockCurrentState.SECURED;
