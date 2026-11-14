@@ -165,17 +165,51 @@ test('the page is started with that form', async () => {
   assert.strictEqual(lib.made[0].issueForm.deviceLabel('HL_DB2'), 'Doorbells - Video Doorbell v2 (HL_DB2)')
 })
 
-test('the page is given settings that are read from and written to Homebridge\'s config.json', async () => {
+test('the page is given settings and sensors that are only read from Homebridge\'s config.json', async () => {
   const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'wyze-page-settings-'))
   const file = path.join(dir, 'config.json')
   fs.writeFileSync(file, JSON.stringify({ platforms: [{ platform: 'WyzeSmartHome', name: 'Wyze', advanced: { webServerPort: 8099 } }] }, null, 4) + '\n')
+  const before = fs.readFileSync(file, 'utf8')
   const { p } = platformWith({ name: 'Wyze', webServerPort: 8099 })
-  p.api = { user: { configPath: () => file } }
+  p.api = { user: { configPath: () => file, storagePath: () => dir } }
   const lib = fakeLib()
   await p.startCameraTestPage(lib)
-  const settings = lib.made[0].settings
-  assert.strictEqual(typeof settings.describe, 'function')
+  const { settings, sensors } = lib.made[0]
   assert.strictEqual((await settings.describe()).fields.find((f) => f.key === 'webServerPort').value, 8099)
-  await settings.save({ warmLiveView: true })
-  assert.strictEqual(JSON.parse(fs.readFileSync(file, 'utf8')).platforms[0].advanced.warmLiveView, true, 'the change is in the file')
+  assert.deepStrictEqual((await sensors.describe()).cameras, [])
+  assert.strictEqual(settings.save, undefined)
+  assert.strictEqual(sensors.save, undefined)
+  assert.strictEqual(fs.readFileSync(file, 'utf8'), before, 'the file is untouched')
+})
+
+test('the links are noted for the settings screen when the page starts, and removed at shutdown or when it is off', async () => {
+  const webPageLink = require('../src/webPageLink')
+  const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'wyze-page-link-'))
+  const on = platformWith({ webServerPort: 8099 })
+  on.p.api = { user: { configPath: () => path.join(dir, 'config.json'), storagePath: () => dir } }
+  await on.p.startCameraTestPage(fakeLib())
+  assert.deepStrictEqual(webPageLink.read(dir).urls, ['http://localhost:8099/?token=abc', 'http://10.0.0.5:8099/?token=abc'])
+  assert.strictEqual(webPageLink.read(dir).port, 8099)
+  assert.strictEqual(fs.statSync(path.join(dir, 'homebridge-wyze-smart-home', 'web-page.json')).mode & 0o777, 0o600)
+  on.p.shutdown()
+  assert.deepStrictEqual(webPageLink.read(dir).urls, [])
+  // a link left by an earlier run is removed when the page is off
+  webPageLink.write(dir, { port: 1, urls: ['http://old:1/?token=x'] })
+  const off = platformWith({})
+  off.p.api = { user: { storagePath: () => dir } }
+  await off.p.startCameraTestPage(fakeLib())
+  assert.deepStrictEqual(webPageLink.read(dir).urls, [])
+})
+
+test('the link file is only read as http links, and a missing or odd file reads as none', () => {
+  const webPageLink = require('../src/webPageLink')
+  const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'wyze-page-link-'))
+  assert.deepStrictEqual(webPageLink.read(dir), { port: null, urls: [] })
+  assert.deepStrictEqual(webPageLink.read(''), { port: null, urls: [] })
+  assert.strictEqual(webPageLink.write('', { port: 1, urls: [] }), false, 'no storage folder, no file')
+  fs.mkdirSync(path.join(dir, 'homebridge-wyze-smart-home'))
+  fs.writeFileSync(path.join(dir, 'homebridge-wyze-smart-home', 'web-page.json'), JSON.stringify({ port: 8585, urls: ['http://10.0.0.2:8585/?token=a', 'javascript:alert(1)', 'https://evil.example/x', 5] }))
+  assert.deepStrictEqual(webPageLink.read(dir).urls, ['http://10.0.0.2:8585/?token=a'])
+  fs.writeFileSync(path.join(dir, 'homebridge-wyze-smart-home', 'web-page.json'), '{ nope')
+  assert.deepStrictEqual(webPageLink.read(dir), { port: null, urls: [] })
 })

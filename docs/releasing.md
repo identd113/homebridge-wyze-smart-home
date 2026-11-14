@@ -33,5 +33,5 @@ How a release gets to npm, and the order to do things in. This plugin depends on
 
 ## After
 
-- Install both packages from the registry into a scratch Homebridge, start it, and check the log for errors. Set `advanced.webServerPort`, open the camera test page from the log link and look at the Detected sensors panel.
+- Install both packages from the registry into a scratch Homebridge, start it, and check the log for errors. Open the plugin's settings page and look at the Detected sensors panel; set `advanced.webServerPort` and check its "Open" link works.
 - Let a beta soak for a while with no new bugs before cutting a stable 2.0.0.

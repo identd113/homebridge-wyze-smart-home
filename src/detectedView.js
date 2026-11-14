@@ -282,5 +282,73 @@
     }
   }
 
-  module.exports = { LABELS, SENSORS, planLine, planSummary, settingFor, modeFor, buildView, valuesFor, detectionsToSave, unsavedChanges, modesFor, applyDetections, problemsWith, prepareSave };
+
+  const describeSetting = (setting) => {
+    if (setting === "auto") return "Automatic: Person, Vehicle, Pet and Package where the camera has them. Face is never automatic.";
+    if (setting === "none") return "No detection sensors.";
+    return "Chosen: " + setting.join(", ") + ".";
+  };
+
+  /**
+   * The cameras as the panel shows them: Motion and Sound first, then the labels with a sensor type, then names with
+   * no sensor type yet. `config` is the plugin config as an array (the form the settings page hands over).
+   */
+  function presentCameras(detected, config) {
+    return buildView(detected, config).map((cam) => ({
+      id: cam.mac,
+      name: cam.name,
+      model: cam.model,
+      plan: planLine(cam.plan),
+      planActive: Boolean(cam.plan && cam.plan.state === "active"),
+      setting: describeSetting(cam.setting),
+      notAuto: cam.setting !== "auto" || cam.sensors.some((s) => s.mode !== "auto"),
+      items: [
+        ...cam.sensors.map((s) => ({ key: s.key, label: s.label, ai: false, checked: s.checked, blocked: s.blocked, warning: s.warning, tag: "", other: false })),
+        ...cam.items.map((i) => ({
+          key: i.value,
+          label: i.label,
+          ai: i.ai,
+          checked: i.checked,
+          blocked: false,
+          warning: "",
+          tag: i.other ? "" : i.isNew ? (i.auto ? "new" : "off by default") : i.checked && !i.found ? "not seen lately" : "",
+          other: i.other,
+        })),
+      ],
+      unnamed: cam.unnamed,
+    }));
+  }
+
+  /**
+   * The config to save for one camera's choice. `choice.ticks` maps an item key to on or off; `choice.auto` puts the
+   * camera back to automatic. The ticks are applied to the camera as `config` reads now, so a change is always
+   * against the saved settings. Returns the same as prepareSave, with the camera's name.
+   * @returns {{ok: true, next: Array, name: string}|{ok: false, errors: string[]}}
+   */
+  function prepareChoice(detected, config, id, choice) {
+    const cam = buildView(detected, config).find((c) => c.mac === id);
+    if (!cam) return { ok: false, errors: ["that camera is not one the plugin has found"] };
+    const { ticks, auto } = choice || {};
+    let values;
+    let modes;
+    if (auto === true) {
+      values = [];
+      modes = { motionSensor: "auto", soundSensor: "auto" };
+    } else {
+      if (!ticks || typeof ticks !== "object" || Array.isArray(ticks)) return { ok: false, errors: ["no changes given"] };
+      const known = new Set([...cam.items.map((i) => i.value), ...cam.sensors.map((s) => s.key)]);
+      for (const [key, on] of Object.entries(ticks)) {
+        if (!known.has(key)) return { ok: false, errors: [key + " is not something this camera shows"] };
+        if (typeof on !== "boolean") return { ok: false, errors: [key + " must be true or false"] };
+      }
+      for (const item of cam.items) if (ticks[item.value] !== undefined) item.checked = ticks[item.value];
+      for (const sensor of cam.sensors) if (ticks[sensor.key] !== undefined) sensor.checked = ticks[sensor.key];
+      values = detectionsToSave(cam.items);
+      modes = modesFor(cam.sensors);
+    }
+    const prepared = prepareSave(config, id, cam.name, values, modes);
+    return prepared.ok ? { ok: true, next: prepared.next, name: cam.name } : prepared;
+  }
+
+  module.exports = { LABELS, SENSORS, planLine, planSummary, settingFor, modeFor, buildView, valuesFor, detectionsToSave, unsavedChanges, modesFor, applyDetections, problemsWith, prepareSave, presentCameras, prepareChoice };
 })();

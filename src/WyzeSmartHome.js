@@ -35,6 +35,7 @@ const WyzeVacuum = require('./accessories/WyzeVacuum')
 const WyzeIrrigation = require('./accessories/WyzeIrrigation')
 const { createWebSettings } = require('./webSettings')
 const { createWebSensors } = require('./webSensors')
+const webPageLink = require('./webPageLink')
 
 const PLUGIN_NAME = 'homebridge-wyze-smart-home'
 const PLATFORM_NAME = 'WyzeSmartHome'
@@ -173,28 +174,27 @@ module.exports = class WyzeSmartHome {
       try { accessory.stopStreams?.() } catch (_) { /* best effort */ }
     }
     this.webServer?.stop().catch(() => {})
+    if (this.webServer) webPageLink.clear(this.api?.user?.storagePath?.() || '')
     return this.client?.closeAllCameraSessions?.().catch(() => {})
   }
 
-  // The settings the camera test page shows and changes. They are read from and written to Homebridge's config.json.
+  // The settings the camera test page shows (read-only), read from Homebridge's config.json.
   webSettings () {
     return createWebSettings({
       configPath: () => this.api?.user?.configPath?.(),
       platformAlias: PLATFORM_NAME,
       instanceName: this.config.name,
-      running: () => this.config,
-      log: this.log
+      running: () => this.config
     })
   }
 
-  // The sensors panel of the camera test page: what each camera has, and which sensors to switch on.
+  // The sensors list of the camera test page (read-only): what each camera has, and how the config reads for it.
   webSensors () {
     return createWebSensors({
       configPath: () => this.api?.user?.configPath?.(),
       platformAlias: PLATFORM_NAME,
       instanceName: this.config.name,
-      storagePath: () => this.api?.user?.storagePath?.(),
-      log: this.log
+      storagePath: () => this.api?.user?.storagePath?.()
     })
   }
 
@@ -218,6 +218,7 @@ module.exports = class WyzeSmartHome {
   // Off unless advanced.webServerPort is a port from 1024 up. A bad value or a busy port is logged and the
   // plugin carries on without the page. `lib` is wyze-api; tests pass a stand-in.
   async startCameraTestPage (lib = WyzeAPI) {
+    webPageLink.clear(this.api?.user?.storagePath?.() || '') // a link left by an earlier run is no longer good
     const raw = this.config.webServerPort ?? this.config.advanced?.webServerPort
     if (raw === undefined || raw === null || raw === '' || raw === 0 || raw === '0') return
     try {
@@ -235,6 +236,7 @@ module.exports = class WyzeSmartHome {
       const { urls } = await this.webServer.start()
       this.log.info?.(`[Web] Camera test page is on port ${check.port}. Open one of these from a computer on the same network (the token changes at every restart, and anyone with the link can test your cameras and change night vision):`)
       for (const url of urls) this.log.info?.(`[Web]   ${url}`)
+      webPageLink.write(this.api?.user?.storagePath?.() || '', { port: check.port, urls })
     } catch (e) {
       this.webServer = undefined
       this.log.warn?.(`[Web] The camera test page could not start: ${e.code === 'EADDRINUSE' ? `port ${raw} is already in use` : e.message}`)

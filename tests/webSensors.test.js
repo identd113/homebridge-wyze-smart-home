@@ -1,5 +1,6 @@
 /**
- * The camera test page's sensors panel reads config.json fresh and writes a camera's choice straight back to it.
+ * The sensors: the camera test page shows them read-only from config.json, and the plugin's settings screen
+ * (homebridge-ui) saves a choice through Homebridge's own UI after the server has checked it.
  */
 const test = require('node:test')
 const assert = require('node:assert')
@@ -8,19 +9,22 @@ const os = require('node:os')
 const path = require('node:path')
 const { createWebSensors } = require('../src/webSensors')
 const detectedSensors = require('../src/detectedSensors')
+const view = require('../src/detectedView')
 
 const MAC = 'AABBCCDDEEFF'
+const FOUND = { mac: MAC, name: 'Front Doorbell', model: 'HL_DB2', motion: true, sound: true, soundRecording: true, labels: ['person', 'package'], unnamed: [] }
 
-function setup (platform = {}) {
+function setup (platform = {}, found = FOUND) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wyze-sensors-'))
   const file = path.join(dir, 'config.json')
   const config = { bridge: { name: 'Test' }, platforms: [{ platform: 'WyzeSmartHome', name: 'Wyze', username: 'u', password: 'p', ...platform }] }
   fs.writeFileSync(file, JSON.stringify(config, null, 4) + '\n', { mode: 0o600 })
-  detectedSensors.record(dir, { mac: MAC, name: 'Front Doorbell', model: 'HL_DB2', motion: true, sound: true, soundRecording: true, labels: ['person', 'package'], unnamed: [] })
+  detectedSensors.record(dir, found)
   const sensors = createWebSensors({ configPath: () => file, platformAlias: 'WyzeSmartHome', instanceName: 'Wyze', storagePath: () => dir })
-  const read = () => JSON.parse(fs.readFileSync(file, 'utf8'))
-  return { dir, file, sensors, read }
+  return { dir, file, sensors, entry: () => JSON.parse(fs.readFileSync(file, 'utf8')).platforms[0] }
 }
+
+// ---- the camera test page: read-only ----
 
 test('describe lists each camera with Motion and Sound first, then its AI labels, as the file reads now', async () => {
   const { sensors } = setup()
@@ -36,75 +40,19 @@ test('describe lists each camera with Motion and Sound first, then its AI labels
   assert.strictEqual(cam.notAuto, false)
 })
 
-test('describe follows the config file, not anything remembered', async () => {
-  const { sensors, file, read } = setup()
-  const config = read()
+test('describe follows the config file, not anything remembered, and never writes it', async () => {
+  const { sensors, file, entry } = setup()
+  const config = JSON.parse(fs.readFileSync(file, 'utf8'))
   config.platforms[0].cameras = [{ mac: MAC, detections: ['person'], motionSensor: 'off' }]
   fs.writeFileSync(file, JSON.stringify(config))
+  const before = fs.readFileSync(file, 'utf8')
   const cam = (await sensors.describe()).cameras[0]
   assert.deepStrictEqual(Object.fromEntries(cam.items.map((i) => [i.key, i.checked])), { motionSensor: false, soundSensor: true, person: true, package: false })
   assert.strictEqual(cam.notAuto, true)
   assert.match(cam.setting, /Chosen: person/)
-})
-
-test('unticking a label saves the list to config.json, and only that camera\'s row changes', async () => {
-  const { sensors, read } = setup()
-  const before = read()
-  const result = await sensors.save(MAC, { ticks: { package: false } })
-  assert.deepStrictEqual(result, { saved: true, restartNeeded: true })
-  const after = read()
-  assert.deepStrictEqual(after.platforms[0].cameras, [{ mac: MAC, name: 'Front Doorbell', detections: ['person'] }])
-  assert.deepStrictEqual({ ...after.platforms[0], cameras: undefined }, { ...before.platforms[0], cameras: undefined })
-  assert.deepStrictEqual(after.bridge, before.bridge)
-  const cam = (await sensors.describe()).cameras[0]
-  assert.strictEqual(cam.items.find((i) => i.key === 'package').checked, false)
-})
-
-test('Motion off saves "off" and leaves the AI list alone', async () => {
-  const { sensors, read } = setup()
-  await sensors.save(MAC, { ticks: { motionSensor: false } })
-  assert.deepStrictEqual(read().platforms[0].cameras, [{ mac: MAC, name: 'Front Doorbell', motionSensor: 'off' }])
-})
-
-test('back to automatic removes the choices', async () => {
-  const { sensors, read } = setup()
-  await sensors.save(MAC, { ticks: { package: false, motionSensor: false } })
-  await sensors.save(MAC, { auto: true })
-  assert.deepStrictEqual(read().platforms[0].cameras, [{ mac: MAC, name: 'Front Doorbell' }])
-})
-
-test('a write keeps a backup, the file\'s mode and its indentation', async () => {
-  const { sensors, file } = setup()
-  const raw = fs.readFileSync(file, 'utf8')
-  await sensors.save(MAC, { ticks: { package: false } })
-  assert.strictEqual(fs.readFileSync(`${file}.web-settings.bak`, 'utf8'), raw)
-  assert.strictEqual(fs.statSync(file).mode & 0o777, 0o600)
-  assert.match(fs.readFileSync(file, 'utf8'), /^ {4}"bridge"/m)
-})
-
-test('a camera the plugin has not found, an unknown item or a non-boolean tick is refused and nothing is written', async () => {
-  const { sensors, file } = setup()
-  const raw = fs.readFileSync(file, 'utf8')
-  for (const [id, choice] of [['nope', { ticks: { person: false } }], [MAC, { ticks: { starship: true } }], [MAC, { ticks: { person: 'no' } }], [MAC, {}], [MAC, { ticks: [] }], [42, { auto: true }]]) {
-    await assert.rejects(() => sensors.save(id, choice), (e) => e.status === 400)
-  }
-  assert.strictEqual(fs.readFileSync(file, 'utf8'), raw)
-})
-
-test('a blocked sensor (sound recording off) is left as it is', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wyze-sensors-'))
-  const file = path.join(dir, 'config.json')
-  fs.writeFileSync(file, JSON.stringify({ platforms: [{ platform: 'WyzeSmartHome', name: 'Wyze' }] }))
-  detectedSensors.record(dir, { mac: MAC, name: 'Garage', model: 'HL_CAM3', motion: true, sound: false, soundRecording: false, labels: [], unnamed: [] })
-  const sensors = createWebSensors({ configPath: () => file, platformAlias: 'WyzeSmartHome', storagePath: () => dir })
-  const cam = (await sensors.describe()).cameras[0]
-  const sound = cam.items.find((i) => i.key === 'soundSensor')
-  assert.strictEqual(sound.blocked, true)
-  assert.match(sound.warning, /Sound recording is off/)
-  await sensors.save(MAC, { ticks: { motionSensor: false, soundSensor: true } })
-  const saved = JSON.parse(fs.readFileSync(file, 'utf8')).platforms[0].cameras[0]
-  assert.strictEqual(saved.motionSensor, 'off')
-  assert.strictEqual(saved.soundSensor, undefined)
+  assert.strictEqual(fs.readFileSync(file, 'utf8'), before)
+  assert.strictEqual(sensors.save, undefined)
+  assert.ok(entry())
 })
 
 test('with nothing noted yet there are no cameras, and a missing or broken config says so plainly', async () => {
@@ -120,10 +68,127 @@ test('with nothing noted yet there are no cameras, and a missing or broken confi
   await assert.rejects(() => make(file).describe(), /not in config.json/)
 })
 
-test('the plugin hands the page its sensors, and the old custom settings page is gone', () => {
-  const source = fs.readFileSync(path.join(__dirname, '../src/WyzeSmartHome.js'), 'utf8')
-  assert.match(source, /sensors: this\.webSensors\(\)/)
+// ---- the settings screen: the choice is checked on the server, then saved by Homebridge's UI ----
+
+const detectedFile = (found = FOUND) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wyze-sensors-'))
+  detectedSensors.record(dir, found)
+  return detectedSensors.read(dir)
+}
+const entryWith = (extra = {}) => [{ platform: 'WyzeSmartHome', name: 'Wyze', ...extra }]
+
+test('unticking a label gives the list to save, and only that camera\'s row changes', () => {
+  const config = entryWith()
+  const result = view.prepareChoice(detectedFile(), config, MAC, { ticks: { package: false } })
+  assert.strictEqual(result.ok, true)
+  assert.strictEqual(result.name, 'Front Doorbell')
+  assert.deepStrictEqual(result.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell', detections: ['person'] }])
+  assert.deepStrictEqual({ ...result.next[0], cameras: undefined }, { ...config[0], cameras: undefined })
+  assert.strictEqual(config[0].cameras, undefined, 'the config it was given is not changed')
+})
+
+test('Motion off saves "off" and leaves the AI list alone', () => {
+  const result = view.prepareChoice(detectedFile(), entryWith(), MAC, { ticks: { motionSensor: false } })
+  assert.deepStrictEqual(result.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell', motionSensor: 'off' }])
+})
+
+test('back to automatic removes the choices', () => {
+  const chosen = view.prepareChoice(detectedFile(), entryWith(), MAC, { ticks: { package: false, motionSensor: false } })
+  const back = view.prepareChoice(detectedFile(), chosen.next, MAC, { auto: true })
+  assert.deepStrictEqual(back.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell' }])
+})
+
+test('a camera the plugin has not found, an unknown item or a non-boolean tick is refused', () => {
+  for (const [id, choice] of [['nope', { ticks: { person: false } }], [MAC, { ticks: { starship: true } }], [MAC, { ticks: { person: 'no' } }], [MAC, {}], [MAC, { ticks: [] }], [42, { auto: true }]]) {
+    const result = view.prepareChoice(detectedFile(), entryWith(), id, choice)
+    assert.strictEqual(result.ok, false, JSON.stringify([id, choice]))
+    assert.ok(result.errors.length > 0)
+  }
+})
+
+test('a blocked sensor (sound recording off) is left as it is', () => {
+  const found = { mac: MAC, name: 'Garage', model: 'HL_CAM3', motion: true, sound: false, soundRecording: false, labels: [], unnamed: [] }
+  const cam = view.presentCameras(detectedFile(found), entryWith())[0]
+  const sound = cam.items.find((i) => i.key === 'soundSensor')
+  assert.strictEqual(sound.blocked, true)
+  assert.match(sound.warning, /Sound recording is off/)
+  const result = view.prepareChoice(detectedFile(found), entryWith(), MAC, { ticks: { motionSensor: false, soundSensor: true } })
+  assert.strictEqual(result.next[0].cameras[0].motionSensor, 'off')
+  assert.strictEqual(result.next[0].cameras[0].soundSensor, undefined)
+})
+
+test('a config with no cameras list is the same as one with an empty list', () => {
+  const result = view.prepareChoice(detectedFile(), entryWith(), MAC, { ticks: { package: false } })
+  assert.strictEqual(result.ok, true)
+  const empty = view.prepareChoice(detectedFile(), entryWith({ cameras: [] }), MAC, { ticks: { package: false } })
+  assert.strictEqual(empty.ok, true)
+})
+
+// The settings screen's server is run as Homebridge runs it: a child process that is sent requests over IPC.
+function ask (storagePath, requestPath, body = {}) {
+  const { fork } = require('node:child_process')
+  return new Promise((resolve, reject) => {
+    const child = fork(path.join(__dirname, '../homebridge-ui/server.js'), [], { env: { ...process.env, HOMEBRIDGE_STORAGE_PATH: storagePath }, silent: true })
+    const timer = setTimeout(() => { child.kill(); reject(new Error('the server did not answer')) }, 10000)
+    child.on('error', reject)
+    child.on('message', (message) => {
+      if (message.action === 'ready') child.send({ action: 'request', requestId: 'r1', path: requestPath, body })
+      if (message.action === 'response') { clearTimeout(timer); child.kill(); resolve(message.payload) }
+    })
+  })
+}
+
+test('the settings screen\'s server shows the cameras for the config it is given', async () => {
+  const { dir } = setup()
+  const answer = await ask(dir, '/view', { config: entryWith({ cameras: [{ mac: MAC, detections: ['person'] }] }) })
+  assert.strictEqual(answer.success, true)
+  assert.strictEqual(answer.data.cameras[0].name, 'Front Doorbell')
+  assert.strictEqual(answer.data.cameras[0].items.find((i) => i.key === 'package').checked, false)
+  const empty = await ask(fs.mkdtempSync(path.join(os.tmpdir(), 'wyze-ui-')), '/view', { config: [] })
+  assert.deepStrictEqual(empty.data.cameras, [])
+})
+
+test('the settings screen\'s server checks a change and answers with the config to save, or the reasons not to', async () => {
+  const { dir } = setup()
+  const good = await ask(dir, '/prepare', { config: entryWith(), id: MAC, choice: { ticks: { package: false } } })
+  assert.strictEqual(good.data.ok, true)
+  assert.deepStrictEqual(good.data.next[0].cameras[0].detections, ['person'])
+  const bad = await ask(dir, '/prepare', { config: entryWith(), id: MAC, choice: { ticks: { starship: true } } })
+  assert.strictEqual(bad.data.ok, false)
+  const none = await ask(dir, '/prepare', {})
+  assert.strictEqual(none.data.ok, false)
+})
+
+test('the settings screen\'s server gives the camera test page\'s links, and none when it is off', async () => {
+  const { dir } = setup()
+  assert.deepStrictEqual((await ask(dir, '/web-link')).data, { port: null, urls: [] })
+  require('../src/webPageLink').write(dir, { port: 8585, urls: ['http://10.0.0.2:8585/?token=abc'] })
+  assert.deepStrictEqual((await ask(dir, '/web-link')).data, { port: 8585, urls: ['http://10.0.0.2:8585/?token=abc'] })
+})
+
+test('the settings screen is a real custom page: the schema turns it on, and it saves only through Homebridge\'s UI after the server\'s check', () => {
   const schema = JSON.parse(fs.readFileSync(path.join(__dirname, '../config.schema.json'), 'utf8'))
-  assert.strictEqual(schema.customUi, undefined)
-  assert.ok(!fs.existsSync(path.join(__dirname, '../homebridge-ui')))
+  assert.strictEqual(schema.customUi, true)
+  assert.ok(require('../package.json').dependencies['@homebridge/plugin-ui-utils'])
+  assert.strictEqual(require('../homebridge-ui/package.json').type, 'module')
+  const html = fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/index.html'), 'utf8')
+  for (const call of ['homebridge.showSchemaForm', "homebridge.request('/view'", "homebridge.request('/prepare'", "homebridge.request('/web-link')", 'homebridge.getPluginConfig', 'homebridge.updatePluginConfig', 'homebridge.savePluginConfig']) {
+    assert.ok(html.includes(call), `the page does not call ${call}`)
+  }
+  assert.ok(!html.includes('innerHTML'), 'camera names come from Wyze, so the page builds its elements as text')
+  const save = html.slice(html.indexOf('async function save'), html.indexOf('function card'))
+  const check = save.indexOf('if (!prepared || !prepared.ok)')
+  const returns = save.indexOf('return;', check)
+  const update = save.indexOf('homebridge.updatePluginConfig')
+  assert.ok(check > 0 && returns > check && returns < update, 'a refused change returns before anything is updated or saved')
+  assert.ok(save.indexOf('homebridge.savePluginConfig') > update)
+  assert.match(save, /JSON\.stringify\(baseConfig\) !== JSON\.stringify\(config\)/, 'unsaved edits in the form block the save')
+  assert.ok(!fs.existsSync(path.join(__dirname, '../homebridge-ui/public/detected.js')), 'the logic has one copy, in src/detectedView.js')
+})
+
+test('the camera test page does not write the config', () => {
+  for (const name of ['webSensors', 'webSettings', 'configFile']) {
+    const source = fs.readFileSync(path.join(__dirname, `../src/${name}.js`), 'utf8')
+    assert.ok(!/writeFile|renameSync/.test(source), `${name} writes a file`)
+  }
 })

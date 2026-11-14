@@ -1,6 +1,6 @@
 /**
- * The settings of the camera test page: config.json is the only place they live. Reads go to the file, writes go
- * straight back to it, and nothing outside the listed options can be read or changed.
+ * The settings of the camera test page: config.json is the only place they live. Reads go to the file, the page
+ * cannot write them, and nothing outside the listed options can be read.
  */
 const test = require('node:test')
 const assert = require('node:assert')
@@ -20,8 +20,7 @@ function setup (config, { indent = 4, trailingNewline = true } = {}) {
     configPath: () => file,
     platformAlias: 'WyzeSmartHome',
     instanceName: 'Wyze',
-    running: () => state.running,
-    log: { info: (m) => lines.push(m) }
+    running: () => state.running
   })
   return { dir, file, settings, state, lines, read: () => JSON.parse(fs.readFileSync(file, 'utf8')) }
 }
@@ -69,98 +68,16 @@ test('every read goes to the file, so a change made elsewhere shows at once', as
   assert.strictEqual((await t.settings.describe()).fields.find((f) => f.key === 'sensorHoldSeconds').value, 300)
 })
 
-test('a change is written to config.json, and nothing else in the file changes', async () => {
-  const t = setup(CONFIG)
-  const result = await t.settings.save({ snapshotRefreshSeconds: 60, warmLiveView: false })
-  assert.deepStrictEqual(result, { saved: { snapshotRefreshSeconds: 60, warmLiveView: false }, restartNeeded: true })
-  const after = t.read()
-  const expected = JSON.parse(JSON.stringify(CONFIG))
-  expected.platforms[1].advanced.snapshotRefreshSeconds = 60
-  expected.platforms[1].advanced.warmLiveView = false
-  assert.deepStrictEqual(after, expected)
-  const described = await t.settings.describe()
-  assert.strictEqual(described.fields.find((f) => f.key === 'snapshotRefreshSeconds').value, 60, 'the next read sees it')
-  assert.match(t.lines.join('\n'), /advanced\.snapshotRefreshSeconds = 60 to config\.json/)
-})
-
-test('the file keeps its indentation, its trailing newline and its mode, and a backup of the old file is made', async () => {
-  for (const [indent, trailingNewline] of [[4, true], [2, true], [4, false]]) {
-    const t = setup(CONFIG, { indent, trailingNewline })
-    const before = fs.readFileSync(t.file, 'utf8')
-    await t.settings.save({ webServerPort: 9000 })
-    const after = fs.readFileSync(t.file, 'utf8')
-    assert.strictEqual(after.endsWith('\n'), trailingNewline)
-    assert.strictEqual(after, JSON.stringify(Object.assign(JSON.parse(before), {}), null, indent).replace('8585', '9000') + (trailingNewline ? '\n' : ''), `indent ${indent}`)
-    assert.strictEqual(fs.readFileSync(`${t.file}.web-settings.bak`, 'utf8'), before, 'the backup is the file as it was')
-    assert.strictEqual(fs.statSync(t.file).mode & 0o777, 0o600)
-    assert.strictEqual(fs.statSync(`${t.file}.web-settings.bak`).mode & 0o777, 0o600)
-    assert.deepStrictEqual(fs.readdirSync(t.dir).filter((n) => n.endsWith('.tmp')), [], 'no temp file is left')
-  }
-})
-
-test('clearing a value removes it, so the default applies, and an empty advanced block is removed', async () => {
-  const t = setup({ platforms: [{ platform: 'WyzeSmartHome', name: 'Wyze', advanced: { webServerPort: 8585 } }] })
-  await t.settings.save({ webServerPort: null })
-  assert.strictEqual(t.read().platforms[0].advanced, undefined)
-  const again = setup(CONFIG)
-  await again.settings.save({ snapshotOnMotion: '' })
-  assert.ok(!('snapshotOnMotion' in again.read().platforms[1].advanced))
-})
-
-test('an option that is not set creates the advanced block', async () => {
-  const t = setup({ platforms: [{ platform: 'WyzeSmartHome', name: 'Wyze' }] })
-  await t.settings.save({ sensorHoldSeconds: 600 })
-  assert.deepStrictEqual(t.read().platforms[0].advanced, { sensorHoldSeconds: 600 })
-})
-
-test('anything not in the list cannot be changed, and a bad value changes nothing at all', async () => {
-  const t = setup(CONFIG)
-  const before = fs.readFileSync(t.file, 'utf8')
-  const cases = [
-    [{ 'auth.password': 'x' }, /cannot be changed here/],
-    [{ deviceTypeOverrides: {} }, /cannot be changed here/],
-    [{ authBaseUrl: 'https://evil.example.com' }, /cannot be changed here/],
-    [{ dangerouslyAllowCustomBaseUrls: true }, /cannot be changed here/],
-    [{ sensorHoldSeconds: 4 }, /at least 5/],
-    [{ sensorHoldSeconds: 3601 }, /at most 3600/],
-    [{ sensorHoldSeconds: 12.5 }, /whole number/],
-    [{ sensorHoldSeconds: '300' }, /whole number/],
-    [{ warmLiveView: 'yes' }, /true or false/],
-    [{ snapshotRefreshSeconds: -1 }, /at least 0/],
-    [{ webServerPort: 80 }, /below 1024.*root/],
-    [{ webServerPort: 1023 }, /below 1024/],
-    [{ webServerPort: 65536 }, /at most 65535/],
-    [{}, /no changes/],
-    [null, /no changes/],
-    [{ warmLiveView: false, sensorHoldSeconds: 4 }, /at least 5/]
-  ]
-  for (const [changes, pattern] of cases) {
-    await assert.rejects(() => t.settings.save(changes), (e) => pattern.test(e.message) && e.status === 400, JSON.stringify(changes))
-  }
-  assert.strictEqual(fs.readFileSync(t.file, 'utf8'), before, 'the file is untouched')
-  assert.ok(!fs.existsSync(`${t.file}.web-settings.bak`), 'no backup for a write that did not happen')
-})
-
-test('the port rule matches the page: 0 and 1024 to 65535 are accepted', async () => {
-  const t = setup(CONFIG)
-  for (const port of [0, 1024, 8585, 65535]) {
-    await t.settings.save({ webServerPort: port })
-    assert.strictEqual(t.read().platforms[1].advanced.webServerPort, port)
-  }
-})
-
 test('with several Wyze entries the one with the instance name is used', async () => {
   const t = setup({ platforms: [{ platform: 'WyzeSmartHome', name: 'Other' }, { platform: 'WyzeSmartHome', name: 'Wyze' }] })
-  await t.settings.save({ warmLiveView: true })
-  assert.strictEqual(t.read().platforms[0].advanced, undefined)
-  assert.strictEqual(t.read().platforms[1].advanced.warmLiveView, true)
+  const warm = (await t.settings.describe()).fields.find((f) => f.key === 'warmLiveView')
+  assert.strictEqual(warm.value, null, 'the entry with the instance name has no advanced block')
 })
 
-test('a missing, broken or empty config is an error that changes nothing', async () => {
+test('a missing, broken or empty config is a plain error', async () => {
   const t = setup(CONFIG)
   fs.writeFileSync(t.file, '{ not json')
   await assert.rejects(() => t.settings.describe(), /not valid JSON/)
-  await assert.rejects(() => t.settings.save({ warmLiveView: true }), /not valid JSON/)
   assert.strictEqual(fs.readFileSync(t.file, 'utf8'), '{ not json')
   fs.writeFileSync(t.file, JSON.stringify({ platforms: [{ platform: 'config' }] }))
   await assert.rejects(() => t.settings.describe(), /not in config\.json/)
@@ -168,4 +85,13 @@ test('a missing, broken or empty config is an error that changes nothing', async
   await assert.rejects(() => t.settings.describe(), /could not read config\.json/)
   const nowhere = createWebSettings({ configPath: () => undefined, platformAlias: 'WyzeSmartHome', running: () => ({}) })
   await assert.rejects(() => nowhere.describe(), /did not say where/)
+})
+
+test('the module can only read: it has no save, and nothing in it writes the file', () => {
+  const t = setup(CONFIG)
+  assert.strictEqual(t.settings.save, undefined)
+  for (const name of ['webSettings', 'webSensors', 'configFile']) {
+    const source = fs.readFileSync(path.join(__dirname, `../src/${name}.js`), 'utf8')
+    assert.ok(!/writeFile|renameSync|unlinkSync/.test(source), `${name} writes a file`)
+  }
 })
