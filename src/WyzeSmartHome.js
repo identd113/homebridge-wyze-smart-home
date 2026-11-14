@@ -170,7 +170,35 @@ module.exports = class WyzeSmartHome {
     for (const accessory of this.accessories ?? []) {
       try { accessory.stopStreams?.() } catch (_) { /* best effort */ }
     }
+    this.webServer?.stop().catch(() => {})
     return this.client?.closeAllCameraSessions?.().catch(() => {})
+  }
+
+  // The camera test page: a web page in this process for testing each camera over the home network.
+  // Off unless advanced.webServerPort is a port from 1024 up. A bad value or a busy port is logged and the
+  // plugin carries on without the page. `lib` is wyze-api; tests pass a stand-in.
+  async startCameraTestPage (lib = WyzeAPI) {
+    const raw = this.config.webServerPort ?? this.config.advanced?.webServerPort
+    if (raw === undefined || raw === null || raw === '' || raw === 0 || raw === '0') return
+    try {
+      if (typeof lib.validateWebPort !== 'function' || typeof lib.createCameraTestServer !== 'function') {
+        this.log.warn?.('[Web] advanced.webServerPort is set, but the installed wyze-api is too old for the camera test page. Update wyze-api and restart.')
+        return
+      }
+      const check = lib.validateWebPort(raw)
+      if (check.error) {
+        this.log.warn?.(`[Web] ${check.error}. The camera test page is off.`)
+        return
+      }
+      if (!check.enabled) return
+      this.webServer = lib.createCameraTestServer({ client: this.client, port: check.port, log: this.log })
+      const { urls } = await this.webServer.start()
+      this.log.info?.(`[Web] Camera test page is on port ${check.port}. Open one of these from a computer on the same network (the token changes at every restart, and anyone with the link can test your cameras and change night vision):`)
+      for (const url of urls) this.log.info?.(`[Web]   ${url}`)
+    } catch (e) {
+      this.webServer = undefined
+      this.log.warn?.(`[Web] The camera test page could not start: ${e.code === 'EADDRINUSE' ? `port ${raw} is already in use` : e.message}`)
+    }
   }
 
   static register() {
@@ -224,6 +252,7 @@ module.exports = class WyzeSmartHome {
     }
     this.runLoop()
     this.runLockFastPollLoop()
+    this.startCameraTestPage()
   }
 
   async runLoop() {

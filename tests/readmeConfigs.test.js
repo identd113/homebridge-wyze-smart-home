@@ -66,7 +66,8 @@ test('the minimum config has exactly the four required credentials', () => {
 
 test('the maximum config sets every option the schema offers, except the troubleshooting ones', () => {
   const platform = configBlock('Maximum config').platforms[0]
-  const troubleshooting = new Set(['deviceTypeOverrides', 'dangerouslyAllowCustomBaseUrls', 'authBaseUrl', 'apiBaseUrl', 'mfaCode', 'secretsFile'])
+  // webServerPort opens a port for the camera test page, so it is not in an example that people paste in whole.
+  const troubleshooting = new Set(['deviceTypeOverrides', 'dangerouslyAllowCustomBaseUrls', 'authBaseUrl', 'apiBaseUrl', 'mfaCode', 'secretsFile', 'webServerPort'])
   const missing = []
   const walk = (properties, node, where) => {
     for (const [key, property] of Object.entries(properties)) {

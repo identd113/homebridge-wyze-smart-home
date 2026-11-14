@@ -88,6 +88,8 @@ const ADVANCED_KEYS = [
   "snapshotOnMotion",
   "sensorHoldSeconds",
   "warmLiveView",
+  // The camera test page (see wyze-api's src/web): 0 is off, 1024 to 65535 is the port it listens on.
+  "webServerPort",
 ];
 
 // Top-level options the plugin still reads that have no nested home. They are kept

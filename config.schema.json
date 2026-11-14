@@ -268,6 +268,14 @@
             "default": false,
             "description": "While the Home app is looking at a camera, open a connection to it ahead of time (kept about 45 seconds) so live view starts almost at once and the picture stays fresh. While it is open the Wyze app cannot watch that camera."
           },
+          "webServerPort": {
+            "title": "Camera Test Page Port",
+            "type": "integer",
+            "default": 0,
+            "minimum": 0,
+            "maximum": 65535,
+            "description": "0 (the default) turns the camera test page off. A port from 1024 to 65535 turns it on at that port; lower ports need root and are refused. The page runs in Homebridge, tests each camera over your home network and, after you confirm, can set night vision. The Homebridge log prints a link that ends with a token; open it from a computer on the same network. It is plain HTTP, so do not forward the port to the internet. Restart Homebridge after changing it."
+          },
           "deviceTypeOverrides": {
             "title": "Device Type Overrides",
             "type": "object",
@@ -419,6 +427,7 @@
           "expandable": true,
           "expanded": false,
           "items": [
+            "advanced.webServerPort",
             "advanced.deviceTypeOverrides",
             "advanced.dangerouslyAllowCustomBaseUrls",
             "advanced.authBaseUrl",

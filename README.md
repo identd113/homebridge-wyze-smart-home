@@ -413,6 +413,14 @@ The Optional fields tables below list every setting with its default.
 | `advanced.sensorHoldSeconds` | `120` | How long the Motion, Sound and detection sensors stay on, counted from the time of the event Wyze reports (5 to 3600 seconds). A newer event extends it. Cameras without a Wyze plan report about one event every 5 minutes, so a longer time keeps the tile on between them. |
 | `advanced.warmLiveView` | `false` | "Quick Live View". While the Home app is looking at a camera, the plugin opens a connection to it ahead of time (kept about 45 seconds after the Home app stops asking), so live view starts almost at once. Worth turning on if live view is slow to start. While a camera's connection is open the Wyze app cannot watch it, and all the cameras on screen are connected at once. |
 
+**Camera test page** (under `advanced`)
+
+| Field | Default | What it does |
+|---|---|---|
+| `advanced.webServerPort` | `0` | `0` turns the camera test page off. A port from `1024` to `65535` starts it on that port; ports `1` to `1023` need root and are refused (the log says so). Restart Homebridge after changing it. |
+
+With a port set, the Homebridge log prints a link that ends in `?token=...` when Homebridge starts. Open it from a computer on the same network as your cameras. The page lists your cameras and tests each one directly over your home network, showing each step and what the camera answered. After you press Confirm it can also set a camera's night vision to on, off or auto. It runs in the Homebridge process, so Homebridge has to be on the same network as the cameras. It is plain HTTP with a random token that changes at every restart, and it serves only computers on your local network (a request through a proxy or tunnel is refused). Do not forward the port to the internet. The cameras it can reach are the ones the Wyze device list marks with the `dtls` flag, which covers the Cam v2, Cam v3 and Doorbell v2 tested here. It needs a `wyze-api` that includes the page (the log says if it does not).
+
 Other advanced settings (`deviceTypeOverrides` and custom base URLs) are for troubleshooting and are explained in the settings screen.
 
 ### Advanced settings and when to use them
@@ -425,6 +433,7 @@ Everything under `advanced` works at its default. Change one only for the reason
 | `snapshotOnMotion` | You want the picture to update the moment motion is seen (leave it on), or you want no extra connections on motion (turn it off). | Off, a motion event no longer triggers a new picture. |
 | `sensorHoldSeconds` | A Motion, Sound or AI tile switches off too soon or lingers too long for your automations. Raise it for cameras without a Wyze plan, which report only about one event every 5 minutes, so the tile stays on between events. Lower it if you want a quick "motion stopped" signal. | Counted from the time of the event on Wyze's clock, between 5 and 3600 seconds. A newer event extends it. |
 | `warmLiveView` | Live view takes several seconds to start. | The plugin opens a connection to a camera ahead of time while the Home app is looking at it, and keeps it about 45 seconds. While it is open the Wyze app cannot watch that camera, and every camera on screen is connected at once. |
+| `webServerPort` | You want to see what a camera answers over your home network, or to change a camera's night vision, from a browser. | Off by default. When on, Homebridge also listens on that port (1024 or higher), serving a page that needs the token printed in the log. Local network only, plain HTTP. |
 | `deviceTypeOverrides` | Wyze has a new product code the plugin does not know yet, and you want to try it as an existing kind of device before official support. | Troubleshooting only. A wrong override can show a device as the wrong kind. Please also [report the new model](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml). |
 | `dangerouslyAllowCustomBaseUrls`, `authBaseUrl`, `apiBaseUrl` | You send Wyze traffic through your own proxy or test server. | Off by default, because the plugin otherwise accepts only Wyze's own hosts: your login and token go wherever these point. Do not set them unless you control that server. |
 
