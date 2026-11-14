@@ -194,7 +194,7 @@ Have a Wyze device that is not on either list? [Tell us about it](https://github
 **Effort** is our rough estimate. **Easy** means another open-source Wyze project already handles the device, so we can port from it; **Hard** means it needs a different protocol; **Unknown** means we found no reference implementation.
 
 <details open>
-<summary><strong>Devices we do not support yet</strong> (6)</summary>
+<summary><strong>Devices we do not support yet</strong> (8)</summary>
 
 | Device | Model code | Why it isn't supported | Effort |
 |---|---|---|---|
@@ -202,7 +202,9 @@ Have a Wyze device that is not on either list? [Tell us about it](https://github
 | Keypad | — | It is an accessory of the lock and HomeKit has no keypad service. [wyze-sdk](https://github.com/shauntarves/wyze-sdk) reads its enable setting and events | Unknown |
 | Lamp Socket / Lamp Socket v2 | — | No model code yet | Easy |
 | Lock Bolt (original, Bluetooth only) | — | Bluetooth only, no cloud control | Hard |
-| Window Cam, Battery Video Doorbell, Duo Cam Doorbell | — | No model codes yet | Unknown |
+| Window Cam | `GW_WC` | No accessory yet. [docker-wyze-bridge](https://github.com/mrlt8/docker-wyze-bridge) lists it as not supported | Unknown |
+| Battery Video Doorbell | `ME_DB1`, `MR_BVD` | No accessory yet. [ha-wyzeapi](https://github.com/SecKatie/ha-wyzeapi) finds the device but the camera stays unavailable. The two codes may be the same product | Unknown |
+| Duo Cam Doorbell | `GW_DBD` | No accessory yet. It has no `iot-power` property, and [docker-wyze-bridge](https://github.com/mrlt8/docker-wyze-bridge) users get snapshots but no stream | Unknown |
 | Night Light, Surge Protector | — | No model codes yet | Unknown |
 
 </details>

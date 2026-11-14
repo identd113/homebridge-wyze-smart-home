@@ -17,6 +17,26 @@ const PLANNED_DEVICES = {
     source: "SecKatie/wyzeapy",
     note: "It is controlled over Bluetooth, not Wyze's cloud, so the plugin cannot reach it.",
   },
+  GW_DBD: {
+    name: "Wyze Duo Cam Doorbell",
+    source: "mrlt8/docker-wyze-bridge issue 1386 and SecKatie/wyzeapy issue 350",
+    note: "It reports its state as iot-device::iot-state and has no iot-device::iot-power property, and other projects get snapshots but no stream from it. Nothing has been tried on hardware here.",
+  },
+  GW_WC: {
+    name: "Wyze Window Cam",
+    source: "mrlt8/docker-wyze-bridge issue 1516",
+    note: "docker-wyze-bridge lists it as not supported. Nothing is known about how it is controlled and nothing has been tried on hardware here.",
+  },
+  ME_DB1: {
+    name: "Wyze Battery Video Doorbell",
+    source: "SecKatie/ha-wyzeapi issue 973",
+    note: "ha-wyzeapi finds its Motion Detection, Notifications, Power and Siren controls but the camera stays unavailable. Nothing has been tried on hardware here.",
+  },
+  MR_BVD: {
+    name: "Wyze Battery Video Doorbell (a second model code reported for it)",
+    source: "a comment on mrlt8/docker-wyze-bridge issue 1516",
+    note: "It may be the same product as ME_DB1 or a variant of it; that is not known. Nothing has been tried on hardware here.",
+  },
   // Not a real model code, so nothing ever matches it.
   GUN_SAFE: {
     name: "Wyze Gun Safe",
