@@ -13,6 +13,9 @@ const path = require("path");
 
 const OTHER = "Not in this list (enter the model code below)";
 const FORM = path.join(__dirname, "../ISSUE_TEMPLATE/new-device.yml");
+// The same labels by model code, shipped with the plugin (the .github folder is not), so the camera test
+// page can open this form with the right device already chosen.
+const LABELS = path.join(__dirname, "../../src/deviceIssueLabels.json");
 const BEGIN = "        # BEGIN device options (npm run device-options)";
 const END = "        # END device options";
 
@@ -30,6 +33,19 @@ function options() {
   return [...labels, OTHER];
 }
 
+/** { "HL_DB2": "Doorbells - Video Doorbell v2 (HL_DB2)", ... }, sorted by model code. */
+function labelsByModel() {
+  const out = {};
+  for (const [code, d] of Object.entries(require("./device-names.json")).sort(([a], [b]) => a.localeCompare(b))) {
+    out[code] = `${d.section} - ${d.name} (${code})`;
+  }
+  return out;
+}
+
+function renderLabels() {
+  return `${JSON.stringify(labelsByModel(), null, 2)}\n`;
+}
+
 function render(form) {
   const start = form.indexOf(BEGIN);
   const stop = form.indexOf(END);
@@ -40,6 +56,7 @@ function render(form) {
 
 if (require.main === module) {
   fs.writeFileSync(FORM, render(fs.readFileSync(FORM, "utf8")));
+  fs.writeFileSync(LABELS, renderLabels());
 }
 
-module.exports = { OTHER, FORM, SECTIONS, options, render };
+module.exports = { OTHER, FORM, LABELS, SECTIONS, options, render, labelsByModel, renderLabels };

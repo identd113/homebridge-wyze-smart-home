@@ -129,3 +129,38 @@ test('a wyze-api without the page says so instead of failing', async () => {
   await quiet.p.startCameraTestPage({})
   assert.deepStrictEqual(quiet.lines, [])
 })
+
+// ---- the prefilled device report link ----
+
+test('the label file the page uses is up to date, and every label is an option of the form', () => {
+  const gen = require('../.github/scripts/gen-device-options.js')
+  const labels = require('../src/deviceIssueLabels.json')
+  assert.strictEqual(fs.readFileSync(gen.LABELS, 'utf8'), gen.renderLabels(), 'run `npm run device-options` and commit the result')
+  const options = new Set(gen.options())
+  for (const [model, label] of Object.entries(labels)) {
+    assert.ok(options.has(label), `${model}: "${label}" is not an option of the device report form`)
+    assert.ok(label.endsWith(`(${model})`), label)
+  }
+  assert.strictEqual(labels.HL_DB2, 'Doorbells - Video Doorbell v2 (HL_DB2)')
+})
+
+test('the form the page opens exists, and its values are ones the form and the triage accept', () => {
+  const { p } = platformWith({})
+  const form = p.issueFormForTestPage()
+  const template = fs.readFileSync(path.join(__dirname, '../.github/ISSUE_TEMPLATE', form.template), 'utf8')
+  assert.match(form.url, /^https:\/\/github\.com\/identd113\/homebridge-wyze-smart-home\/issues\/new$/)
+  assert.ok(new RegExp(`^ +- "?${form.kind}"?$`, 'm').test(template), 'the kind is an option of the form')
+  assert.match(form.origin, /^[a-z0-9][a-z0-9._-]{0,30}$/, 'the origin label rule in .github/scripts/origin-label.js')
+  assert.ok(form.plugin.startsWith(require('../package.json').version))
+  assert.strictEqual(form.deviceLabel('HL_DB2'), 'Doorbells - Video Doorbell v2 (HL_DB2)')
+  assert.strictEqual(form.deviceLabel('NOT_A_MODEL'), undefined)
+  for (const id of ['device', 'model', 'kind', 'plugin', 'details', 'blob', 'origin']) assert.match(template, new RegExp(`\\n    id: ${id}\\n`), `the form has a field "${id}"`)
+})
+
+test('the page is started with that form', async () => {
+  const { p } = platformWith({ webServerPort: 8099 })
+  const lib = fakeLib()
+  await p.startCameraTestPage(lib)
+  assert.strictEqual(lib.made[0].issueForm.template, 'new-device.yml')
+  assert.strictEqual(lib.made[0].issueForm.deviceLabel('HL_DB2'), 'Doorbells - Video Doorbell v2 (HL_DB2)')
+})

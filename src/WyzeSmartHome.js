@@ -174,6 +174,22 @@ module.exports = class WyzeSmartHome {
     return this.client?.closeAllCameraSessions?.().catch(() => {})
   }
 
+  // What the camera test page needs to open this plugin's device report form with some fields filled in.
+  issueFormForTestPage () {
+    let labels = {}
+    try { labels = require('./deviceIssueLabels.json') } catch (_) { /* the page then fills in the model code instead */ }
+    let apiVersion
+    try { apiVersion = require('wyze-api/package.json').version } catch (_) { /* unknown */ }
+    return {
+      url: 'https://github.com/identd113/homebridge-wyze-smart-home/issues/new',
+      template: 'new-device.yml',
+      origin: 'camera-test-page',
+      kind: 'Camera or doorbell',
+      plugin: `${require('../package.json').version}${apiVersion ? ` (wyze-api ${apiVersion})` : ''}`,
+      deviceLabel: (model) => labels[model]
+    }
+  }
+
   // The camera test page: a web page in this process for testing each camera over the home network.
   // Off unless advanced.webServerPort is a port from 1024 up. A bad value or a busy port is logged and the
   // plugin carries on without the page. `lib` is wyze-api; tests pass a stand-in.
@@ -191,7 +207,7 @@ module.exports = class WyzeSmartHome {
         return
       }
       if (!check.enabled) return
-      this.webServer = lib.createCameraTestServer({ client: this.client, port: check.port, log: this.log })
+      this.webServer = lib.createCameraTestServer({ client: this.client, port: check.port, log: this.log, issueForm: this.issueFormForTestPage() })
       const { urls } = await this.webServer.start()
       this.log.info?.(`[Web] Camera test page is on port ${check.port}. Open one of these from a computer on the same network (the token changes at every restart, and anyone with the link can test your cameras and change night vision):`)
       for (const url of urls) this.log.info?.(`[Web]   ${url}`)
