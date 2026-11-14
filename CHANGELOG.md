@@ -10,45 +10,48 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 This plugin is built on the [wyze-api](https://github.com/identd113/wyze-api) library. For API-level changes (login, 2FA, device commands), see the [wyze-api changelog](https://github.com/identd113/wyze-api/blob/2.x/CHANGELOG.md).
 
-### v2.0.0-beta.4
+### v2.1.0-beta.1
 
-Pairs with `wyze-api` 2.0.0-beta.4, which the dependency range requires. With beta.3 the bulk read below is skipped (with one warning), cameras read their properties one at a time as before, and the Cam Plus plan lines are left out. Release notes: [docs/releases/2.0.0-beta.4.md](docs/releases/2.0.0-beta.4.md).
+Everything since the last published beta, **2.0.0-beta.3**. A `2.0.0-beta.4` was prepared but never published; its changes are in this release. It pairs with `wyze-api` 2.1.0-beta.1, which npm installs for you. With an older `wyze-api` the features that need it switch themselves off, and the log says so.
 
-**Breaking**
-- **Breaking: the Privacy switch is now on when the camera is off.** It used to be on when the camera was on, the opposite of its name. Turning Privacy on now powers the camera off, and turning it off powers it on. There is no setting to keep the old direction. Any scene, automation or Siri phrase that uses a camera's Privacy switch now does the opposite and needs to be changed: where it turned Privacy on to switch the camera on, it must turn Privacy off, and the other way round. After upgrading, check each such automation once.
+**Before you upgrade**
+- **Breaking: the Privacy switch is now on when the camera is off.** It used to be on when the camera was on, the opposite of its name. Turning Privacy on now powers the camera off, and turning it off powers it on. There is no setting to keep the old direction. Any scene, automation or Siri phrase that uses a camera's Privacy switch now does the opposite and needs to be changed: where it turned Privacy on to switch the camera on, it must turn Privacy off, and the other way round. After upgrading, check each such automation.
+- **New HomeKit tiles appear by themselves.** A camera whose recent events show motion gets a Motion Sensor, one that shows sound gets a Sound Sensor, and one on a Wyze plan with AI detection gets Person, Vehicle, Pet and Package sensors. You can switch any of them off (see "A card for each camera" below).
+- **Camera options moved.** The Cameras section is no longer in the settings form. Each camera's options (the extra switches and the sensors) are on that camera's card, under the form, and are saved with the card's own button. Your existing config keeps working and nothing in it changes.
+- **The settings form is now plain sections** that open and close, with Account open, instead of a strip of tabs.
+- **Rolling back:** `npm install homebridge-wyze-smart-home@2.0.0-beta.3`. Your config keeps working and the new settings are ignored. Cameras then have the old Privacy direction again.
 
-**Fewer requests to Wyze**
-- **Properties are read for all cameras and lights in one request per refresh.** Cameras with a switch or floodlight configured, lights and mesh lights used to make one `getDevicePID` request each per refresh. A device that cannot be served by the bulk read (an older `wyze-api`, a failed request, a missing row) reads its own, exactly as before, and the log says so once with a warning. After a failure the bulk read is retried after 1, 3, 7 ... cycles. Lights and mesh lights are not yet verified on real hardware.
+**New**
+- **Night vision switches** (`cameras[].nightVision`, off by default). Two HomeKit switches for a camera: Night Vision (always on) and Night Vision Auto; with both off, night vision is off. The Wyze cloud does not offer this setting, so the plugin asks the camera directly over your home network. Homebridge has to be on the same network as the camera, and only cameras that answer there work (the Cam v2, Cam v3 and Doorbell v2 are tested). A change takes a few seconds, and the Wyze app cannot watch that camera meanwhile.
+- **A card for each camera on the settings page.** Everything about one camera in one place: its Cam Plus plan, the sensors it was found to have (click one to turn it on or off), a warning when its sound recording is off in Wyze, and checkboxes for its extra HomeKit switches (garage door opener, spotlight, floodlight, siren, notifications, motion detection, night vision). Sensors are labelled as sensors and the switches as switches, so "Motion sensor" (reports motion) is not confused with "Motion Detection on/off" (turns the camera's own detection off and on). A notice appears while a change on a card is not saved yet.
+- **A camera test page** (optional, off by default). Set `advanced.webServerPort` to a port from 1024 up and restart Homebridge. The settings page then has an **Open camera test page** button. The page runs in Homebridge and is reached from another computer on your network by a link with a token that changes at every restart; it serves only your local network. It lists your cameras and tests each one directly, showing each step and what the camera answered, and it shows the sensors and the Advanced settings as the config file holds them (read-only: changes are made on the settings page).
+- **Report a device that is not supported.** The test page's **Other devices** tab lists devices on your account that the plugin does not support yet. **Test and collect report** reads what Wyze knows about the device (read only, naming each endpoint it asks, with your MAC address, device name, IP address and Wi-Fi name removed), and **Report this device on GitHub** opens the add-a-device form with the model, type and findings filled in. Nothing is sent until you submit the form, and you can download the report to attach.
+- **Motion and Sound sensors for cameras.** A Motion Sensor and a Sound Sensor are added to each camera that has the events. `motionSensor` and `soundSensor` per camera are `auto` (the default: added when the camera's last week of events shows events of that kind), `on` or `off`. A sensor reacts only to an event less than 30 seconds old, so reading older events again never switches it. With the Sound Sensor on, sound no longer switches that camera's Motion Sensor.
+- **Person, Vehicle, Pet and Package sensors** for a camera whose events carry Wyze's AI labels (a Wyze plan with AI detection), with the same rules. `detections` per camera is empty (automatic), a list such as `["person", "pet", "face"]` for exactly those, or `["none"]`. Face is available only by naming it.
+- **Sensors stay on for 2 minutes** (`advanced.sensorHoldSeconds`, 5 to 3600), counted from the time of the event on Wyze's clock. A newer event extends it.
+- **The Cam Plus plan on each camera card, and in the log.** The plugin reads your account's plans once at startup and shows "Cam Plus: Annual Plan, until 2027-03-03", or "No Cam Plus plan" with the note that Wyze then lists about one event per 5 minutes. The log warns about a camera with no plan, a lapsed plan, or one that ends within 14 days.
+- **A camera switched off with its Privacy switch shows a black picture with a crossed-out red dot** in the Home app, instead of its last picture (which looked live).
+- **The Advanced options are on the settings screen:** Picture Refresh, Refresh the Picture on Motion, Sensor Stays On, Quick Live View and the Camera Test Page Port. The number options are plain number inputs, not sliders.
+- **Fewer requests to Wyze.** The properties of all cameras and lights are read in one request per refresh, not one request each. A device that cannot be served that way reads its own, and the log says so once.
+- **Unsupported devices are named in the log** when the model is known: the Duo Cam Doorbell, Window Cam and Battery Video Doorbell, with a link for helping to get them supported.
+- **Better GitHub forms.** The device form takes reports that a device works, partly works or does not work, lets you pick the device by name, and starts on "It is not supported yet". The bug form asks for the `wyze-api` version and points to the camera test page for one camera that will not connect. Pasted logs and configs are checked for credentials.
 
-**Camera test page**
-- **An Other devices tab** lists devices the plugin does not support, tests them (read only) and opens the add-a-device form with the findings filled in.
-
-**Night vision**
-- **A camera's options are on its card on the settings page.** The extra switches (garage door, spotlight, floodlight, siren, notifications, motion detection, night vision) are checkboxes on each camera's card, with the sensors, and no longer a second list in the form. The config keys are unchanged.
-- **Night vision switches for cameras** (`cameras[].nightVision`): two HomeKit switches, Night Vision and Night Vision Auto, set on the camera over the home network (needs `wyze-api` with `setCameraNightVision`).
-
-**Sensors**
-- **A Motion Sensor and a Sound Sensor are added to each camera that has the events.** `motionSensor` and `soundSensor` per camera are now `auto` (the default: added when the camera's last week of events shows events of that kind), `on` or `off`. `true` still means `on`, and a saved `false` means `auto`. A sensor reacts only to an event less than 30 seconds old, so reading the same older events again never switches it. With the Sound Sensor on, sound no longer switches that camera's Motion Sensor or refreshes its picture.
-- **The settings panel warns when a camera's sound recording is off.** The plugin reads the camera's sound-recording setting once at startup and records it in its note. With it off, the camera's Sound pill is shown greyed out and unclickable with a warning, because Wyze lists no sound events then. The panel leaves that sensor's setting as it is when you save.
-- **A camera switched off with its Privacy switch shows a black picture with a crossed-out red dot in the Home app,** instead of its last picture (which looked live). The plugin also updates its own idea of the camera's power as soon as Wyze accepts the switch, rather than at the next minute check.
-- **Each camera card shows its Cam Plus plan, and the log warns about a missing, lapsed or soon-ending one.** The plugin reads the account's plans once at startup (needs a `wyze-api` with `getCamPlusPlans`; with an older one the lookup is skipped quietly) and shows "Cam Plus: Annual Plan, until 2027-03-03", or "No Cam Plus plan" with the note that Wyze then lists about one event per 5 minutes. It only reports; sensors are still added from the events a camera really has. The panel also shows one line per live plan (seats used, cameras, end date), and the log gives a camera on a live plan an info line.
-- **Sensors stay on for 2 minutes** (`advanced.sensorHoldSeconds`, 5 to 3600) for Motion, Sound and the detection sensors, counted from the time of the event on Wyze's clock and not from when the plugin noticed it. A newer event extends it; an event whose hold has already passed does not switch a sensor on.
-- **Person, Vehicle, Pet and Package sensors** for a camera whose events carry Wyze's AI labels (a Wyze plan with AI detection), with the same rules as Motion and Sound. `detections` per camera is empty (automatic: a sensor for each of those four labels the camera's last week of events carries), a list such as `["person", "pet", "face"]` for exactly those, or `["none"]`. Face is available only by naming it, and only labels the plugin has a name for can become sensors, so a camera never gets a tile per label Wyze invents. The log names the labels each camera's events carry and mentions Face events when they exist. The plugin's settings page in the Homebridge UI has a **Detected sensors** panel that lists what each camera has, with Motion and Sound boxes beside the labels, and saves a choice into the camera's `detections`, `motionSensor` and `soundSensor`; it reads a note the plugin leaves in Homebridge's storage folder (`homebridge-wyze-smart-home/detected-sensors.json`). The plugin never writes your `config.json` itself. The panel checks each change before saving it and saves nothing if a check fails or cannot be completed; the plugin's own note is likewise written only for an entry that passes its checks. New dependency: `@homebridge/plugin-ui-utils`.
-- **Fixed: the Motion Sensor was not added to a camera that had no other switch configured.**
-
-**From wyze-api 2.0.0-beta.4** (the library the plugin is built on; its own list is in the [wyze-api change log](https://github.com/identd113/wyze-api/blob/2.x/CHANGELOG.md))
-- **Fixed: logging in at start-up could happen twice.** Several requests that found the login missing at once each started their own login, which could fail a one-time 2FA code on the repeat. They now share one login.
-- **Fixed: a missing or broken ffmpeg no longer takes Homebridge down.** Starting a live view with an ffmpeg that cannot run used to crash the whole process. The live view now fails with a reason in the log.
-- **Fixed: a live view is no longer cut off by Quick Live View.** With a stream open, the connection kept ready ahead of time no longer takes the camera's one connection slot.
+**Fixed**
+- **The Motion Sensor was not added to a camera that had no other switch configured.**
+- **A Home Monitoring System (S1 Gateway) was never loaded with `hms.enabled` on.**
+- **Rewriting an old flat config deleted** `irrigationZone`, the Ford and Olive keys and `appInfo`. They are kept now.
+- **An empty device list from Wyze could remove every accessory.** It is now ignored until it has been empty three refreshes in a row.
+- **A lock that had not been read reported "secured".** It reports unknown until it has been read.
+- **A bulb that had not synced could be set to 1% brightness** and a bogus colour temperature. Placeholder values are skipped.
+- **Logging in at start-up could happen twice,** which could fail a one-time 2FA code on the repeat. Requests now share one login.
+- **A missing or broken ffmpeg no longer takes Homebridge down.** The live view fails with a reason in the log.
+- **A live view is no longer cut off by Quick Live View.**
 - **Requests to Wyze time out after 30 seconds,** so a stalled connection can no longer freeze login and every refresh that waits on it.
-- **The Cam OG Telephoto 3x is now recognised** (Wyze reports it as `GW_GC2`; it was never matched before). Not tested on a real one.
-- **Fewer libraries installed:** `koffi` and `querystring` are no longer pulled in.
+- **The Cam OG Telephoto 3x is recognised** (Wyze reports it as `GW_GC2`). Not tested on a real one.
+- **Fewer libraries are installed:** `koffi` and `querystring` are no longer pulled in.
 
 **Documentation**
-- **The README shows a minimum, a recommended and a maximum config,** with a table of what each one adds. A test checks that every setting in them exists in the settings schema.
-
-**Development**
-- `npm run lint` works: an ESLint config was added, and the script now covers all of `src/`.
+- The README shows a minimum, a recommended and a maximum config, with a table of what each adds, and says when each advanced setting is worth changing.
 
 ### v2.0.0-beta.3
 
