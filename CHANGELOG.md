@@ -21,6 +21,7 @@ Pairs with `wyze-api` 2.0.0-beta.4, which the dependency range requires. With be
 - **Properties are read for all cameras and lights in one request per refresh.** Cameras with a switch or floodlight configured, lights and mesh lights used to make one `getDevicePID` request each per refresh. A device that cannot be served by the bulk read (an older `wyze-api`, a failed request, a missing row) reads its own, exactly as before, and the log says so once with a warning. After a failure the bulk read is retried after 1, 3, 7 ... cycles. Lights and mesh lights are not yet verified on real hardware.
 
 **Night vision**
+- **A camera's options are on its card on the settings page.** The extra switches (garage door, spotlight, floodlight, siren, notifications, motion detection, night vision) are checkboxes on each camera's card, with the sensors, and no longer a second list in the form. The config keys are unchanged.
 - **Night vision switches for cameras** (`cameras[].nightVision`): two HomeKit switches, Night Vision and Night Vision Auto, set on the camera over the home network (needs `wyze-api` with `setCameraNightVision`).
 
 **Sensors**

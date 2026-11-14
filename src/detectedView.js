@@ -37,6 +37,19 @@
   ];
   const MODES = ["auto", "on", "off"];
 
+  // The extra HomeKit accessories a camera can have, each a true/false setting on the camera's row (false is the same as
+  // not set). `help` is what the settings page says under the checkbox.
+  const SWITCHES = [
+    { key: "garage", label: "Garage Door Opener", help: "Shows the camera as a garage door opener (for a Wyze Garage Door Controller on the camera)." },
+    { key: "spotlight", label: "Spotlight", help: "A switch for the camera's spotlight." },
+    { key: "floodlight", label: "Floodlight", help: "A switch for the camera's floodlight. A camera with a floodlight accessory gets one without this." },
+    { key: "siren", label: "Siren", help: "A switch that sounds the camera's siren." },
+    { key: "notifications", label: "Notifications", help: "A switch for the camera's notifications in the Wyze app." },
+    { key: "motionDetection", label: "Motion Detection", help: "Turns the camera's motion detection on and off, apart from notifications." },
+    { key: "nightVision", label: "Night Vision", help: "Two switches, Night Vision and Night Vision Auto. Set on the camera over your home network, so Homebridge must be on the camera's network; a change takes a few seconds and the Wyze app cannot watch that camera meanwhile." },
+  ];
+  const SWITCH_KEYS = SWITCHES.map((sw) => sw.key);
+
   function modeFor(entry, mac, key) {
     const row = ((entry && entry.cameras) || []).find((cam) => cam && cam.mac === mac);
     const value = row ? row[key] : undefined;
@@ -165,8 +178,8 @@
     if (!Array.isArray(entry.cameras)) entry.cameras = [];
     // `values` null leaves `detections` as it is; `modes` names Motion/Sound settings to change.
     const keys = modes ? SENSORS.map((sensor) => sensor.key).filter((key) => modes[key] !== undefined) : [];
-    const nightVision = extras ? extras.nightVision : undefined; // true or false to set the Night Vision switches, undefined to leave them
-    const sets = (Array.isArray(values) && values.length > 0) || keys.some((key) => modes[key] !== "auto") || nightVision === true;
+    const wanted = (key) => (extras ? extras[key] : undefined); // true or false to set a switch, undefined to leave it
+    const sets = (Array.isArray(values) && values.length > 0) || keys.some((key) => modes[key] !== "auto") || SWITCH_KEYS.some((key) => wanted(key) === true);
     let row = entry.cameras.find((cam) => cam && cam.mac === mac);
     if (!row) {
       if (!sets) return next; // automatic is what a camera with no entry already is
@@ -182,8 +195,10 @@
       if (modes[key] === "auto") delete row[key];
       else row[key] = modes[key];
     }
-    if (nightVision === true) row.nightVision = true;
-    else if (nightVision === false) delete row.nightVision;
+    for (const key of SWITCH_KEYS) {
+      if (wanted(key) === true) row[key] = true;
+      else if (wanted(key) === false) delete row[key];
+    }
     return next;
   }
 
@@ -208,9 +223,9 @@
     if (Array.isArray(entry.cameras)) entry.cameras = rows.filter((row) => !(row && row.mac === mac));
     if (Array.isArray(entry.cameras) && entry.cameras.length === 0) delete entry.cameras;
     const row = matching[0] ? Object.assign({}, matching[0]) : null;
-    if (row) for (const key of ["detections", "motionSensor", "soundSensor", "nightVision"]) delete row[key];
+    if (row) for (const key of ["detections", "motionSensor", "soundSensor", ...SWITCH_KEYS]) delete row[key];
     const mine = matching[0] || {};
-    return { rest: copy, row, detections: mine.detections, motionSensor: mine.motionSensor, soundSensor: mine.soundSensor, nightVision: mine.nightVision };
+    return { rest: copy, row, detections: mine.detections, motionSensor: mine.motionSensor, soundSensor: mine.soundSensor, switches: Object.fromEntries(SWITCH_KEYS.map((key) => [key, mine[key]])) };
   }
 
   /** The reasons a change must not be saved; an empty list means it may be. */
@@ -266,12 +281,14 @@
         problems.push("the saved " + key + " would not be the one chosen");
       }
     }
-    const wantedNightVision = extras ? extras.nightVision : undefined;
-    if (wantedNightVision !== undefined && typeof wantedNightVision !== "boolean") problems.push("nightVision must be true or false");
-    else if (wantedNightVision === undefined) {
-      if (!sameJson(now.nightVision, was.nightVision)) problems.push("the change would alter nightVision, which it should leave alone");
-    } else if (wantedNightVision === true ? now.nightVision !== true : now.nightVision !== undefined) {
-      problems.push("the saved nightVision would not be the one chosen");
+    for (const key of SWITCH_KEYS) {
+      const wanted = extras ? extras[key] : undefined;
+      if (wanted !== undefined && typeof wanted !== "boolean") problems.push(key + " must be true or false");
+      else if (wanted === undefined) {
+        if (!sameJson(now.switches[key], was.switches[key])) problems.push("the change would alter " + key + ", which it should leave alone");
+      } else if (wanted === true ? now.switches[key] !== true : now.switches[key] !== undefined) {
+        problems.push("the saved " + key + " would not be the one chosen");
+      }
     }
     // What is saved must survive being written out and read back unchanged.
     if (!sameJson(JSON.parse(JSON.stringify(after)), after)) problems.push("the settings cannot be saved as JSON");
@@ -299,11 +316,11 @@
     return "Chosen: " + setting.join(", ") + ".";
   };
 
-  // Whether the camera's row asks for the Night Vision switches.
-  function nightVisionOf(config, mac) {
+  // The camera's switches as its row has them now.
+  function switchesOf(config, mac) {
     const entry = Array.isArray(config) && config.length > 0 ? config[0] : null;
-    const row = ((entry && entry.cameras) || []).find((cam) => cam && cam.mac === mac);
-    return Boolean(row && row.nightVision === true);
+    const row = ((entry && entry.cameras) || []).find((cam) => cam && cam.mac === mac) || {};
+    return SWITCHES.map((sw) => ({ key: sw.key, label: sw.label, help: sw.help, checked: row[sw.key] === true }));
   }
 
   /**
@@ -319,7 +336,7 @@
       planActive: Boolean(cam.plan && cam.plan.state === "active"),
       setting: describeSetting(cam.setting),
       notAuto: cam.setting !== "auto" || cam.sensors.some((s) => s.mode !== "auto"),
-      nightVision: nightVisionOf(config, cam.mac),
+      switches: switchesOf(config, cam.mac),
       items: [
         ...cam.sensors.map((s) => ({ key: s.key, label: s.label, ai: false, checked: s.checked, blocked: s.blocked, warning: s.warning, tag: "", other: false })),
         ...cam.items.map((i) => ({
@@ -346,15 +363,19 @@
   function prepareChoice(detected, config, id, choice) {
     const cam = buildView(detected, config).find((c) => c.mac === id);
     if (!cam) return { ok: false, errors: ["that camera is not one the plugin has found"] };
-    const { ticks, auto, nightVision } = choice || {};
-    const extras = nightVision === undefined ? undefined : { nightVision };
+    const { ticks, auto, switches } = choice || {};
+    if (switches !== undefined && (!switches || typeof switches !== "object" || Array.isArray(switches))) return { ok: false, errors: ["switches must be a list of true or false"] };
+    for (const key of Object.keys(switches || {})) {
+      if (!SWITCH_KEYS.includes(key)) return { ok: false, errors: [key + " is not a switch a camera has"] };
+    }
+    const extras = switches;
     let values;
     let modes;
     if (auto === true) {
       values = [];
       modes = { motionSensor: "auto", soundSensor: "auto" };
-    } else if (ticks === undefined && nightVision !== undefined) {
-      values = null; // only the Night Vision switches change; the AI list and the sensors are left as they are
+    } else if (ticks === undefined && switches !== undefined) {
+      values = null; // only the switches change; the AI list and the sensors are left as they are
       modes = {};
     } else {
       if (!ticks || typeof ticks !== "object" || Array.isArray(ticks)) return { ok: false, errors: ["no changes given"] };
@@ -372,5 +393,6 @@
     return prepared.ok ? { ok: true, next: prepared.next, name: cam.name } : prepared;
   }
 
-  module.exports = { LABELS, SENSORS, planLine, planSummary, settingFor, modeFor, buildView, valuesFor, detectionsToSave, unsavedChanges, modesFor, applyDetections, problemsWith, prepareSave, presentCameras, prepareChoice };
+  module.exports = {
+    SWITCHES, LABELS, SENSORS, planLine, planSummary, settingFor, modeFor, buildView, valuesFor, detectionsToSave, unsavedChanges, modesFor, applyDetections, problemsWith, prepareSave, presentCameras, prepareChoice };
 })();

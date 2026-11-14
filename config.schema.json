@@ -335,57 +335,6 @@
     },
     {
       "type": "fieldset",
-      "title": "Cameras",
-      "expandable": true,
-      "expanded": false,
-      "items": [
-        {
-          "key": "cameras",
-          "type": "array",
-          "title": " ",
-          "buttonText": "Add Camera",
-          "items": [
-            {
-              "type": "fieldset",
-              "title": "{{ value.name || value.mac || 'Camera' }}",
-              "items": [
-                "cameras[].mac",
-                "cameras[].name",
-                {
-                  "type": "flex",
-                  "flex-flow": "row wrap",
-                  "items": [
-                    "cameras[].garage",
-                    "cameras[].spotlight",
-                    "cameras[].floodlight",
-                    "cameras[].siren",
-                    "cameras[].notifications",
-                    "cameras[].motionDetection",
-                    "cameras[].nightVision",
-                    "cameras[].motionSensor",
-                    "cameras[].soundSensor",
-                    {
-                      "key": "cameras[].detections",
-                      "type": "checkboxes",
-                      "titleMap": [
-                        { "value": "person", "name": "Person" },
-                        { "value": "vehicle", "name": "Vehicle" },
-                        { "value": "pet", "name": "Pet" },
-                        { "value": "package", "name": "Package" },
-                        { "value": "face", "name": "Face" },
-                        { "value": "none", "name": "None" }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "fieldset",
       "title": "Thermostat",
       "expandable": true,
       "expanded": false,

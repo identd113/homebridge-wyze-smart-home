@@ -25,7 +25,8 @@
   #wyze-detected .wd-tag { font-size: .7rem; opacity: .8; white-space: nowrap; }
   #wyze-detected .wd-empty { opacity: .75; font-size: .85rem; margin: .25rem 0 0; }
   #wyze-detected .wd-link { margin: 0 0 .75rem; padding: .6rem .8rem; border: 1px solid rgba(128, 128, 128, .4); border-radius: 6px; font-size: .9rem; }
-  #wyze-detected .wd-night { display: block; margin: .6rem 0 .2rem; }
+  #wyze-detected .wd-switches { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; margin: .4rem 0 .6rem; }
+  #wyze-detected .wd-switch { display: inline-flex; align-items: center; gap: .3rem; margin: 0; font-size: .9rem; }
   #wyze-detected .wd-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
 </style>
 <div id="wyze-detected"></div>
@@ -83,7 +84,7 @@
 
       const saveButton = el('button', 'Save these to the config', 'btn btn-primary btn-sm');
       saveButton.disabled = true;
-      let nightVision = cam.nightVision;
+      const switchesNow = new Map(); // a switch changed from what the config has: key -> true or false
       function group (items, heading) {
         if (items.length === 0) return;
         if (heading) box.appendChild(el('div', heading, 'wd-group'));
@@ -99,7 +100,7 @@
             const next = !on();
             if (next === item.checked) ticks.delete(item.key); else ticks.set(item.key, next);
             show();
-            saveButton.disabled = ticks.size === 0 && nightVision === cam.nightVision;
+            changed();
           });
           show();
           row.appendChild(el('span', item.label));
@@ -116,22 +117,31 @@
       group(cam.items.filter((item) => item.other), 'Other labels. No sensor type for these yet, so turning one on only saves the name.');
       if (cam.unnamed.length) box.appendChild(el('p', 'Labels with no name here: ' + cam.unnamed.join(', ') + '. They get no sensor.', 'wd-empty'));
 
-      // Night vision has no sensor to switch: it adds two HomeKit switches, set on the camera over the home network.
-      const nightRow = el('label', undefined, 'wd-night');
-      const nightBox = document.createElement('input');
-      nightBox.type = 'checkbox';
-      nightBox.checked = cam.nightVision;
-      nightBox.addEventListener('change', () => { nightVision = nightBox.checked; saveButton.disabled = ticks.size === 0 && nightVision === cam.nightVision; });
-      nightRow.appendChild(nightBox);
-      nightRow.appendChild(el('span', ' Night Vision switches (Night Vision and Night Vision Auto)'));
-      box.appendChild(nightRow);
-      box.appendChild(el('p', 'Sets night vision on the camera over your home network, so Homebridge must be on the same network as the camera. A change takes a few seconds and the Wyze app cannot watch that camera meanwhile.', 'wd-empty'));
+      // The camera's extra HomeKit switches: each is a checkbox on its card, saved with the Save button below.
+      const changed = () => { saveButton.disabled = ticks.size === 0 && switchesNow.size === 0; };
+      box.appendChild(el('div', 'Switches in HomeKit', 'wd-group'));
+      const switchList = el('div', undefined, 'wd-switches');
+      for (const sw of cam.switches) {
+        const row = el('label', undefined, 'wd-switch');
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = sw.checked;
+        input.addEventListener('change', () => {
+          if (input.checked === sw.checked) switchesNow.delete(sw.key); else switchesNow.set(sw.key, input.checked);
+          changed();
+        });
+        row.appendChild(input);
+        row.appendChild(el('span', ' ' + sw.label));
+        row.title = sw.help;
+        switchList.appendChild(row);
+      }
+      box.appendChild(switchList);
 
       const buttons = el('div', undefined, 'wd-actions');
       saveButton.addEventListener('click', () => {
         const choice = {};
         if (ticks.size > 0) choice.ticks = Object.fromEntries(ticks);
-        if (nightVision !== cam.nightVision) choice.nightVision = nightVision;
+        if (switchesNow.size > 0) choice.switches = Object.fromEntries(switchesNow);
         save(cam, choice);
       });
       buttons.appendChild(saveButton);

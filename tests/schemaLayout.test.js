@@ -47,19 +47,21 @@ test('a number with both a minimum and a maximum is drawn as a slider by default
 // for yet ("turning one on only saves the name"). The schema must accept such a name, or Homebridge reports
 // "Config validation failed" for a config the plugin itself wrote.
 
-test('a camera\'s detections accept any label name, and the form still offers the known ones', () => {
+test('a camera\'s detections accept any label name, and the settings page offers the known ones', () => {
   const cameraProps = schema.schema.properties.cameras.items.properties
   assert.deepStrictEqual(cameraProps.detections.items, { type: 'string' }, 'no enum: a saved name the plugin does not know must stay valid')
-  const item = schema.form.flatMap(function find (node) {
-    if (Array.isArray(node)) return node.flatMap(find)
-    if (node && typeof node === 'object') return [node, ...Object.values(node).flatMap(find)]
-    return []
-  }).find((node) => node && node.key === 'cameras[].detections')
-  assert.strictEqual(item.type, 'checkboxes')
-  const offered = item.titleMap.map((option) => option.value)
-  for (const label of require('../src/detectedView').LABELS) assert.ok(offered.includes(label.value), `${label.value} is on the panel but not in the form`)
-  assert.ok(offered.includes('none'))
   assert.match(cameraProps.detections.description, /kept in the list and does nothing/)
+  assert.ok(require('../src/detectedView').LABELS.length >= 5)
+})
+
+test('the per-camera options are set on the settings page\'s camera cards, not twice in the form', () => {
+  const view = require('../src/detectedView')
+  assert.ok(!shown.has('cameras'), 'no Cameras section in the form')
+  for (const key of view.SWITCHES.map((sw) => sw.key)) {
+    assert.ok(schema.schema.properties.cameras.items.properties[key], `${key} is still valid in the config`)
+    assert.ok(!shown.has(`cameras[].${key}`), `${key} is on the cards, not in the form`)
+  }
+  assert.ok(view.SENSORS.every((sensor) => schema.schema.properties.cameras.items.properties[sensor.key]))
 })
 
 test('the form is plain sections that open and close, not a strip of tabs in the middle of the settings page', () => {

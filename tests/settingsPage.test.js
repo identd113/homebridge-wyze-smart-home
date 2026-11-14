@@ -248,7 +248,8 @@ test('a change that would alter anything else is refused (checked against a faul
   mustReport((after) => { after[0].polling.refreshInterval = 1 }, /alter other settings/)
   mustReport((after) => { after[0].auth = {} }, /alter other settings/)
   mustReport((after) => { after[0].cameras[1].detections = [] }, /alter other settings/)
-  mustReport((after) => { after[0].cameras[0].siren = false }, /camera's other settings/)
+  mustReport((after) => { after[0].cameras[0].name = 'Renamed' }, /camera's other settings/)
+  mustReport((after) => { after[0].cameras[0].siren = false }, /alter siren/)
   mustReport((after) => { after[0].cameras.pop() }, /alter other settings/)
   mustReport((after) => { after[0].extra = 1 }, /alter other settings/)
   assert.match(damaged((after) => { after[0].cameras[0].detections = ['pet'] }).join('; '), /not be the list chosen/)
@@ -258,7 +259,7 @@ test('a change that would alter anything else is refused (checked against a faul
 test('a new camera entry may hold only its id and name', () => {
   const before = saved()
   const after = JSON.parse(JSON.stringify(before))
-  after[0].cameras.push({ mac: 'CCDDEEFF0011', name: 'Porch', detections: ['pet'], siren: true })
+  after[0].cameras.push({ mac: 'CCDDEEFF0011', name: 'Porch', detections: ['pet'], extra: true })
   assert.match(page.problemsWith(before, after, 'CCDDEEFF0011', ['pet']).join('; '), /more than its id and name/)
 })
 

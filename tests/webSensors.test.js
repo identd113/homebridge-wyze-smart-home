@@ -193,39 +193,46 @@ test('the camera test page does not write the config', () => {
   }
 })
 
-// ---- the Night Vision switches checkbox ----
+// ---- the camera's switches: a checkbox each, saved to that camera's row ----
 
-test('the checkbox sets cameras[].nightVision for that camera, and unticking removes it', () => {
-  const on = view.prepareChoice(detectedFile(), entryWith(), MAC, { nightVision: true })
+test('every switch a camera can have is listed on its card, ticked from the config', () => {
+  const view_ = view.presentCameras(detectedFile(), entryWith({ cameras: [{ mac: MAC, siren: true, nightVision: true, spotlight: false }] }))[0]
+  assert.deepStrictEqual(view_.switches.map((sw) => sw.key), ['garage', 'spotlight', 'floodlight', 'siren', 'notifications', 'motionDetection', 'nightVision'])
+  assert.deepStrictEqual(Object.fromEntries(view_.switches.map((sw) => [sw.key, sw.checked])), { garage: false, spotlight: false, floodlight: false, siren: true, notifications: false, motionDetection: false, nightVision: true })
+  assert.ok(view_.switches.every((sw) => sw.label && sw.help))
+})
+
+test('a checkbox sets that switch on the camera\'s row, and unticking removes it', () => {
+  const on = view.prepareChoice(detectedFile(), entryWith(), MAC, { switches: { nightVision: true, siren: true } })
   assert.strictEqual(on.ok, true)
-  assert.deepStrictEqual(on.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell', nightVision: true }])
-  assert.strictEqual(view.presentCameras(detectedFile(), on.next)[0].nightVision, true)
-  const off = view.prepareChoice(detectedFile(), on.next, MAC, { nightVision: false })
-  assert.strictEqual(off.ok, true)
-  assert.deepStrictEqual(off.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell' }])
-  assert.strictEqual(view.presentCameras(detectedFile(), off.next)[0].nightVision, false)
+  assert.deepStrictEqual(on.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell', nightVision: true, siren: true }])
+  const off = view.prepareChoice(detectedFile(), on.next, MAC, { switches: { siren: false } })
+  assert.deepStrictEqual(off.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell', nightVision: true }])
+  const none = view.prepareChoice(detectedFile(), off.next, MAC, { switches: { nightVision: false } })
+  assert.deepStrictEqual(none.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell' }])
 })
 
-test('the checkbox can go with sensor choices, and a sensor change leaves nightVision as it was', () => {
-  const both = view.prepareChoice(detectedFile(), entryWith(), MAC, { ticks: { package: false }, nightVision: true })
-  assert.deepStrictEqual(both.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell', detections: ['person'], nightVision: true }])
+test('switches can go with sensor choices, and a sensor change or back to automatic leaves them as they were', () => {
+  const both = view.prepareChoice(detectedFile(), entryWith(), MAC, { ticks: { package: false }, switches: { garage: true } })
+  assert.deepStrictEqual(both.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell', detections: ['person'], garage: true }])
   const sensorOnly = view.prepareChoice(detectedFile(), both.next, MAC, { ticks: { motionSensor: false } })
-  assert.strictEqual(sensorOnly.next[0].cameras[0].nightVision, true)
+  assert.strictEqual(sensorOnly.next[0].cameras[0].garage, true)
   const back = view.prepareChoice(detectedFile(), both.next, MAC, { auto: true })
-  assert.strictEqual(back.next[0].cameras[0].nightVision, true, 'back to automatic is about sensors, not night vision')
+  assert.strictEqual(back.next[0].cameras[0].garage, true, 'back to automatic is about sensors, not switches')
 })
 
-test('only true or false is accepted for the checkbox, and it changes nothing else', () => {
-  for (const nightVision of ['yes', 1, null]) {
-    assert.strictEqual(view.prepareChoice(detectedFile(), entryWith(), MAC, { nightVision }).ok, false, String(nightVision))
+test('only the known switches, set to true or false, are accepted, and nothing else changes', () => {
+  for (const switches of [{ nightVision: 'yes' }, { nightVision: 1 }, { nightVision: null }, { starship: true }, [], 'x']) {
+    assert.strictEqual(view.prepareChoice(detectedFile(), entryWith(), MAC, { switches }).ok, false, JSON.stringify(switches))
   }
-  const config = entryWith({ cameras: [{ mac: MAC, name: 'Front Doorbell', siren: true, detections: ['person'] }] })
-  const result = view.prepareChoice(detectedFile(), config, MAC, { nightVision: true })
-  assert.deepStrictEqual(result.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell', siren: true, detections: ['person'], nightVision: true }])
+  const config = entryWith({ cameras: [{ mac: MAC, name: 'Front Doorbell', siren: true, detections: ['person'], note: 'keep' }] })
+  const result = view.prepareChoice(detectedFile(), config, MAC, { switches: { nightVision: true } })
+  assert.deepStrictEqual(result.next[0].cameras, [{ mac: MAC, name: 'Front Doorbell', siren: true, detections: ['person'], note: 'keep', nightVision: true }])
 })
 
-test('the settings page has the checkbox, and sends the choice only when it changed', () => {
+test('the settings page lists the switches as checkboxes and sends only the ones that changed', () => {
   const html = fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/index.html'), 'utf8')
-  assert.match(html, /nightBox\.type = 'checkbox'/)
-  assert.match(html, /if \(nightVision !== cam\.nightVision\) choice\.nightVision = nightVision/)
+  assert.match(html, /for \(const sw of cam\.switches\)/)
+  assert.match(html, /input\.type = 'checkbox'/)
+  assert.match(html, /if \(switchesNow\.size > 0\) choice\.switches = Object\.fromEntries\(switchesNow\)/)
 })
