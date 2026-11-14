@@ -32,3 +32,21 @@ test('options that were never set do not appear in the rewritten config', () => 
     assert.ok(!(k in out), k)
   }
 })
+
+test('every per-camera switch survives normalizing, so the accessory sees it in its array', () => {
+  const { normalize } = require('../src/configMigrator')
+  const cameras = [{ mac: 'AA', garage: true, spotlight: true, floodlight: true, siren: true, notifications: true, motionDetection: true, nightVision: true }]
+  const config = normalize({ platform: 'WyzeSmartHome', auth: { username: 'u', password: 'p', keyId: 'k', apiKey: 'a' }, cameras })
+  for (const key of ['garageDoorAccessory', 'spotLightAccessory', 'floodLightAccessory', 'sirenAccessory', 'notificationAccessory', 'motionDetectionAccessory', 'nightVisionAccessory']) {
+    assert.deepStrictEqual(config[key], ['AA'], key)
+  }
+  assert.strictEqual(config.cameras[0].nightVision, true)
+  const off = normalize({ platform: 'WyzeSmartHome', auth: { username: 'u', password: 'p', keyId: 'k', apiKey: 'a' }, cameras: [{ mac: 'AA', nightVision: false }] })
+  assert.deepStrictEqual(off.nightVisionAccessory, [])
+})
+
+test('a switch listed only in the legacy arrays reaches the camera row, and an old config loses nothing', () => {
+  const { normalize } = require('../src/configMigrator')
+  const config = normalize({ platform: 'WyzeSmartHome', username: 'u', password: 'p', keyId: 'k', apiKey: 'a', nightVisionAccessory: ['BB'], sirenAccessory: ['BB'] })
+  assert.deepStrictEqual(config.cameras.map((c) => [c.mac, c.siren, c.nightVision]), [['BB', true, true]])
+})

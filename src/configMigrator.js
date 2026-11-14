@@ -172,6 +172,7 @@ function normalize(input) {
         siren: !!cam.siren,
         notifications: !!cam.notifications,
         motionDetection: !!cam.motionDetection,
+        nightVision: !!cam.nightVision,
         motionSensor: sensorMode(cam.motionSensor),
         soundSensor: sensorMode(cam.soundSensor),
         detections: normalizeDetections(cam.detections),
@@ -185,7 +186,7 @@ function normalize(input) {
       const row = cameraMap.get(mac) || {
         mac,
         name: "",
-        garage: false, spotlight: false, floodlight: false, siren: false, notifications: false, motionDetection: false,
+        garage: false, spotlight: false, floodlight: false, siren: false, notifications: false, motionDetection: false, nightVision: false,
         motionSensor: "auto", soundSensor: "auto", detections: [],
       };
       row[feature] = true;
@@ -199,7 +200,7 @@ function normalize(input) {
       const row = cameraMap.get(mac) || {
         mac,
         name: "",
-        garage: false, spotlight: false, floodlight: false, siren: false, notifications: false, motionDetection: false,
+        garage: false, spotlight: false, floodlight: false, siren: false, notifications: false, motionDetection: false, nightVision: false,
         motionSensor: "auto", soundSensor: "auto", detections: [],
       };
       row[feature] = "on";
