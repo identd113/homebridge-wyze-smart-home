@@ -27,6 +27,7 @@
   #wyze-detected .wd-link { margin: 0 0 .75rem; padding: .6rem .8rem; border: 1px solid rgba(128, 128, 128, .4); border-radius: 6px; font-size: .9rem; }
   #wyze-detected .wd-switches { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; margin: .4rem 0 .6rem; }
   #wyze-detected .wd-switch { display: inline-flex; align-items: center; gap: .3rem; margin: 0; font-size: .9rem; }
+  #wyze-detected .wd-address { display: block; width: 100%; margin-top: .5rem; font-family: monospace; }
   #wyze-detected .wd-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
 </style>
 <div id="wyze-detected"></div>
@@ -179,10 +180,28 @@
         open.href = best;
         open.target = '_blank';
         open.rel = 'noopener noreferrer';
+        // A click opens the page in a new tab. If the browser refuses (some block new tabs from a frame), the address is
+        // below to copy, so there is always a way in.
+        open.addEventListener('click', (event) => {
+          event.preventDefault();
+          const tab = window.open(best, '_blank');
+          if (tab) { try { tab.opener = null; } catch (_) { /* cross-origin already */ } return; }
+          fallback.hidden = false;
+          fallback.select();
+        });
         box.appendChild(open);
         let shown = best;
         try { const u = new URL(best); shown = u.protocol + '//' + u.host; } catch (_) { /* show it as it is */ }
+        const fallback = document.createElement('input');
+        fallback.type = 'text';
+        fallback.readOnly = true;
+        fallback.value = best;
+        fallback.className = 'form-control form-control-sm wd-address';
+        fallback.setAttribute('aria-label', 'Camera test page address');
+        fallback.addEventListener('focus', () => fallback.select());
         box.appendChild(el('span', ' ' + shown + ' \u2013 opens in a new tab. It tests cameras and other devices over your home network; the link carries a token that changes when Homebridge restarts.', 'wd-sub'));
+        fallback.hidden = true;
+        box.appendChild(fallback);
       } else {
         box.appendChild(el('span', 'The camera test page is off. It tests each camera over your home network and sets night vision. To turn it on, set a port from 1024 up under Advanced, \u201cCamera Test Page Port\u201d, then restart Homebridge.'));
       }

@@ -230,3 +230,10 @@ test('the page is told which devices are unsupported, what is known about them, 
   assert.strictEqual(versions.plugin, require('../package.json').version)
   assert.ok(versions.node)
 })
+
+test('the report answer the unsupported-devices tab fills in is an option of the form\'s "What are you reporting?" field', () => {
+  const yaml = fs.readFileSync(path.join(__dirname, '../.github/ISSUE_TEMPLATE/new-device.yml'), 'utf8')
+  const block = yaml.slice(yaml.indexOf('id: report'), yaml.indexOf('id: device'))
+  // wyze-api's buildDeviceIssueUrl fills the field with exactly this text
+  assert.ok(block.split('\n').some((line) => line.trim() === '- It is not supported yet'))
+})

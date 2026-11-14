@@ -259,3 +259,10 @@ test('the settings page links to the camera test page by the address this screen
   assert.match(html, /new URL\(u\)\.hostname === here/)
   assert.match(html, /open\.rel = 'noopener noreferrer'/)
 })
+
+test('the Open button opens a new tab itself, and falls back to a copyable address when the browser refuses', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/index.html'), 'utf8')
+  assert.match(html, /window\.open\(best, '_blank'\)/)
+  assert.match(html, /fallback\.hidden = false/)
+  assert.match(html, /fallback\.readOnly = true/)
+})
