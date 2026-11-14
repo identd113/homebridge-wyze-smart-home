@@ -198,6 +198,21 @@ module.exports = class WyzeSmartHome {
     })
   }
 
+  // The devices the camera test page offers to test and report because the plugin has no support for them, and what
+  // is already known about their model.
+  otherDevicesForTestPage () {
+    let apiVersion
+    try { apiVersion = require('wyze-api/package.json').version } catch (_) { /* unknown */ }
+    return {
+      unsupported: (device) => !this.getAccessoryClass(device.product_type, device.product_model),
+      describeDevice: (model) => {
+        const known = plannedDevices.lookup(model)
+        return known ? `This looks like a ${known.name}. ${known.note}` : undefined
+      },
+      versions: { plugin: require('../package.json').version, ...(apiVersion ? { 'wyze-api': apiVersion } : {}), node: process.version }
+    }
+  }
+
   // What the camera test page needs to open this plugin's device report form with some fields filled in.
   issueFormForTestPage () {
     let labels = {}
@@ -232,7 +247,7 @@ module.exports = class WyzeSmartHome {
         return
       }
       if (!check.enabled) return
-      this.webServer = lib.createCameraTestServer({ client: this.client, port: check.port, log: this.log, issueForm: this.issueFormForTestPage(), settings: this.webSettings(), sensors: this.webSensors() })
+      this.webServer = lib.createCameraTestServer({ client: this.client, port: check.port, log: this.log, issueForm: this.issueFormForTestPage(), settings: this.webSettings(), sensors: this.webSensors(), ...this.otherDevicesForTestPage() })
       const { urls } = await this.webServer.start()
       this.log.info?.(`[Web] Camera test page is on port ${check.port}. Open one of these from a computer on the same network (the token changes at every restart, and anyone with the link can test your cameras and change night vision):`)
       for (const url of urls) this.log.info?.(`[Web]   ${url}`)

@@ -213,3 +213,20 @@ test('the link file is only read as http links, and a missing or odd file reads 
   fs.writeFileSync(path.join(dir, 'homebridge-wyze-smart-home', 'web-page.json'), '{ nope')
   assert.deepStrictEqual(webPageLink.read(dir), { port: null, urls: [] })
 })
+
+test('the page is told which devices are unsupported, what is known about them, and the versions for the report', async () => {
+  const { p } = platformWith({ webServerPort: 8099 })
+  const lib = fakeLib()
+  await p.startCameraTestPage(lib)
+  const { unsupported, describeDevice, versions } = lib.made[0]
+  assert.strictEqual(typeof unsupported, 'function')
+  // supported ones are not offered; a model with no accessory class is
+  assert.strictEqual(unsupported({ product_type: 'Plug', product_model: 'WLPP1' }), false)
+  assert.strictEqual(unsupported({ product_type: 'Camera', product_model: 'HL_DB2' }), false)
+  assert.strictEqual(unsupported({ product_type: 'Camera', product_model: 'GW_WC' }), true)
+  assert.strictEqual(unsupported({ product_type: 'AirPurifier', product_model: 'NOPE_1' }), true)
+  assert.match(describeDevice('GW_WC'), /^This looks like a Wyze Window Cam\./)
+  assert.strictEqual(describeDevice('NOPE_1'), undefined)
+  assert.strictEqual(versions.plugin, require('../package.json').version)
+  assert.ok(versions.node)
+})
