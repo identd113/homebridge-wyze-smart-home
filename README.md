@@ -13,25 +13,28 @@
 
 > **Coming soon:** gun safe support.
 
-## What's new in 2.0.0-beta.4
+## What's new in 2.1.0-beta.1
 
 > [!WARNING]
 > **Breaking change: the Privacy switch is now on when the camera is off.** It used to be on when the camera was on, the opposite of its name. Turning Privacy **on** now powers the camera **off**, and turning it off powers it on. There is no setting to keep the old direction. **Any scene, automation or Siri phrase that uses a camera's Privacy switch now does the opposite.** Check each one after you update: where it turned Privacy on to switch the camera on, it must turn Privacy off, and the other way round.
 
 **New in HomeKit**
 - **Motion, Sound and AI sensors for your cameras.** Each camera gets a Motion Sensor and a Sound Sensor when its recent events show them, and cameras on a Wyze plan with AI detection also get Person, Vehicle, Pet and Package sensors (Face if you ask for it). Use them in HomeKit automations: turn on a light when a person is seen, or notify you about a package. They appear by themselves, so HomeKit may start sending notifications for them. Turn any of them off per camera.
+- **Night vision switches for your cameras** (optional, per camera): Night Vision and Night Vision Auto. The Wyze cloud does not offer this setting, so the plugin asks the camera directly over your home network. See [Cameras and doorbells](#cameras-and-doorbells) for what it needs.
 - **A camera that is switched off shows a black picture with a crossed-out red dot** in the Home app, instead of its last picture, which looked live.
 
 **New in the settings page**
 - **One card per camera** under the settings form holds all of that camera's options: its extra HomeKit switches (garage door, spotlight, floodlight, siren, notifications, motion detection, night vision) as checkboxes, and the sensors it was found to have. The sensors panel shows what each camera has, lets you switch each sensor on or off, and warns when a camera's sound recording is off in Wyze (Wyze lists no sound events then). A choice is saved by Homebridge's own UI, like the form's Save button. It also has a button that opens the camera test page when that is on.
 - **Each camera card shows its Cam Plus plan,** and the log tells you about a camera with no plan, a lapsed plan, or one that ends within 14 days.
 
+**New: a camera test page** (optional, off by default). It tests each camera directly over your home network, lists devices the plugin does not support yet and, for one of them, collects a read-only report and opens the add-a-device form on GitHub with it filled in. Turn it on with `advanced.webServerPort`; see [Camera test page](#advanced-settings-and-when-to-use-them).
+
 **Better**
 - **Fewer requests to Wyze:** the properties of all cameras and lights are read in one request per refresh, not one request each.
 - **Example configs:** the [minimum, recommended and maximum configs](#configuration) below show what to write and what each one adds, and the [advanced settings](#advanced-settings-and-when-to-use-them) say when each is worth changing.
 - **Safer, tidier package:** the published package holds only what it needs (it no longer carries unused libraries), and the project is tested and linted on every change.
 
-Needs `wyze-api` 2.0.0-beta.4, which installs with the plugin. The full list is in the [change log](CHANGELOG.md), and the notes for maintainers are in [docs/releases/2.0.0-beta.4.md](docs/releases/2.0.0-beta.4.md). Going back: `npm install homebridge-wyze-smart-home@2.0.0-beta.3` (the Privacy switch then has its old direction again).
+Needs `wyze-api` 2.1.0-beta.1, which installs with the plugin. Everything since the last published beta, 2.0.0-beta.3, is in this release (a 2.0.0-beta.4 was prepared but never published). The full list is in the [change log](CHANGELOG.md), and the notes for maintainers are in [docs/releases/2.1.0-beta.1.md](docs/releases/2.1.0-beta.1.md). Going back: `npm install homebridge-wyze-smart-home@2.0.0-beta.3` (the Privacy switch then has its old direction again).
 
 ## Support
 
@@ -454,6 +457,7 @@ The older flat format (`username`, `password`, `keyId`, `apiKey`, `filterByMacAd
 
 ## Upgrading
 
+- **From 2.0.0-beta.3:** nothing in your config needs to change. The Privacy switch is now reversed (see What's new), and a camera's options are on its card on the settings page instead of the Cameras section of the form. Newly added sensors appear by themselves.
 - **From 2.0.0-beta.2:** nothing in your config needs to change. Update Node.js to 22 or newer first. Newly recognised cameras need pairing (see above).
 - **From 0.5.x or 1.x:** your flat config is converted on first start (see Configuration). Update Node.js to 22 or newer first.
 - If the installed `wyze-api` is older than this plugin needs, the log shows one `[FATAL]` line and the plugin stays inactive without removing your paired accessories.

@@ -32,9 +32,9 @@ test('secret fields are masked in the settings UI', () => {
 
 test('getClient trims whitespace around keyId and apiKey', () => {
   const platform = Object.create(WyzeSmartHome.prototype)
-  platform.config = { username: 'u@example.com', password: 'p', keyId: ' 9c2e9f81-6af6 \n', apiKey: '\tabc ' }
+  platform.config = { username: 'u@example.com', password: 'p', keyId: ' 00000000-1111 \n', apiKey: '\tabc ' }
   platform.log = Object.assign(() => {}, { debug () {}, info () {}, warn () {}, error () {} })
   const client = platform.getClient()
-  assert.strictEqual(client.keyId, '9c2e9f81-6af6')
+  assert.strictEqual(client.keyId, '00000000-1111')
   assert.strictEqual(client.apiKey, 'abc')
 })

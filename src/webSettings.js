@@ -45,7 +45,8 @@ function createWebSettings ({ configPath, platformAlias, instanceName, running }
         file: path.basename(file),
         fields: FIELDS.map((key) => {
           const property = properties[key]
-          const saved = entry.advanced ? entry.advanced[key] : undefined
+          // An old flat config has the option at the top of the entry; the plugin reads that too, so the file side does.
+          const saved = entry.advanced && entry.advanced[key] !== undefined ? entry.advanced[key] : entry[key]
           const live = runningValue(key)
           return {
             key,

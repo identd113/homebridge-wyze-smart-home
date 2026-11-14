@@ -121,3 +121,19 @@ test('the timers are stopped with the camera, and do not keep Homebridge from ex
   acc.stopStreams()
   assert.ok(acc._nightVisionFirst._destroyed || acc._nightVisionFirst._idleTimeout === -1)
 })
+
+test('turning off the switch that is already off does nothing; only the switch of the current mode turns it off', async () => {
+  const calls = []
+  const { acc, shown, handlers } = make({ client: { setCameraNightVision: async (mac, mode) => { calls.push(mode); return { before: 'x', after: mode, matches: true } } } })
+  acc._setupNightVision()
+  acc.nightVision = 'auto'
+  await handlers.NightVision.set(false) // a scene's "everything off" also sets the switch that is already off
+  assert.deepStrictEqual(calls, [], 'auto is left alone')
+  assert.deepStrictEqual([shown.NightVision, shown.NightVisionAuto], [false, true])
+  acc.nightVision = 'on'
+  await handlers.NightVisionAuto.set(false)
+  assert.deepStrictEqual(calls, [], 'on is left alone')
+  await handlers.NightVision.set(false)
+  assert.deepStrictEqual(calls, ['off'], 'the switch of the current mode turns it off')
+  cleanUp(acc)
+})

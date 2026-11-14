@@ -54,3 +54,12 @@ test('a power value that is not 0 or 1 leaves power_switch as it was', async () 
   await acc.updateCharacteristics({ device_params: {} })
   assert.strictEqual(acc.power_switch, 1)
 })
+
+test('a camera with an attached accessory shows Privacy from the bulk-list power until its own state is known', async () => {
+  const acc = Object.create(WyzeCamera.prototype)
+  acc.homeKitAccessory = { context: { mac: 'AA', product_model: 'WYZE_CAKP2JFUS' }, displayName: 'Cam' }
+  acc.plugin = { config: { nightVisionAccessory: ['AA'] } }
+  acc.power_switch = 0 // switched off
+  acc.on = undefined
+  assert.strictEqual(await acc.handleOnGetPrivacySwitch(), 1, 'off camera: Privacy on, not "camera on" because `on` is unset')
+})

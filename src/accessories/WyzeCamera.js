@@ -937,7 +937,9 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   async handleOnGetPrivacySwitch() {
     // Pull from the right cached field depending on whether we have an
     // attached accessory (PID-driven flow) or just the bulk list field.
-    const value = this.cameraAccessoryAttached() ? this.on : this.power_switch;
+    // `on` is only filled in by the first refresh (or a saved value), so until then fall back to the bulk-list field:
+    // reading nothing here would show a camera that was just switched off as on.
+    const value = this.cameraAccessoryAttached() ? (this.on ?? this.power_switch) : this.power_switch;
     return privacyOf(value);
   }
 
@@ -1051,7 +1053,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     this.nightVisionSwitch
       .getCharacteristic(Characteristic.On)
       .onGet(() => this.nightVision === "on")
-      .onSet((value) => this._setNightVision(value ? "on" : "off"));
+      .onSet((value) => this._setNightVisionSwitch("on", value));
     this.nightVisionAutoSwitch = this._getOrAddService({
       ServiceType: Service.Switch,
       subtype: "NightVisionAuto",
@@ -1061,7 +1063,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     this.nightVisionAutoSwitch
       .getCharacteristic(Characteristic.On)
       .onGet(() => this.nightVision === "auto")
-      .onSet((value) => this._setNightVision(value ? "auto" : "off"));
+      .onSet((value) => this._setNightVisionSwitch("auto", value));
     // Read it once soon after start, then now and then, because it can also be changed in the Wyze app. Each read
     // is a short conversation with the camera, so it is slow on purpose.
     this._nightVisionFirst = setTimeout(() => this._readNightVision(), NIGHT_VISION_FIRST_READ_MS);
@@ -1092,6 +1094,15 @@ module.exports = class WyzeCamera extends WyzeAccessory {
       this._nightVisionWarned = true;
       this.plugin.log[said ? "debug" : "warn"]?.(`[Camera] ${this.display_name}: could not read night vision: ${err.message || err}`);
     }
+  }
+
+  // Turning a switch on selects its mode. Turning it off means "off" only if the camera is in that mode: a scene such as
+  // "turn everything off" also sets the switch that is already off, and must not switch night vision off from the other mode.
+  async _setNightVisionSwitch(mode, value) {
+    if (value) return this._setNightVision(mode);
+    if (this.nightVision === mode) return this._setNightVision("off");
+    this._showNightVision();
+    return undefined;
   }
 
   async _setNightVision(mode) {

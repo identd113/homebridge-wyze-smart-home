@@ -95,3 +95,11 @@ test('the module can only read: it has no save, and nothing in it writes the fil
     assert.ok(!/writeFile|renameSync|unlinkSync/.test(source), `${name} writes a file`)
   }
 })
+
+test('an option left at the top of an old flat entry counts as saved, so the page does not ask for a restart that changes nothing', async () => {
+  const t = setup({ platforms: [{ platform: 'WyzeSmartHome', name: 'Wyze', snapshotRefreshSeconds: 45 }] })
+  t.state.running = { snapshotRefreshSeconds: 45 }
+  const field = (await t.settings.describe()).fields.find((f) => f.key === 'snapshotRefreshSeconds')
+  assert.strictEqual(field.value, 45)
+  assert.strictEqual(field.pending, false)
+})
