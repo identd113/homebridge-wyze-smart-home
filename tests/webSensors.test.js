@@ -252,3 +252,10 @@ test('a change on a camera card says it is not saved until that card\'s own butt
   assert.ok(html.includes('own Save button does not include these changes'))
   assert.match(html, /unsaved\.hidden = !dirty/)
 })
+
+test('the settings page links to the camera test page by the address this screen was opened from, in one button', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/index.html'), 'utf8')
+  assert.ok(html.includes("'Open camera test page'"))
+  assert.match(html, /new URL\(u\)\.hostname === here/)
+  assert.match(html, /open\.rel = 'noopener noreferrer'/)
+})

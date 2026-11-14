@@ -170,15 +170,19 @@
       let link;
       try { link = await homebridge.request('/web-link'); } catch (_) { link = { urls: [] }; }
       if (link.urls && link.urls.length) {
-        box.appendChild(el('span', 'The camera test page is on. Open it from a computer on your home network: '));
-        for (const url of link.urls.filter((u) => !/\/\/localhost[:/]/.test(u))) {
-          const a = el('a', url.replace(/\?token=.*/, ''));
-          a.href = url;
-          a.target = '_blank';
-          a.rel = 'noopener';
-          box.appendChild(a);
-          box.appendChild(document.createTextNode(' '));
-        }
+        // The page listens on every address of the Homebridge computer. Link to the one this screen was opened by, so
+        // it is an address the browser can reach; otherwise the first one that is not local to the computer itself.
+        const usable = link.urls.filter((u) => !/\/\/(localhost|127\.)/.test(u));
+        const here = window.location.hostname;
+        const best = usable.find((u) => { try { return new URL(u).hostname === here; } catch (_) { return false; } }) || usable[0] || link.urls[0];
+        const open = el('a', 'Open camera test page', 'btn btn-primary btn-sm');
+        open.href = best;
+        open.target = '_blank';
+        open.rel = 'noopener noreferrer';
+        box.appendChild(open);
+        let shown = best;
+        try { const u = new URL(best); shown = u.protocol + '//' + u.host; } catch (_) { /* show it as it is */ }
+        box.appendChild(el('span', ' ' + shown + ' \u2013 opens in a new tab. It tests cameras and other devices over your home network; the link carries a token that changes when Homebridge restarts.', 'wd-sub'));
       } else {
         box.appendChild(el('span', 'The camera test page is off. It tests each camera over your home network and sets night vision. To turn it on, set a port from 1024 up under Advanced, \u201cCamera Test Page Port\u201d, then restart Homebridge.'));
       }
