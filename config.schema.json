@@ -427,6 +427,10 @@
           "expandable": true,
           "expanded": false,
           "items": [
+            "advanced.snapshotRefreshSeconds",
+            "advanced.snapshotOnMotion",
+            "advanced.sensorHoldSeconds",
+            "advanced.warmLiveView",
             "advanced.webServerPort",
             "advanced.deviceTypeOverrides",
             "advanced.dangerouslyAllowCustomBaseUrls",
