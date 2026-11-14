@@ -304,77 +304,74 @@
 
   "form": [
     {
-      "type": "tabarray",
-      "title": "{{ value.title }}",
+      "type": "fieldset",
+      "title": "Account",
+      "expandable": true,
+      "expanded": true,
+      "items": [
+        "auth.username",
+        "auth.password",
+        "auth.keyId",
+        "auth.apiKey",
+        {
+          "type": "fieldset",
+          "title": "Use a secrets file instead",
+          "expandable": true,
+          "expanded": false,
+          "items": ["auth.secretsFile"]
+        }
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Polling",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        "polling.refreshInterval",
+        "polling.lowBatteryPercentage"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Cameras",
+      "expandable": true,
+      "expanded": false,
       "items": [
         {
-          "type": "section",
-          "title": "Account",
-          "expandable": false,
-          "items": [
-            "auth.username",
-            "auth.password",
-            "auth.keyId",
-            "auth.apiKey",
-            {
-              "type": "section",
-              "title": "Use a secrets file instead",
-              "expandable": true,
-              "expanded": false,
-              "items": ["auth.secretsFile"]
-            }
-          ]
-        },
-        {
-          "type": "section",
-          "title": "Polling",
-          "expandable": false,
-          "items": [
-            "polling.refreshInterval",
-            "polling.lowBatteryPercentage"
-          ]
-        },
-        {
-          "type": "section",
-          "title": "Cameras",
-          "expandable": false,
+          "key": "cameras",
+          "type": "array",
+          "title": " ",
+          "buttonText": "Add Camera",
           "items": [
             {
-              "key": "cameras",
-              "type": "array",
-              "title": " ",
-              "buttonText": "Add Camera",
+              "type": "fieldset",
+              "title": "{{ value.name || value.mac || 'Camera' }}",
               "items": [
+                "cameras[].mac",
+                "cameras[].name",
                 {
-                  "type": "fieldset",
-                  "title": "{{ value.name || value.mac || 'Camera' }}",
+                  "type": "flex",
+                  "flex-flow": "row wrap",
                   "items": [
-                    "cameras[].mac",
-                    "cameras[].name",
+                    "cameras[].garage",
+                    "cameras[].spotlight",
+                    "cameras[].floodlight",
+                    "cameras[].siren",
+                    "cameras[].notifications",
+                    "cameras[].motionDetection",
+                    "cameras[].motionSensor",
+                    "cameras[].soundSensor",
                     {
-                      "type": "flex",
-                      "flex-flow": "row wrap",
-                      "items": [
-                        "cameras[].garage",
-                        "cameras[].spotlight",
-                        "cameras[].floodlight",
-                        "cameras[].siren",
-                        "cameras[].notifications",
-                        "cameras[].motionDetection",
-                        "cameras[].motionSensor",
-                        "cameras[].soundSensor",
-                        {
-                          "key": "cameras[].detections",
-                          "type": "checkboxes",
-                          "titleMap": [
-                            { "value": "person", "name": "Person" },
-                            { "value": "vehicle", "name": "Vehicle" },
-                            { "value": "pet", "name": "Pet" },
-                            { "value": "package", "name": "Package" },
-                            { "value": "face", "name": "Face" },
-                            { "value": "none", "name": "None" }
-                          ]
-                        }
+                      "key": "cameras[].detections",
+                      "type": "checkboxes",
+                      "titleMap": [
+                        { "value": "person", "name": "Person" },
+                        { "value": "vehicle", "name": "Vehicle" },
+                        { "value": "pet", "name": "Pet" },
+                        { "value": "package", "name": "Package" },
+                        { "value": "face", "name": "Face" },
+                        { "value": "none", "name": "None" }
                       ]
                     }
                   ]
@@ -382,73 +379,77 @@
               ]
             }
           ]
-        },
-        {
-          "type": "section",
-          "title": "Thermostat",
-          "expandable": false,
-          "items": [
-            "thermostat.exposeRoomSensors",
-            "thermostat.mode"
-          ]
-        },
-        {
-          "type": "section",
-          "title": "Robot Vacuum",
-          "expandable": false,
-          "items": [
-            "vacuum.perRoomSwitches"
-          ]
-        },
-        {
-          "type": "section",
-          "title": "Home Monitoring System (HMS)",
-          "expandable": false,
-          "items": [
-            "hms.enabled"
-          ]
-        },
-        {
-          "type": "section",
-          "title": "Excludes",
-          "expandable": true,
-          "expanded": false,
-          "items": [
-            {
-              "key": "excludes.macs",
-              "type": "array",
-              "buttonText": "Add MAC",
-              "items": ["excludes.macs[]"]
-            },
-            "excludes.types"
-          ]
-        },
-        {
-          "type": "section",
-          "title": "Logging",
-          "expandable": false,
-          "items": [
-            "logging.level",
-            "logging.disableRedaction"
-          ]
-        },
-        {
-          "type": "section",
-          "title": "Advanced",
-          "expandable": true,
-          "expanded": false,
-          "items": [
-            { "key": "advanced.snapshotRefreshSeconds", "type": "number" },
-            "advanced.snapshotOnMotion",
-            { "key": "advanced.sensorHoldSeconds", "type": "number" },
-            "advanced.warmLiveView",
-            { "key": "advanced.webServerPort", "type": "number" },
-            "advanced.deviceTypeOverrides",
-            "advanced.dangerouslyAllowCustomBaseUrls",
-            "advanced.authBaseUrl",
-            "advanced.apiBaseUrl"
-          ]
         }
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Thermostat",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        "thermostat.exposeRoomSensors",
+        "thermostat.mode"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Robot Vacuum",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        "vacuum.perRoomSwitches"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Home Monitoring System (HMS)",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        "hms.enabled"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Excludes",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        {
+          "key": "excludes.macs",
+          "type": "array",
+          "buttonText": "Add MAC",
+          "items": ["excludes.macs[]"]
+        },
+        "excludes.types"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Logging",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        "logging.level",
+        "logging.disableRedaction"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Advanced",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        { "key": "advanced.snapshotRefreshSeconds", "type": "number" },
+        "advanced.snapshotOnMotion",
+        { "key": "advanced.sensorHoldSeconds", "type": "number" },
+        "advanced.warmLiveView",
+        { "key": "advanced.webServerPort", "type": "number" },
+        "advanced.deviceTypeOverrides",
+        "advanced.dangerouslyAllowCustomBaseUrls",
+        "advanced.authBaseUrl",
+        "advanced.apiBaseUrl"
       ]
     }
   ]
