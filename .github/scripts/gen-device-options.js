@@ -50,8 +50,15 @@ function render(form) {
   const start = form.indexOf(BEGIN);
   const stop = form.indexOf(END);
   if (start < 0 || stop < start) throw new Error("device option markers not found in new-device.yml");
-  const lines = options().map((o) => `        - ${JSON.stringify(o)}`);
-  return form.slice(0, start) + [BEGIN, ...lines].join("\n") + "\n" + form.slice(stop);
+  const all = options();
+  const lines = all.map((o) => `        - ${JSON.stringify(o)}`);
+  // The dropdown starts on its last option ("Not in this list"): a link from the camera test page cannot choose a
+  // dropdown option for the person, so the case that link is for starts out right. `default` is the option's index.
+  const before = form.slice(0, start);
+  const at = before.indexOf("id: device");
+  if (at < 0) throw new Error("the device dropdown was not found in new-device.yml");
+  const head = before.slice(0, at) + before.slice(at).replace(/^(      default: )\d+$/m, (line, prefix) => prefix + (all.length - 1));
+  return head + [BEGIN, ...lines].join("\n") + "\n" + form.slice(stop);
 }
 
 if (require.main === module) {

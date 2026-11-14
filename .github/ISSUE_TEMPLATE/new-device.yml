@@ -26,6 +26,8 @@ body:
     id: report
     attributes:
       label: What are you reporting?
+      description: Starts on "It is not supported yet", which is what most reports are. Change it if the device already works.
+      default: 0
       options:
         - It is not supported yet
         - It works
@@ -38,7 +40,8 @@ body:
     id: device
     attributes:
       label: Device
-      description: Pick your device by name; its model code is in brackets. If it is not listed, choose the last option and fill in the next two questions.
+      description: Pick your device by name; its model code is in brackets. If it is not listed, choose the last option and fill in the next two questions. Starts on the last option, for a device that is not in the list.
+      default: 49
       options:
         # BEGIN device options (npm run device-options)
         - "Doorbells - Video Doorbell Pro 2 (AN_RDB1)"

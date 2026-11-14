@@ -237,3 +237,14 @@ test('the report answer the unsupported-devices tab fills in is an option of the
   // wyze-api's buildDeviceIssueUrl fills the field with exactly this text
   assert.ok(block.split('\n').some((line) => line.trim() === '- It is not supported yet'))
 })
+
+test('the form starts on the answers the camera test page\'s link is for, because a link cannot choose a dropdown option', () => {
+  const yaml = fs.readFileSync(path.join(__dirname, '../.github/ISSUE_TEMPLATE/new-device.yml'), 'utf8')
+  const section = (id, next) => yaml.slice(yaml.indexOf(`id: ${id}`), yaml.indexOf(`id: ${next}`))
+  const report = section('report', 'device')
+  assert.match(report, /\n {6}default: 0\n/, '"It is not supported yet" is the first option and the starting one')
+  const device = yaml.slice(yaml.indexOf('id: device'), yaml.indexOf('id: model'))
+  const count = (device.slice(device.indexOf('BEGIN'), device.indexOf('END')).match(/^ {8}- "/gm) || []).length
+  assert.match(device, new RegExp(`\\n {6}default: ${count - 1}\\n`), 'the device dropdown starts on its last option, "Not in this list"')
+  assert.ok(device.includes('- "Not in this list'))
+})
