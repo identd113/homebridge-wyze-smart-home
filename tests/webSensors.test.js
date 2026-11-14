@@ -236,3 +236,12 @@ test('the settings page lists the switches as checkboxes and sends only the ones
   assert.match(html, /input\.type = 'checkbox'/)
   assert.match(html, /if \(switchesNow\.size > 0\) choice\.switches = Object\.fromEntries\(switchesNow\)/)
 })
+
+test('sensors are labelled as sensors and the motion switch as an on/off switch, so the two are not confused', () => {
+  const cam = view.presentCameras(detectedFile(), entryWith())[0]
+  assert.deepStrictEqual(cam.items.map((i) => i.label), ['Motion sensor', 'Sound sensor', 'Person sensor', 'Package sensor'])
+  assert.strictEqual(cam.switches.find((sw) => sw.key === 'motionDetection').label, 'Motion Detection on/off')
+  const html = fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/index.html'), 'utf8')
+  assert.ok(html.includes('Sensors in HomeKit (they report what the camera sees)'))
+  assert.ok(html.includes('Switches in HomeKit (they control the camera)'))
+})

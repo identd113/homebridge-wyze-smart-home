@@ -45,7 +45,7 @@
     { key: "floodlight", label: "Floodlight", help: "A switch for the camera's floodlight. A camera with a floodlight accessory gets one without this." },
     { key: "siren", label: "Siren", help: "A switch that sounds the camera's siren." },
     { key: "notifications", label: "Notifications", help: "A switch for the camera's notifications in the Wyze app." },
-    { key: "motionDetection", label: "Motion Detection", help: "Turns the camera's motion detection on and off, apart from notifications." },
+    { key: "motionDetection", label: "Motion Detection on/off", help: "A switch that turns the camera's own motion detection on and off, apart from notifications. With it off the camera stops looking for motion, so the Motion sensor stops too." },
     { key: "nightVision", label: "Night Vision", help: "Two switches, Night Vision and Night Vision Auto. Set on the camera over your home network, so Homebridge must be on the camera's network; a change takes a few seconds and the Wyze app cannot watch that camera meanwhile." },
   ];
   const SWITCH_KEYS = SWITCHES.map((sw) => sw.key);
@@ -338,10 +338,10 @@
       notAuto: cam.setting !== "auto" || cam.sensors.some((s) => s.mode !== "auto"),
       switches: switchesOf(config, cam.mac),
       items: [
-        ...cam.sensors.map((s) => ({ key: s.key, label: s.label, ai: false, checked: s.checked, blocked: s.blocked, warning: s.warning, tag: "", other: false })),
+        ...cam.sensors.map((s) => ({ key: s.key, label: s.label + " sensor", ai: false, checked: s.checked, blocked: s.blocked, warning: s.warning, tag: "", other: false })),
         ...cam.items.map((i) => ({
           key: i.value,
-          label: i.label,
+          label: i.other ? i.label : i.label + " sensor",
           ai: i.ai,
           checked: i.checked,
           blocked: false,

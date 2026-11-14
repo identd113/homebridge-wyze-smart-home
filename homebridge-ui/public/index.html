@@ -113,13 +113,14 @@
         for (const item of items.filter((x) => x.blocked)) box.appendChild(el('p', '\u26a0 ' + item.label + ': ' + item.warning, 'wd-warn'));
       }
       if (!cam.items.some((item) => item.ai)) box.appendChild(el('p', 'No AI labels found on this camera\u2019s events.', 'wd-empty'));
+      box.appendChild(el('div', 'Sensors in HomeKit (they report what the camera sees)', 'wd-group'));
       group(cam.items.filter((item) => !item.other));
       group(cam.items.filter((item) => item.other), 'Other labels. No sensor type for these yet, so turning one on only saves the name.');
       if (cam.unnamed.length) box.appendChild(el('p', 'Labels with no name here: ' + cam.unnamed.join(', ') + '. They get no sensor.', 'wd-empty'));
 
       // The camera's extra HomeKit switches: each is a checkbox on its card, saved with the Save button below.
       const changed = () => { saveButton.disabled = ticks.size === 0 && switchesNow.size === 0; };
-      box.appendChild(el('div', 'Switches in HomeKit', 'wd-group'));
+      box.appendChild(el('div', 'Switches in HomeKit (they control the camera)', 'wd-group'));
       const switchList = el('div', undefined, 'wd-switches');
       for (const sw of cam.switches) {
         const row = el('label', undefined, 'wd-switch');
