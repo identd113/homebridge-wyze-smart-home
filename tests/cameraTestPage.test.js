@@ -164,3 +164,18 @@ test('the page is started with that form', async () => {
   assert.strictEqual(lib.made[0].issueForm.template, 'new-device.yml')
   assert.strictEqual(lib.made[0].issueForm.deviceLabel('HL_DB2'), 'Doorbells - Video Doorbell v2 (HL_DB2)')
 })
+
+test('the page is given settings that are read from and written to Homebridge\'s config.json', async () => {
+  const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'wyze-page-settings-'))
+  const file = path.join(dir, 'config.json')
+  fs.writeFileSync(file, JSON.stringify({ platforms: [{ platform: 'WyzeSmartHome', name: 'Wyze', advanced: { webServerPort: 8099 } }] }, null, 4) + '\n')
+  const { p } = platformWith({ name: 'Wyze', webServerPort: 8099 })
+  p.api = { user: { configPath: () => file } }
+  const lib = fakeLib()
+  await p.startCameraTestPage(lib)
+  const settings = lib.made[0].settings
+  assert.strictEqual(typeof settings.describe, 'function')
+  assert.strictEqual((await settings.describe()).fields.find((f) => f.key === 'webServerPort').value, 8099)
+  await settings.save({ warmLiveView: true })
+  assert.strictEqual(JSON.parse(fs.readFileSync(file, 'utf8')).platforms[0].advanced.warmLiveView, true, 'the change is in the file')
+})

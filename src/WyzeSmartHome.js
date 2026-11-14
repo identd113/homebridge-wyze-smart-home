@@ -33,6 +33,7 @@ const WyzeThermostat = require('./accessories/WyzeThermostat')
 const WyzeRoomSensor = require('./accessories/WyzeRoomSensor')
 const WyzeVacuum = require('./accessories/WyzeVacuum')
 const WyzeIrrigation = require('./accessories/WyzeIrrigation')
+const { createWebSettings } = require('./webSettings')
 
 const PLUGIN_NAME = 'homebridge-wyze-smart-home'
 const PLATFORM_NAME = 'WyzeSmartHome'
@@ -174,6 +175,17 @@ module.exports = class WyzeSmartHome {
     return this.client?.closeAllCameraSessions?.().catch(() => {})
   }
 
+  // The settings the camera test page shows and changes. They are read from and written to Homebridge's config.json.
+  webSettings () {
+    return createWebSettings({
+      configPath: () => this.api?.user?.configPath?.(),
+      platformAlias: PLATFORM_NAME,
+      instanceName: this.config.name,
+      running: () => this.config,
+      log: this.log
+    })
+  }
+
   // What the camera test page needs to open this plugin's device report form with some fields filled in.
   issueFormForTestPage () {
     let labels = {}
@@ -207,7 +219,7 @@ module.exports = class WyzeSmartHome {
         return
       }
       if (!check.enabled) return
-      this.webServer = lib.createCameraTestServer({ client: this.client, port: check.port, log: this.log, issueForm: this.issueFormForTestPage() })
+      this.webServer = lib.createCameraTestServer({ client: this.client, port: check.port, log: this.log, issueForm: this.issueFormForTestPage(), settings: this.webSettings() })
       const { urls } = await this.webServer.start()
       this.log.info?.(`[Web] Camera test page is on port ${check.port}. Open one of these from a computer on the same network (the token changes at every restart, and anyone with the link can test your cameras and change night vision):`)
       for (const url of urls) this.log.info?.(`[Web]   ${url}`)
