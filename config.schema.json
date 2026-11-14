@@ -123,7 +123,7 @@
               { "title": "Always", "enum": ["on"] },
               { "title": "Never", "enum": ["off"] }
             ], "description": "A second HomeKit motion sensor, named Sound, that turns on when Wyze lists a new sound event less than 30 seconds old and off again 2 minutes after the event (Sensor Stays On, in Advanced) unless another comes. Automatic adds it only to a camera whose last week of events shows sound. With it on, sound no longer triggers the camera's Motion Sensor or its picture refresh." },
-            "detections": { "title": "Detection Sensors", "type": "array", "uniqueItems": true, "items": { "type": "string", "enum": ["person", "vehicle", "pet", "package", "face", "none"] }, "description": "HomeKit sensors, one per AI label Wyze puts on this camera's events, for HomeKit automations (for example, turn on a light when a person is detected). Leave empty for automatic: a sensor is added for each label the camera's last week of events carries, which needs a Wyze plan with AI detection. Choose labels to have exactly those (Face is only ever added when you choose it, and needs face recognition turned on in the Wyze app), or none for no detection sensors. Each follows the same rules as the Motion Sensor: on for a labelled event less than 30 seconds old, off again 2 minutes after the event (Sensor Stays On, in Advanced) unless another comes." }
+            "detections": { "title": "Detection Sensors", "type": "array", "uniqueItems": true, "items": { "type": "string" }, "description": "HomeKit sensors, one per AI label Wyze puts on this camera's events, for HomeKit automations (for example, turn on a light when a person is detected). Leave empty for automatic: a sensor is added for each label the camera's last week of events carries, which needs a Wyze plan with AI detection. Choose labels to have exactly those (Face is only ever added when you choose it, and needs face recognition turned on in the Wyze app), or none for no detection sensors. Each follows the same rules as the Motion Sensor: on for a labelled event less than 30 seconds old, off again 2 minutes after the event (Sensor Stays On, in Advanced) unless another comes. Any other label name is kept in the list and does nothing until the plugin supports it." }
           }
         }
       },
@@ -363,7 +363,18 @@
                         "cameras[].motionDetection",
                         "cameras[].motionSensor",
                         "cameras[].soundSensor",
-                        "cameras[].detections"
+                        {
+                          "key": "cameras[].detections",
+                          "type": "checkboxes",
+                          "titleMap": [
+                            { "value": "person", "name": "Person" },
+                            { "value": "vehicle", "name": "Vehicle" },
+                            { "value": "pet", "name": "Pet" },
+                            { "value": "package", "name": "Package" },
+                            { "value": "face", "name": "Face" },
+                            { "value": "none", "name": "None" }
+                          ]
+                        }
                       ]
                     }
                   ]
