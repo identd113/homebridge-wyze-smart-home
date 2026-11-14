@@ -46,7 +46,6 @@ test('a number with both a minimum and a maximum is drawn as a slider by default
 // The settings panel saves the name of any AI label it finds on a camera's events, even one the plugin has no sensor
 // for yet ("turning one on only saves the name"). The schema must accept such a name, or Homebridge reports
 // "Config validation failed" for a config the plugin itself wrote.
-const vm = require('node:vm')
 
 test('a camera\'s detections accept any label name, and the form still offers the known ones', () => {
   const cameraProps = schema.schema.properties.cameras.items.properties
@@ -58,10 +57,7 @@ test('a camera\'s detections accept any label name, and the form still offers th
   }).find((node) => node && node.key === 'cameras[].detections')
   assert.strictEqual(item.type, 'checkboxes')
   const offered = item.titleMap.map((option) => option.value)
-  const sandbox = {}
-  sandbox.self = sandbox
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/detected.js'), 'utf8'), sandbox)
-  for (const label of sandbox.WyzeDetected.LABELS) assert.ok(offered.includes(label.value), `${label.value} is on the panel but not in the form`)
+  for (const label of require('../src/detectedView').LABELS) assert.ok(offered.includes(label.value), `${label.value} is on the panel but not in the form`)
   assert.ok(offered.includes('none'))
   assert.match(cameraProps.detections.description, /kept in the list and does nothing/)
 })

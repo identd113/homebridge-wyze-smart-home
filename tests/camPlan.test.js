@@ -83,11 +83,8 @@ test('the note accepts a well-formed plan, null or none, and rejects anything el
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const vm = require('node:vm')
-const sandbox = {}
-sandbox.self = sandbox
-vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/detected.js'), 'utf8'), sandbox)
-const planSummary = (...args) => JSON.parse(JSON.stringify(sandbox.WyzeDetected.planSummary(...args)))
+const detectedView = require('../src/detectedView')
+const planSummary = (...args) => JSON.parse(JSON.stringify(detectedView.planSummary(...args)))
 
 const wyzePlans = [
   { pid: 'x', name: 'Monthly Plan', status: 'EXPIRED', active: false, expires: now - DAY, quantity: 1, used: 0, macs: [] },

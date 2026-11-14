@@ -16,16 +16,13 @@
 
 const fs = require('fs')
 const path = require('path')
+const { createConfigFile, SettingsError } = require('./configFile')
 
 // The options that can be changed from the page, in the order shown. Not here, on purpose: credentials, the custom
 // base URLs and device type overrides, which can break the plugin or send a login somewhere else.
 const FIELDS = ['snapshotRefreshSeconds', 'snapshotOnMotion', 'sensorHoldSeconds', 'warmLiveView', 'webServerPort']
 
 const schema = () => JSON.parse(fs.readFileSync(path.join(__dirname, '../config.schema.json'), 'utf8')).schema.properties.advanced.properties
-
-class SettingsError extends Error {
-  constructor (message) { super(message); this.status = 400 }
-}
 
 // The port rule of the page itself: 0 is off, 1 to 1023 need root.
 function portProblem (value) {
@@ -42,11 +39,6 @@ function problemWith (key, property, value) {
   return null
 }
 
-function indentOf (raw) {
-  const match = /^([ \t]+)"/m.exec(raw)
-  return match ? match[1] : 4
-}
-
 /**
  * @param {object} opts
  * @param {() => string} opts.configPath Homebridge's config.json
@@ -56,19 +48,8 @@ function indentOf (raw) {
  * @param {{info?: Function, warn?: Function}} [opts.log]
  */
 function createWebSettings ({ configPath, platformAlias, instanceName, running, log = {} }) {
-  const readFile = () => {
-    const file = configPath()
-    if (!file) throw new Error('Homebridge did not say where its config.json is')
-    let raw
-    try { raw = fs.readFileSync(file, 'utf8') } catch (e) { throw new Error(`could not read config.json (${e.code || e.message})`) }
-    let parsed
-    try { parsed = JSON.parse(raw) } catch (e) { throw new Error('config.json is not valid JSON, so nothing was changed') }
-    if (!parsed || !Array.isArray(parsed.platforms)) throw new Error('config.json has no platforms list')
-    const entries = parsed.platforms.filter((p) => p && (p.platform === platformAlias || p.platform === 'WyzeSmartHome'))
-    if (!entries.length) throw new Error('this plugin is not in config.json')
-    const entry = entries.find((p) => instanceName && p.name === instanceName) || entries[0]
-    return { file, raw, parsed, entry }
-  }
+  const configFile = createConfigFile({ configPath, platformAlias, instanceName })
+  const readFile = () => configFile.read()
 
   const runningValue = (key) => {
     const config = running() || {}
@@ -127,13 +108,7 @@ function createWebSettings ({ configPath, platformAlias, instanceName, running, 
       }
       if (!Object.keys(entry.advanced).length) delete entry.advanced
 
-      const text = JSON.stringify(parsed, null, indentOf(raw)) + (raw.endsWith('\n') ? '\n' : '')
-      JSON.parse(text) // never write something that does not parse
-      const mode = fs.statSync(file).mode & 0o777
-      fs.writeFileSync(`${file}.web-settings.bak`, raw, { mode: 0o600 })
-      const tmp = path.join(path.dirname(file), `.${path.basename(file)}.wyze-web.tmp`)
-      fs.writeFileSync(tmp, text, { mode })
-      fs.renameSync(tmp, file)
+      configFile.write({ file, raw, parsed })
       for (const [key, value] of Object.entries(wanted)) log.info?.(`[Web] Saved advanced.${key} ${value === null ? 'removed (default)' : `= ${value}`} to config.json`)
       return { saved: wanted, restartNeeded: true }
     }

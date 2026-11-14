@@ -1,21 +1,15 @@
 /**
- * The plugin's settings page lists what the plugin found each camera can have, and saves a choice into the config.
- * The logic is in homebridge-ui/public/detected.js; these tests run it without a browser.
+ * The camera test page lists what the plugin found each camera can have, and saves a choice into the config.
+ * The logic is in src/detectedView.js; these tests run it without a browser.
  */
 const test = require('node:test')
 const assert = require('node:assert')
 const fs = require('node:fs')
 const path = require('node:path')
 
-// The page's script is a classic browser script (homebridge-ui/package.json makes .js there ES modules for Node),
-// so it is run the way a browser runs it: with `self` as the global it attaches WyzeDetected to.
-const vm = require('node:vm')
-const sandbox = {}
-sandbox.self = sandbox
-vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/detected.js'), 'utf8'), sandbox)
-// What the script returns is made in the vm's own realm; plain copies compare as ordinary objects.
+const inVm = require('../src/detectedView')
+// Plain copies compare as ordinary objects.
 const plain = (value) => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)))
-const inVm = sandbox.WyzeDetected
 const page = {
   LABELS: plain(inVm.LABELS),
   settingFor: (...args) => plain(inVm.settingFor(...args)),
@@ -133,63 +127,6 @@ test('what the page saves is read back by the plugin as the same choice', () => 
     const row = normalize({ platform: 'WyzeSmartHome', cameras: saved.cameras }).cameras[0]
     assert.deepStrictEqual(row.detections, values)
   }
-})
-
-// ---- the page and its server are part of the package ---------------------------------------------
-
-test('the settings page files exist, and the page loads its logic and uses the Homebridge UI calls it needs', () => {
-  const html = fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/index.html'), 'utf8')
-  assert.match(html, /<script src="detected\.js">/)
-  for (const call of ['homebridge.showSchemaForm', "homebridge.request('/detected')", 'homebridge.getPluginConfig', 'homebridge.updatePluginConfig', 'homebridge.savePluginConfig']) {
-    assert.ok(html.includes(call), `the page does not call ${call}`)
-  }
-  assert.ok(!html.includes('innerHTML'), 'camera names come from Wyze, so the page builds its elements as text')
-  assert.ok(fs.existsSync(path.join(__dirname, '../homebridge-ui/server.js')))
-})
-
-test('its library is a dependency, and the page\'s folder is an ES module scope for the ESM-only library', () => {
-  const pkg = require('../package.json')
-  assert.ok(pkg.dependencies['@homebridge/plugin-ui-utils'])
-  const ui = require('../homebridge-ui/package.json')
-  assert.strictEqual(ui.type, 'module')
-})
-
-// The server is run as Homebridge runs it: a child process that is sent requests over IPC.
-function askServer (storagePath, path_) {
-  const { fork } = require('node:child_process')
-  return new Promise((resolve, reject) => {
-    const child = fork(path.join(__dirname, '../homebridge-ui/server.js'), [], {
-      env: { ...process.env, HOMEBRIDGE_STORAGE_PATH: storagePath },
-      silent: true
-    })
-    const timer = setTimeout(() => { child.kill(); reject(new Error('the server did not answer')) }, 10000)
-    child.on('error', reject)
-    child.on('message', (message) => {
-      if (message.action === 'ready') child.send({ action: 'request', requestId: 'r1', path: path_, body: {} })
-      if (message.action === 'response') {
-        clearTimeout(timer)
-        child.kill()
-        resolve(message.payload)
-      }
-    })
-  })
-}
-
-test('the server, run as a child process, answers /detected with what the plugin recorded', async () => {
-  const os = require('node:os')
-  const storage = fs.mkdtempSync(path.join(os.tmpdir(), 'wyze-ui-'))
-  require('../src/detectedSensors').record(storage, { mac: 'AABBCCDDEEFF', name: 'Front Doorbell', model: 'HL_DB2', motion: true, sound: false, labels: ['person'], unnamed: [] })
-  const answer = await askServer(storage, '/detected')
-  assert.strictEqual(answer.success, true)
-  assert.strictEqual(answer.data.cameras.AABBCCDDEEFF.name, 'Front Doorbell')
-  assert.deepStrictEqual(answer.data.cameras.AABBCCDDEEFF.labels, ['person'])
-})
-
-test('the server answers with nothing found when the plugin has recorded nothing yet', async () => {
-  const os = require('node:os')
-  const answer = await askServer(fs.mkdtempSync(path.join(os.tmpdir(), 'wyze-ui-')), '/detected')
-  assert.strictEqual(answer.success, true)
-  assert.deepStrictEqual(answer.data, { version: 1, cameras: {} })
 })
 
 // ---- items the plugin has no name for ----------------------------------------------------------------
@@ -339,25 +276,6 @@ test('a check that cannot be completed refuses to save', () => {
   assert.match(result.errors.join('; '), /could not be checked/)
 })
 
-test('the page saves only through prepareSave, and does nothing when it says no', () => {
-  const html = fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/index.html'), 'utf8')
-  const save = html.slice(html.indexOf('async function save'), html.indexOf('function card'))
-  assert.ok(save.includes('WyzeDetected.prepareSave('), 'the save goes through the checks')
-  assert.ok(!save.includes('WyzeDetected.applyDetections('), 'the page never builds a change that skips them')
-  const check = save.indexOf('if (!prepared.ok)')
-  const returnsBefore = save.indexOf('return;', check)
-  const update = save.indexOf('homebridge.updatePluginConfig')
-  assert.ok(check > 0 && returnsBefore > check && returnsBefore < update, 'a refused change returns before anything is updated or saved')
-  assert.ok(save.indexOf('homebridge.savePluginConfig') > update)
-  assert.match(save, /catch \(e\) \{\s*homebridge\.toast\.error\('Not saved: '/, 'an unexpected failure saves nothing and says so')
-})
-
-test('the schema turns the custom settings page on, or Homebridge never loads it', () => {
-  const schema = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config.schema.json'), 'utf8'))
-  assert.strictEqual(schema.customUi, true)
-  assert.ok(fs.existsSync(path.join(__dirname, '..', 'homebridge-ui', 'public', 'index.html')))
-})
-
 // ---- Motion and Sound sit in the panel like the labels do ----------------------------------------
 
 const wide = {
@@ -466,13 +384,6 @@ test('a blocked sensor is left as it is when the camera is saved, and Motion sti
   const saved = page.prepareSave(config, 'AABBCCDDEEFF', 'Garage', null, modes)
   assert.strictEqual(saved.ok, true)
   assert.deepStrictEqual(saved.next[0].cameras, [{ mac: 'AABBCCDDEEFF', name: 'Garage', soundSensor: 'on', motionSensor: 'off' }])
-})
-
-test('the page disables a blocked pill and shows its warning', () => {
-  const html = fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/index.html'), 'utf8')
-  assert.ok(html.includes('if (item.blocked) row.disabled = true'))
-  assert.ok(html.includes("if (item.blocked) return;"), 'a click does nothing')
-  assert.ok(html.includes('wd-warn'))
 })
 
 test('planLine says what a camera has, in plain words', () => {

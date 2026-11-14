@@ -1,7 +1,7 @@
-// The logic of the "Detected sensors" panel on the plugin's settings page, kept apart from the page so it can be tested.
-// A classic script: the page loads it with a plain <script> tag and finds it as WyzeDetected. The tests run it in a
-// vm, because homebridge-ui/package.json makes .js files in this folder ES modules for Node.
-(function (root) {
+// The logic behind the "Detected sensors" panel of the camera test page: what each camera has, how the current config
+// reads, and how a change is checked before it is written. Pure functions, no files, so they can be tested alone.
+// src/webSensors.js puts them in front of config.json and the file the plugin writes at startup.
+(function () {
   "use strict";
 
   // The AI labels a camera's events can carry, as the config names them. The ones marked `auto` are added by
@@ -201,7 +201,9 @@
     const rows = Array.isArray(entry.cameras) ? entry.cameras : [];
     const matching = rows.filter((row) => row && row.mac === mac);
     if (matching.length > 1) throw new Error("more than one entry for this camera");
+    // A config with no `cameras` and one whose list is empty are the same config.
     if (Array.isArray(entry.cameras)) entry.cameras = rows.filter((row) => !(row && row.mac === mac));
+    if (Array.isArray(entry.cameras) && entry.cameras.length === 0) delete entry.cameras;
     const row = matching[0] ? Object.assign({}, matching[0]) : null;
     if (row) for (const key of ["detections", "motionSensor", "soundSensor"]) delete row[key];
     const mine = matching[0] || {};
@@ -280,5 +282,5 @@
     }
   }
 
-  root.WyzeDetected = { LABELS, SENSORS, planLine, planSummary, settingFor, modeFor, buildView, valuesFor, detectionsToSave, unsavedChanges, modesFor, applyDetections, problemsWith, prepareSave };
-})(self);
+  module.exports = { LABELS, SENSORS, planLine, planSummary, settingFor, modeFor, buildView, valuesFor, detectionsToSave, unsavedChanges, modesFor, applyDetections, problemsWith, prepareSave };
+})();

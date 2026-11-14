@@ -10,7 +10,6 @@
   },
   "files": [
     "src",
-    "homebridge-ui",
     "config.schema.json",
     "configSample.json",
     "logo.png",
@@ -45,7 +44,6 @@
     "node": "^22.0.0 || ^24 || ^26"
   },
   "dependencies": {
-    "@homebridge/plugin-ui-utils": "^2.2.6",
     "axios": "^1.15.0",
     "semver": "^7.6.0",
     "wyze-api": "^2.0.0-beta.4"
