@@ -119,7 +119,15 @@
       if (cam.unnamed.length) box.appendChild(el('p', 'Labels with no name here: ' + cam.unnamed.join(', ') + '. They get no sensor.', 'wd-empty'));
 
       // The camera's extra HomeKit switches: each is a checkbox on its card, saved with the Save button below.
-      const changed = () => { saveButton.disabled = ticks.size === 0 && switchesNow.size === 0; };
+      // A change on this card is saved with this card's own button, not with the form's Save button, so say so while
+      // there is something unsaved: ticking a box and then pressing the form's Save saves nothing of it.
+      const unsaved = el('p', 'Not saved yet. Press \u201cSave these to the config\u201d below. The settings form\u2019s own Save button does not include these changes.', 'wd-warn');
+      unsaved.hidden = true;
+      const changed = () => {
+        const dirty = ticks.size > 0 || switchesNow.size > 0;
+        saveButton.disabled = !dirty;
+        unsaved.hidden = !dirty;
+      };
       box.appendChild(el('div', 'Switches in HomeKit (they control the camera)', 'wd-group'));
       const switchList = el('div', undefined, 'wd-switches');
       for (const sw of cam.switches) {
@@ -138,6 +146,7 @@
       }
       box.appendChild(switchList);
 
+      box.appendChild(unsaved);
       const buttons = el('div', undefined, 'wd-actions');
       saveButton.addEventListener('click', () => {
         const choice = {};

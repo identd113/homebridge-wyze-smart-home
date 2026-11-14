@@ -245,3 +245,10 @@ test('sensors are labelled as sensors and the motion switch as an on/off switch,
   assert.ok(html.includes('Sensors in HomeKit (they report what the camera sees)'))
   assert.ok(html.includes('Switches in HomeKit (they control the camera)'))
 })
+
+test('a change on a camera card says it is not saved until that card\'s own button is pressed, because the form\'s Save does not include it', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../homebridge-ui/public/index.html'), 'utf8')
+  assert.ok(html.includes('Not saved yet. Press'))
+  assert.ok(html.includes('own Save button does not include these changes'))
+  assert.match(html, /unsaved\.hidden = !dirty/)
+})
