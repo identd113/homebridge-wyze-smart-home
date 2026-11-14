@@ -26,7 +26,18 @@ test('every advanced option in the schema is on the settings screen', () => {
 
 test('the camera picture and live view options are in the Advanced section, with the test page port', () => {
   const advanced = schema.form.flatMap((tab) => tab.items || []).find((item) => item && item.title === 'Advanced')
+  const keys = advanced.items.map((item) => (typeof item === 'string' ? item : item.key))
   for (const key of ['snapshotRefreshSeconds', 'snapshotOnMotion', 'sensorHoldSeconds', 'warmLiveView', 'webServerPort']) {
-    assert.ok(advanced.items.includes(`advanced.${key}`), key)
+    assert.ok(keys.includes(`advanced.${key}`), key)
+  }
+})
+
+test('a number with both a minimum and a maximum is drawn as a slider by default, so these are forced to plain number inputs', () => {
+  const advanced = schema.form.flatMap((tab) => tab.items || []).find((item) => item && item.title === 'Advanced')
+  const properties = schema.schema.properties.advanced.properties
+  for (const [key, property] of Object.entries(properties)) {
+    if (!['integer', 'number'].includes(property.type) || property.minimum === undefined || property.maximum === undefined) continue
+    const item = advanced.items.find((i) => (typeof i === 'string' ? i : i.key) === `advanced.${key}`)
+    assert.ok(item && typeof item === 'object' && item.type === 'number', `advanced.${key} needs { "key": "advanced.${key}", "type": "number" } in the form`)
   }
 })
