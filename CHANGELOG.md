@@ -349,8 +349,8 @@ Fixes for regressions and gaps found in code review of the 0.5.59/0.5.60 optimis
 
 ### v0.5.46
 - Update thermostat structure to new format
-- Update thermostat to have min/max thresholds closer to Wyze Thermostat thresholds -  https://github.com/jfarmer08/homebridge-wyze-smart-home/issues/203
-- Update thermostat to avoid constant reboot -  https://github.com/jfarmer08/homebridge-wyze-smart-home/issues/228
+- Update thermostat to have min/max thresholds closer to Wyze Thermostat thresholds -  https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/203
+- Update thermostat to avoid constant reboot -  https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/228
 
 ### v0.5.45
 - Increase Wyze-api Verison 1.0.7
@@ -421,13 +421,13 @@ Fixes for regressions and gaps found in code review of the 0.5.59/0.5.60 optimis
 - Allow all sub models.
 
 ### v0.5.33
-- Updated Thermostat behavior for single mode usage (heat/cool) (Thanks https://github.com/carTloyal123) - https://github.com/jfarmer08/homebridge-wyze-smart-home/issues/111
+- Updated Thermostat behavior for single mode usage (heat/cool) (Thanks https://github.com/carTloyal123) - https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/111
 
 ### v0.5.32
-- Improve logging - https://github.com/jfarmer08/homebridge-wyze-smart-home/issues/117
+- Improve logging - https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/117
 
 ### v0.5.31
-- Improve Camera support - https://github.com/jfarmer08/homebridge-wyze-smart-home/issues/92
+- Improve Camera support - https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/92
 
 ### v0.5.30
 - HMS Code Clean up

@@ -487,7 +487,7 @@ In May 2022 [jfarmer08](https://github.com/jfarmer08) started this repository as
 
 In 2026 the project moved quickly. Lock Bolt v2 and the Palm Lock arrived in April through Wyze's newer IoT3 API (contributed by identd113), followed the same month by robot-vacuum and sprinkler accessories and a motion sensor on cameras. `2.0.0-beta.1` was published on 2026-04-28 and `2.0.0-beta.2` on 2026-08-29.
 
-In October 2026 jfarmer08 said in [issue #315](https://github.com/jfarmer08/homebridge-wyze-smart-home/issues/315) that they could no longer maintain the project, and identd113 offered to take it over.
+In October 2026 jfarmer08 said in [issue #315](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/315) that they could no longer maintain the project, and identd113 offered to take it over.
 
 ### Timeline
 
