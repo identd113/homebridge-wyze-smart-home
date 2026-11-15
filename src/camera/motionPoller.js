@@ -88,7 +88,10 @@ class MotionPoller {
     this.busy = true;
     try {
       const byMac = await this._readEvents(online.map((m) => m.mac));
-      for (const member of online) member.onEvents(byMac[member.mac] ?? []);
+      for (const member of online) {
+        // One camera's handler failing must not stop the others from being given their events, nor count as a failed poll.
+        try { member.onEvents(byMac[member.mac] ?? []); } catch (err) { this.log?.debug?.(`[Camera] events for ${member.mac} not handled: ${err.message}`); }
+      }
       this.failures = 0;
     } catch (err) {
       // Back off (1, 3, 7, 12 beats skipped) so a failing Wyze isn't hammered.

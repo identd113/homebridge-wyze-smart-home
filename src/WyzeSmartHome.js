@@ -61,6 +61,9 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+// The process-wide handlers below are installed once, however many Wyze platform entries there are.
+let processHandlersInstalled = false
+
 module.exports = class WyzeSmartHome {
   constructor(log, config, api) {
     // Run the 2.0 normalizer first so the rest of the constructor sees a
@@ -110,9 +113,20 @@ module.exports = class WyzeSmartHome {
 
     // Merge in credentials from secretsFile (if configured) and WYZE_* env vars,
     // and validate / lock down the auth/api base URLs to known Wyze hosts.
-    this.config = resolveSecrets(normalized, this.log)
-    Object.assign(this.config, getValidatedBaseUrls(this.config, this.log))
     this.api = api
+    this.config = normalized
+    try {
+      this.config = resolveSecrets(normalized, this.log)
+      Object.assign(this.config, getValidatedBaseUrls(this.config, this.log))
+    } catch (e) {
+      // A missing or unsafe secrets file, or a base URL on a host that is not Wyze's, used to throw out of the constructor and
+      // take the bridge with it. It is a fatal startup problem like the others below: say so once and stay inert, with the
+      // cached accessories left alone.
+      this.log.error(`[FATAL] ${e.message}`)
+      this.disabled = true
+      this.accessories = []
+      return
+    }
 
     // Apply user-supplied product-code overrides BEFORE constructing the
     // client or scanning devices, so getAccessoryClass sees the extended
@@ -156,12 +170,15 @@ module.exports = class WyzeSmartHome {
     this._knownUnsupported = new Set()
     this._lastFullRefreshAt = 0
 
-    process.on('unhandledRejection', (reason) => {
-      this.log.error(`Unhandled promise rejection: ${reason?.stack ?? reason}`)
-    })
-    process.on('uncaughtException', (err) => {
-      this.log.error(`Uncaught exception: ${err.stack ?? err}`)
-    })
+    if (!processHandlersInstalled) {
+      processHandlersInstalled = true
+      process.on('unhandledRejection', (reason) => {
+        this.log.error(`Unhandled promise rejection: ${reason?.stack ?? reason}`)
+      })
+      process.on('uncaughtException', (err) => {
+        this.log.error(`Uncaught exception: ${err.stack ?? err}`)
+      })
+    }
 
     this.api.on('didFinishLaunching', this.didFinishLaunching.bind(this))
     this.api.on('shutdown', () => this.shutdown())
@@ -170,6 +187,7 @@ module.exports = class WyzeSmartHome {
   // Close live camera sessions cleanly: a camera that is left with a dead viewer
   // (a restart used to abandon them) can refuse the next one for a while.
   shutdown() {
+    this._stopped = true // the refresh loops and anything still waiting on Wyze stop acting
     for (const accessory of this.accessories ?? []) {
       try { accessory.stopStreams?.() } catch (_) { /* best effort */ }
     }
@@ -314,8 +332,7 @@ module.exports = class WyzeSmartHome {
 
   async runLoop() {
     const interval = this.config.refreshInterval || DEFAULT_REFRESH_INTERVAL
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    while (!this._stopped) {
       try {
         await this.refreshDevices()
       } catch (e) {
@@ -329,8 +346,7 @@ module.exports = class WyzeSmartHome {
   async runLockFastPollLoop() {
     const interval = this.config.securityRefreshInterval || DEFAULT_SECURITY_REFRESH_INTERVAL
     await delay(interval)
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    while (!this._stopped) {
       try {
         await this.refreshLockDevices()
       } catch (e) { }
@@ -339,6 +355,7 @@ module.exports = class WyzeSmartHome {
   }
 
   async refreshLockDevices() {
+    if (this._stopped) return
     if (Date.now() - this._lastFullRefreshAt < FULL_REFRESH_SKIP_WINDOW_MS) return
 
     const targets = this.accessories.filter(a => FAST_POLL_CLASSES.has(a.constructor) && a.lastDevice)
@@ -366,7 +383,17 @@ module.exports = class WyzeSmartHome {
     }
   }
 
-  async refreshDevices() {
+  // One refresh at a time. The lock fast poll can call this while the main loop's refresh is still running (Wyze slow), and two
+  // at once would double the requests and let one refresh's bulk property rows be taken by the other.
+  refreshDevices() {
+    if (this._stopped) return Promise.resolve()
+    if (!this._refreshing) {
+      this._refreshing = this._refreshDevicesOnce().finally(() => { this._refreshing = null })
+    }
+    return this._refreshing
+  }
+
+  async _refreshDevicesOnce() {
     let fastPollSummary = ''
     if (this._fastPollStats.size > 0) {
       const parts = []
@@ -411,6 +438,14 @@ module.exports = class WyzeSmartHome {
       if (this.config.enableThermostatRoomSensors) {
         const roomSensors = await this.discoverRoomSensors(devices)
         for (const rs of roomSensors) devices.push(rs)
+        // A thermostat whose lookup failed this time has no sensors in the list, which would read as "removed" and unregister
+        // them (and their HomeKit rooms and automations). Keep them, as they were last seen, until a lookup succeeds.
+        for (const accessory of this.accessories) {
+          const parent = accessory.lastDevice?.parent_device_mac
+          if (accessory instanceof WyzeRoomSensor && parent && this._roomSensorLookupFailed?.has(parent) && !devices.some((d) => d.mac === accessory.mac)) {
+            devices.push(accessory.lastDevice)
+          }
+        }
       }
 
       // One request for the properties every camera that needs them will read below, instead
@@ -446,6 +481,7 @@ module.exports = class WyzeSmartHome {
     if (thermostats.length === 0) return []
 
     if (!this._roomSensorRawLogged) this._roomSensorRawLogged = new Set()
+    this._roomSensorLookupFailed = new Set() // thermostats whose lookup failed in this pass
     const out = []
 
     for (const t of thermostats) {
@@ -459,6 +495,7 @@ module.exports = class WyzeSmartHome {
         if (err?.response?.data) {
           this.log.error(`[RoomSensor]   Earth response body: ${JSON.stringify(err.response.data)}`)
         }
+        this._roomSensorLookupFailed.add(t.mac)
         continue
       }
 

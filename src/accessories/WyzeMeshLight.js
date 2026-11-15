@@ -3,6 +3,9 @@ const WyzeAccessory = require("./WyzeAccessory");
 const { propertyIds: PIDs } = require("wyze-api");
 const { markServiceOnline } = require("./offlineIndicator");
 
+// How long to wait for the second of HomeKit's hue and saturation writes before sending the colour.
+const COLOR_SETTLE_MS = 150;
+
 module.exports = class WyzeMeshLight extends WyzeAccessory {
   constructor(plugin, homeKitAccessory) {
     super(plugin, homeKitAccessory);
@@ -159,8 +162,8 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
     this.armCommandGrace(15000);
     this.plugin.client.lightMeshPower(this.mac, this.product_model, value ? "1" : "0").catch((e) => {
       this.clearCommandGrace();
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(`[MeshLight] Command error for "${this.display_name}": ${e}`);
+      // Always an error: HomeKit already shows the change, so this is the only sign that it did not happen.
+      this.plugin.log.error(`[MeshLight] Command failed for "${this.display_name}": ${e?.message || e}`);
     });
   }
 
@@ -170,8 +173,8 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
         `[MeshLight] Set brightness "${this.display_name} (${this.mac})": ${value}`
       );
     this.plugin.client.setMeshBrightness(this.mac, this.product_model, value).catch((e) => {
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(`[MeshLight] Command error for "${this.display_name}": ${e}`);
+      // Always an error: HomeKit already shows the change, so this is the only sign that it did not happen.
+      this.plugin.log.error(`[MeshLight] Command failed for "${this.display_name}": ${e?.message || e}`);
     });
   }
 
@@ -183,44 +186,48 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
         `[MeshLight] Set color temp "${this.display_name} (${this.mac})": ${value} mireds → ${wyzeValue}K`
       );
     this.plugin.client.setMeshColorTemperature(this.mac, this.product_model, wyzeValue).catch((e) => {
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(`[MeshLight] Command error for "${this.display_name}": ${e}`);
+      // Always an error: HomeKit already shows the change, so this is the only sign that it did not happen.
+      this.plugin.log.error(`[MeshLight] Command failed for "${this.display_name}": ${e?.message || e}`);
     });
   }
 
   async setHue(value) {
     if (value == null) return;
     this.cache.hue = value;
-    this._maybeFlushColor("hue");
+    this._scheduleColorFlush("hue");
   }
 
   async setSaturation(value) {
     if (value == null) return;
     this.cache.saturation = value;
-    this._maybeFlushColor("saturation");
+    this._scheduleColorFlush("saturation");
   }
 
-  // HomeKit fires hue + saturation independently. We hold the first one in
-  // cache and push to Wyze on the second so it sees a complete color update.
-  _maybeFlushColor(source) {
-    if (!this.cacheUpdated) {
-      this.cacheUpdated = true;
-      return;
-    }
-    this.cacheUpdated = false;
-    const hexValue = this.plugin.client.homeKitColorToWyze(this.cache.hue, this.cache.saturation);
+  // HomeKit sends hue and saturation as two separate writes, usually together. Wait a moment for both and push one complete
+  // colour to Wyze. (Waiting for "the second write" instead went wrong whenever only one of them was sent, and every colour
+  // after that was sent half-stale.)
+  _scheduleColorFlush(source) {
+    this._colorSource = source;
+    clearTimeout(this._colorTimer);
+    this._colorTimer = setTimeout(() => this._flushColor(), COLOR_SETTLE_MS);
+    this._colorTimer.unref?.();
+  }
+
+  _flushColor() {
+    this._colorTimer = null;
+    const { hue, saturation } = this.cache;
+    if (hue == null || saturation == null) return; // nothing known for the other half yet: sending NaN helps nobody
+    const hexValue = this.plugin.client.homeKitColorToWyze(hue, saturation);
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(
-        `[MeshLight] Set color "${this.display_name} (${this.mac})": h=${this.cache.hue} s=${this.cache.saturation} → ${hexValue}`
+        `[MeshLight] Set color "${this.display_name} (${this.mac})": h=${hue} s=${saturation} \u2192 ${hexValue}`
       );
-    // Either setMeshHue or setMeshSaturation works — they both push the
-    // combined hex color. Pick based on which event triggered the flush.
-    const call = source === "hue"
+    // Either setMeshHue or setMeshSaturation works: they both push the combined hex color.
+    const call = this._colorSource === "hue"
       ? this.plugin.client.setMeshHue(this.mac, this.product_model, hexValue)
       : this.plugin.client.setMeshSaturation(this.mac, this.product_model, hexValue);
     call.catch((e) => {
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(`[MeshLight] Command error for "${this.display_name}": ${e}`);
+      this.plugin.log.error(`[MeshLight] Command failed for "${this.display_name}": ${e?.message || e}`);
     });
   }
 };

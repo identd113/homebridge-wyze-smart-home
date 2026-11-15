@@ -280,6 +280,10 @@ class WyzeCameraStreamingDelegate {
         const resp = await axios.get(thumbUrl, {
           responseType: "arraybuffer",
           timeout: 4000,
+          // The address comes from Wyze's device list; a picture is a few hundred kB, so a bigger answer or a chain of
+          // redirects is not one.
+          maxContentLength: 5 * 1024 * 1024,
+          maxRedirects: 2,
         });
         return remember(Buffer.from(resp.data));
       } catch (err) {
@@ -334,7 +338,18 @@ class WyzeCameraStreamingDelegate {
     return remember(result.buffer);
   }
 
+  // HomeKit waits for the callback; a failure here (no free port, a malformed request) must answer it, or the live view just
+  // spins until HomeKit gives up and the only trace is an unhandled rejection.
   async prepareStream(request, callback) {
+    try {
+      await this._prepareStream(request, callback);
+    } catch (err) {
+      this.camera.plugin.log.error?.(`[Camera] ${this.camera.display_name}: could not prepare the live view: ${err?.message || err}`);
+      callback(err instanceof Error ? err : new Error(String(err)));
+    }
+  }
+
+  async _prepareStream(request, callback) {
     const sessionKey = request.sessionID.toString("hex");
     // HomeKit starts the stream a moment after preparing it: ask Wyze for the camera's
     // connection details now, so that round trip is not part of the wait. Skipped when a

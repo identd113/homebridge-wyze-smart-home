@@ -496,6 +496,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   // which takes a fresh picture. With a doorbell present the whole list is read at the
   // doorbell's faster rate, which costs no extra requests.
   _startEventWatch(isDoorbell) {
+    if (this._stopped) return;
     this._watchRing = !!isDoorbell;
     this._watchMotion = this.plugin.config.snapshotOnMotion !== false || !!this.motionSensorEnabled;
     this._watchSound = !!this.soundSensorEnabled;
@@ -518,6 +519,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   }
 
   _onEvents(events) {
+    if (this._stopped) return;
     if (this._watchRing) this._checkRings(events);
     if (this._watchMotion) this._checkMotion(events);
     if (this._watchSound) this._checkSound(events);
@@ -528,7 +530,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   // (default 30, 0 turns it off). Each capture opens a short WebRTC session, so the
   // delegate skips a camera that is streaming, offline or off.
   _startSnapshotRefresh() {
-    if (this._refreshMember) return;
+    if (this._stopped || this._refreshMember) return;
     const configured = this.plugin.config.snapshotRefreshSeconds;
     const unset = configured === undefined || configured === null || configured === "";
     // A battery camera is woken by every refresh: unless it was asked for, leave it out.
@@ -601,6 +603,7 @@ module.exports = class WyzeCamera extends WyzeAccessory {
 
   // Stop live streams so the camera isn't left with a dead viewer (shutdown).
   stopStreams() {
+    this._stopped = true; // a discovery still waiting on Wyze must not start polling this camera again afterwards
     clearTimeout(this._motionTimer);
     this._motionTimer = null;
     clearTimeout(this._soundTimer);
@@ -975,39 +978,46 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     if (this.on !== undefined) this.on = this.power_switch;
   }
 
+  // After Wyze accepts a change the cached value follows it at once, so a read from HomeKit before the next poll answers
+  // with what was just set and not the old value (the switch would flip back and forth).
   async handleOnSetAlarmSwitch(value) {
-    return this._set("Siren", () =>
+    await this._set("Siren", () =>
       this.plugin.client.cameraSiren(this.mac, this.product_model, value ? "siren_on" : "siren_off")
     );
+    this.siren = value ? 1 : 0;
   }
 
   async handleOnSetSpotlight(value) {
-    return this._set("Spotlight", () =>
+    await this._set("Spotlight", () =>
       this.plugin.client.cameraSpotLight(this.mac, this.product_model, value ? "1" : "2")
     );
+    this.floodLight = value ? 1 : 0; // the spotlight and the floodlight are one light (P1056)
   }
 
   async handleOnSetFloodlight(value) {
-    return this._set("Floodlight", () =>
+    await this._set("Floodlight", () =>
       this.plugin.client.cameraFloodLight(this.mac, this.product_model, value ? "1" : "2")
     );
+    this.floodLight = value ? 1 : 0;
   }
 
   async setNotification(value) {
-    return this._set("Notification", () =>
+    await this._set("Notification", () =>
       this.plugin.client.cameraNotifications(this.mac, this.product_model, value ? "1" : "0")
     );
+    this.notification = value ? 1 : 0;
   }
 
   async setMotionDetection(value) {
     // cameraMotionOn / cameraMotionOff handle the per-model PID
     // routing internally (P1001 + P1047 for most cameras, P1029 for
     // Wyze Cam Outdoor). All we have to do here is pick the verb.
-    return this._set("Motion Detection", () =>
+    await this._set("Motion Detection", () =>
       value
         ? this.plugin.client.cameraMotionOn(this.mac, this.product_model)
         : this.plugin.client.cameraMotionOff(this.mac, this.product_model)
     );
+    this.motionDetection = value ? 1 : 0;
   }
 
   async setGarageTargetState(value) {

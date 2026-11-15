@@ -210,8 +210,9 @@ module.exports = class WyzeLock extends WyzeAccessory {
         // Command failed — don't leave the optimistic state stuck for the
         // full grace window; let the next poll correct it.
         this.clearCommandGrace();
-        if (this.plugin.config.pluginLoggingEnabled)
-          this.plugin.log(`[Lock] Command error after ${Date.now() - cmdT0}ms for "${this.display_name}": ${e}`);
+        // Always an error, whatever the log level: HomeKit already shows the lock as having moved, so this line is the only
+        // sign that the door did not.
+        this.plugin.log.error(`[Lock] Command failed after ${Date.now() - cmdT0}ms for "${this.display_name}": ${e?.message || e}`);
       });
   }
 };

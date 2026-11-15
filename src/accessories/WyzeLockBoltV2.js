@@ -10,7 +10,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
     // reboot. Default to "locked" (the safer assumption) and "closed"
     // for a brand-new install where we have no prior reading yet.
     const persisted = this.loadPersistedState();
-    this.isLocked = persisted.isLocked ?? true;
+    this.isLocked = persisted.isLocked; // undefined until the lock has been read: shown as unknown, never as secured
     this.isDoorOpen = persisted.isDoorOpen ?? false;
     this.batteryLevel = persisted.batteryLevel ?? 100;
     this.chargingState = persisted.chargingState ?? 0;
@@ -177,6 +177,7 @@ module.exports = class WyzeLockBoltV2 extends WyzeAccessory {
   }
 
   async getLockCurrentState() {
+    if (this.isLocked === undefined) return Characteristic.LockCurrentState.UNKNOWN;
     return this.isLocked
       ? Characteristic.LockCurrentState.SECURED
       : Characteristic.LockCurrentState.UNSECURED;

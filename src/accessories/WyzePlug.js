@@ -37,8 +37,8 @@ module.exports = class WyzePlug extends WyzeAccessory {
     this.armCommandGrace(15000);
     this.plugin.client.plugPower(this.mac, this.product_model, value ? "1" : "0").catch((e) => {
       this.clearCommandGrace();
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(`[Plug] Command error for "${this.display_name}": ${e}`);
+      // Always an error: HomeKit already shows the change, so this is the only sign that it did not happen.
+      this.plugin.log.error(`[Plug] Command failed for "${this.display_name}": ${e?.message || e}`);
     });
   }
 

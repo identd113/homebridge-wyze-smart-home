@@ -50,3 +50,22 @@ test('a switch listed only in the legacy arrays reaches the camera row, and an o
   const config = normalize({ platform: 'WyzeSmartHome', username: 'u', password: 'p', keyId: 'k', apiKey: 'a', nightVisionAccessory: ['BB'], sirenAccessory: ['BB'] })
   assert.deepStrictEqual(config.cameras.map((c) => [c.mac, c.siren, c.nightVision]), [['BB', true, true]])
 })
+
+test('the disk rewrite of an old flat config keeps the child bridge settings Homebridge owns', () => {
+  const fs = require('node:fs')
+  const os = require('node:os')
+  const path = require('node:path')
+  const { rewriteHomebridgeConfigOnDisk } = require('../src/configMigrator')
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wyze-bridge-'))
+  const file = path.join(dir, 'config.json')
+  const bridge = { username: '0E:11:22:33:44:55', port: 51123, name: 'Wyze child', pin: '000-00-000' }
+  fs.writeFileSync(file, JSON.stringify({ platforms: [{ platform: 'WyzeSmartHome', name: 'Wyze', username: 'u', password: 'p', keyId: 'k', apiKey: 'a', garageDoorAccessory: ['AA'], _bridge: bridge }] }))
+  const lines = []
+  const status = rewriteHomebridgeConfigOnDisk({ configPath: file, platformAlias: 'WyzeSmartHome', log: { warn: (m) => lines.push(m), error: (m) => lines.push(m) } })
+  assert.strictEqual(status, 'migrated')
+  const entry = JSON.parse(fs.readFileSync(file, 'utf8')).platforms[0]
+  assert.deepStrictEqual(entry._bridge, bridge)
+  assert.strictEqual(entry.garageDoorAccessory, undefined, 'the old keys are still converted')
+  assert.strictEqual(entry.cameras[0].garage, true)
+  assert.match(lines.join('\n'), /including your Wyze password, so delete it/)
+})

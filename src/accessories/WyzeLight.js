@@ -134,8 +134,8 @@ module.exports = class WyzeLight extends WyzeAccessory {
     this.armCommandGrace(15000);
     this.plugin.client.lightPower(this.mac, this.product_model, value ? "1" : "0").catch((e) => {
       this.clearCommandGrace();
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(`[Light] Command error for "${this.display_name}": ${e}`);
+      // Always an error: HomeKit already shows the change, so this is the only sign that it did not happen.
+      this.plugin.log.error(`[Light] Command failed for "${this.display_name}": ${e?.message || e}`);
     });
   }
 
@@ -146,8 +146,8 @@ module.exports = class WyzeLight extends WyzeAccessory {
         `[Light] Setting brightness for ${this.mac} (${this.display_name}) to ${value}`
       );
     this.plugin.client.setBrightness(this.mac, this.product_model, value).catch((e) => {
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(`[Light] Command error for "${this.display_name}": ${e}`);
+      // Always an error: HomeKit already shows the change, so this is the only sign that it did not happen.
+      this.plugin.log.error(`[Light] Command failed for "${this.display_name}": ${e?.message || e}`);
     });
   }
 
@@ -163,8 +163,8 @@ module.exports = class WyzeLight extends WyzeAccessory {
         `[Light] Setting color temp for ${this.mac} (${this.display_name}) to ${value} mireds (${wyzeValue}K)`
       );
     this.plugin.client.setColorTemperature(this.mac, this.product_model, wyzeValue).catch((e) => {
-      if (this.plugin.config.pluginLoggingEnabled)
-        this.plugin.log(`[Light] Command error for "${this.display_name}": ${e}`);
+      // Always an error: HomeKit already shows the change, so this is the only sign that it did not happen.
+      this.plugin.log.error(`[Light] Command failed for "${this.display_name}": ${e?.message || e}`);
     });
   }
 };

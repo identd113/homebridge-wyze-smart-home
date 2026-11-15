@@ -429,10 +429,17 @@ function rewriteHomebridgeConfigOnDisk({ configPath, platformAlias, log }) {
     const original = parsed.platforms[i];
     if (isAlready2x(original)) continue;
     const normalized = normalize(original);
-    parsed.platforms[i] = toCanonical2x(normalized, {
+    const canonical = toCanonical2x(normalized, {
       name: original.name,
       platform: original.platform,
     });
+    // Keys Homebridge itself owns (`_bridge`: the child bridge's name, pin and port) are not plugin settings, so the
+    // rebuilt entry would silently lose them: the plugin would fall back to the main bridge and every accessory would
+    // have to be paired again.
+    for (const key of Object.keys(original)) {
+      if (key.startsWith("_") && !(key in canonical)) canonical[key] = original[key];
+    }
+    parsed.platforms[i] = canonical;
     migratedAny = true;
   }
 
@@ -474,7 +481,8 @@ function rewriteHomebridgeConfigOnDisk({ configPath, platformAlias, log }) {
   log?.warn?.(
     `[config] Migrated ${indices.length} Wyze platform entr${indices.length === 1 ? "y" : "ies"} ` +
     `in ${configPath} to the 2.0 nested shape. A backup of your previous config ` +
-    `was saved to ${backupPath}. See the 2.0 release notes for the new structure.`
+    `was saved to ${backupPath}. It holds your old settings, including your Wyze password, so delete it once you are happy ` +
+    `with the new config. See the 2.0 release notes for the new structure.`
   );
   return "migrated";
 }

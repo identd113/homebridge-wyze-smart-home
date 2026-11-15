@@ -88,7 +88,9 @@ function applyConfigOverrides(overrides, log) {
   }
 
   for (const [category, extras] of Object.entries(overrides)) {
-    const target = _MAP_BY_NAME[category]
+    // Own names only: a category such as "__proto__" or "constructor" would otherwise find the object's own prototype or
+    // constructor, and the codes would be written into it.
+    const target = Object.prototype.hasOwnProperty.call(_MAP_BY_NAME, category) ? _MAP_BY_NAME[category] : undefined
     if (!target) {
       result.unknownCategories.push(category)
       warn(`[enums] Unknown deviceTypeOverrides category "${category}" — ignored. ` +
