@@ -37,6 +37,15 @@ Everything since the last published beta, **2.0.0-beta.3**. A `2.0.0-beta.4` was
 - **Better GitHub forms.** The device form takes reports that a device works, partly works or does not work, lets you pick the device by name, and starts on "It is not supported yet". The bug form asks for the `wyze-api` version and points to the camera test page for one camera that will not connect. Pasted logs and configs are checked for credentials.
 
 **Fixed**
+- **Upgrading an old config no longer drops the child bridge settings** (`_bridge`: its name, pin and port), which made every accessory need pairing again. The log note about the backup now says it holds your old password.
+- **A failed lookup of a thermostat's room sensors no longer removes them** (and their HomeKit rooms and automations) from HomeKit.
+- **Only one refresh runs at a time,** the refresh loops stop when Homebridge shuts down, and a camera that was removed no longer keeps being polled.
+- **A secrets file that cannot be read leaves the plugin inactive with a message** instead of crashing Homebridge at start-up.
+- **The siren, light, notification and motion detection switches no longer flip back for a moment** after you use them.
+- **A live view that cannot be prepared fails at once with a log line** instead of spinning until HomeKit gives up.
+- **A failed light, plug or lock command is always logged as an error,** whatever the log level; a Lock Bolt v2 that has not been read shows "unknown", not "secured".
+- **A mesh light colour is sent once, with both hue and saturation,** even when HomeKit sends only one of them.
+- **Smaller:** a picture download is limited to 5 MB, one camera's failure no longer stops the others getting their events, the process-wide error handlers are installed once, and a `deviceTypeOverrides` category named like an object property is ignored.
 - **The Motion Sensor was not added to a camera that had no other switch configured.**
 - **A Home Monitoring System (S1 Gateway) was never loaded with `hms.enabled` on.**
 - **Rewriting an old flat config deleted** `irrigationZone`, the Ford and Olive keys and `appInfo`. They are kept now.
