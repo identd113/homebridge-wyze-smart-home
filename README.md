@@ -196,22 +196,22 @@ Notes on cameras:
 
 Have a Wyze device that is not on either list? [Tell us about it](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml). The form asks what the device is and for the information the plugin has about it, which is usually enough to add support.
 
-The newest releases are first; devices with no known release date come last. **Effort** is our rough estimate. **Easy** means another open-source Wyze project already handles the device, so we can port from it; **Hard** means it needs a different protocol; **Unknown** means we found no reference implementation.
+**Effort** is our rough estimate. **Easy** means another open-source Wyze project already handles the device, so we can port from it; **Hard** means it needs a different protocol; **Unknown** means we found no reference implementation.
 
 <details open>
 <summary><strong>Devices we do not support yet</strong> (10)</summary>
 
 | Device | Model code | Why it isn't supported | Effort |
 |---|---|---|---|
-| Solar Cam (October 2026) | — | No model code yet | Unknown |
-| Battery Video Doorbell | `ME_DB1`, `MR_BVD` | No accessory yet. [ha-wyzeapi](https://github.com/SecKatie/ha-wyzeapi) finds the device but the camera stays unavailable. The two codes may be the same product | Unknown |
-| Window Cam | `GW_WC` | No accessory yet. [docker-wyze-bridge](https://github.com/mrlt8/docker-wyze-bridge) lists it as not supported | Unknown |
-| Solar Cam Pan | `ME_WCO3` | No accessory yet. [wyzeapy](https://github.com/SecKatie/wyzeapy) has an open pull request that reads and controls it, but its live view uses Agora, not the WebRTC stream the plugin uses | Hard |
-| Duo Cam Doorbell | `GW_DBD` | No accessory yet. It has no `iot-power` property, and [docker-wyze-bridge](https://github.com/mrlt8/docker-wyze-bridge) users get snapshots but no stream | Unknown |
 | Air Purifier | `CO_AP1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Appliances%20-%20Air%20Purifier%20%28CO_AP1%29&origin=readme) | No accessory class. [wyzeapy](https://github.com/SecKatie/wyzeapy) reads on/off, fan mode and air quality, and HomeKit has matching services | Medium |
 | Keypad | — | It is an accessory of the lock and HomeKit has no keypad service. [wyze-sdk](https://github.com/shauntarves/wyze-sdk) reads its enable setting and events | Unknown |
 | Lamp Socket / Lamp Socket v2 | — | No model code yet | Easy |
 | Lock Bolt (original, Bluetooth only) | — | Bluetooth only, no cloud control | Hard |
+| Window Cam | `GW_WC` | No accessory yet. [docker-wyze-bridge](https://github.com/mrlt8/docker-wyze-bridge) lists it as not supported | Unknown |
+| Battery Video Doorbell | `ME_DB1`, `MR_BVD` | No accessory yet. [ha-wyzeapi](https://github.com/SecKatie/ha-wyzeapi) finds the device but the camera stays unavailable. The two codes may be the same product | Unknown |
+| Duo Cam Doorbell | `GW_DBD` | No accessory yet. It has no `iot-power` property, and [docker-wyze-bridge](https://github.com/mrlt8/docker-wyze-bridge) users get snapshots but no stream | Unknown |
+| Solar Cam Pan | `ME_WCO3` | No accessory yet. [wyzeapy](https://github.com/SecKatie/wyzeapy) has an open pull request that reads and controls it, but its live view uses Agora, not the WebRTC stream the plugin uses | Hard |
+| Solar Cam (October 2026) | — | No model code yet | Unknown |
 | Night Light, Surge Protector | — | No model codes yet | Unknown |
 
 </details>

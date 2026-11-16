@@ -20,16 +20,14 @@ const BEGIN = "        # BEGIN device options (npm run device-options)";
 const END = "        # END device options";
 
 // A dropdown has no headings, so each option starts with its group ("Cameras - Cam v4 (HL_CAM4)").
-// The list runs from the newest release to the oldest, whatever the group: a new device is the one people ask about
-// ("can you support this?"), and it should not sit below twenty older cameras. On the same month, the group order
-// below and then the name decide.
+// Groups keep the order below; inside a group the newest device comes first.
 const SECTIONS = ["Doorbells", "Cameras", "Battery cameras", "Locks", "Lights", "Plugs and switches", "Sensors", "Climate", "Appliances"];
 
 function options() {
   const devices = Object.entries(require("./device-names.json"));
   const rank = (section) => SECTIONS.indexOf(section);
   devices.sort(([, a], [, b]) =>
-    b.released.localeCompare(a.released) || rank(a.section) - rank(b.section) || a.name.localeCompare(b.name, "en", { numeric: true })
+    rank(a.section) - rank(b.section) || b.released.localeCompare(a.released) || a.name.localeCompare(b.name, "en", { numeric: true })
   );
   const labels = devices.map(([code, d]) => `${d.section} - ${d.name} (${code})`);
   return [...labels, OTHER];

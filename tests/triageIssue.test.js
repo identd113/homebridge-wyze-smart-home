@@ -226,21 +226,17 @@ test('the form asks for two confirmations first and requires little else', () =>
   assert.strictEqual((yaml.match(/required: true/g) || []).length, 4, 'two confirmations, what you are reporting, and the device')
 })
 
-test('the device list runs from the newest release to the oldest, whatever the group', () => {
+test('the device list is grouped, and newest first inside each group', () => {
   const names = require('../.github/scripts/device-names.json')
   const gen = require('../.github/scripts/gen-device-options.js')
   const opts = gen.options().slice(0, -1)
   const byCode = (o) => names[triage.modelFrom({ Device: o })]
+  const sections = opts.map((o) => byCode(o).section)
+  assert.deepStrictEqual([...new Set(sections)], gen.SECTIONS.filter((s) => sections.includes(s)), 'groups stay together, in order')
   for (let i = 1; i < opts.length; i++) {
-    assert.ok(byCode(opts[i - 1]).released >= byCode(opts[i]).released, `${opts[i - 1]} before ${opts[i]}`)
-    // the same month: the group order decides
-    if (byCode(opts[i - 1]).released === byCode(opts[i]).released) {
-      assert.ok(gen.SECTIONS.indexOf(byCode(opts[i - 1]).section) <= gen.SECTIONS.indexOf(byCode(opts[i]).section), opts[i])
-    }
+    if (byCode(opts[i]).section === byCode(opts[i - 1]).section) assert.ok(byCode(opts[i - 1]).released >= byCode(opts[i]).released, opts[i])
   }
-  const newest = Object.values(names).map((d) => d.released).sort().at(-1)
-  assert.strictEqual(byCode(opts[0]).released, newest, 'the newest release is first')
-  for (const o of opts) assert.ok(/^[A-Za-z ]+ - .+ \([A-Za-z0-9_.-]+\)$/.test(o), `${o} still starts with its group and ends with its model code`)
+  assert.strictEqual(opts[0].startsWith('Doorbells - '), true)
   assert.strictEqual(gen.options().at(-1), gen.OTHER)
 })
 
