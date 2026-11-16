@@ -93,6 +93,10 @@ const ADVANCED_KEYS = [
   "webServerPort",
 ];
 
+// Advanced options that are ON unless set: a `false` here is the user's choice, so rewriting the config must keep it
+// (dropping it would switch the option back on). For every other advanced option `false` is the default.
+const ADVANCED_DEFAULT_ON = new Set(["snapshotOnMotion"]);
+
 // Top-level options the plugin still reads that have no nested home. They are kept
 // as they are when a flat config is rewritten, so a migration doesn't reset them.
 const PASSTHROUGH_KEYS = [
@@ -268,7 +272,8 @@ function normalize(input) {
   const logging = isPlainObject(c.logging) ? c.logging : {};
   // Resolution priority: nested level → flat logLevel → legacy apiLogEnabled boolean → default 'info'.
   let level = logging.level ?? c.logLevel;
-  if (!level) level = c.apiLogEnabled ? "debug" : "info";
+  // Either legacy toggle meant "more log lines", and both map onto debug (see pluginLoggingEnabled below).
+  if (!level) level = c.apiLogEnabled || c.pluginLoggingEnabled ? "debug" : "info";
   level = String(level).toLowerCase();
   if (!["error", "warn", "info", "debug"].includes(level)) level = "info";
 
@@ -351,7 +356,7 @@ function toCanonical2x(normalized, platformMeta) {
     const v = normalized.advanced?.[k];
     if (v == null) continue;
     if (typeof v === "object" && Object.keys(v).length === 0) continue;
-    if (typeof v === "boolean" && v === false) continue;
+    if (typeof v === "boolean" && v === false && !ADVANCED_DEFAULT_ON.has(k)) continue;
     if (typeof v === "string" && v === "") continue;
     advanced[k] = v;
   }

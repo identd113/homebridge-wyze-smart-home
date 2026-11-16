@@ -38,6 +38,8 @@ Everything since the last published beta, **2.0.0-beta.3**. An earlier `2.0.0-be
 - **Better GitHub forms.** The device form takes reports that a device works, partly works or does not work, lets you pick the device by name, and starts on "It is not supported yet". The bug form asks for the `wyze-api` version and points to the camera test page for one camera that will not connect. Pasted logs and configs are checked for credentials.
 
 **Fixed**
+- **Upgrading an older config keeps `snapshotOnMotion: false`.** The rewrite to the 2.x shape dropped every `false` in `advanced`, but this option is on unless set, so an explicit opt-out was lost and motion-triggered pictures came back (which wakes a battery camera on every event). Options that are off by default are still left out.
+- **Upgrading an older config keeps `pluginLoggingEnabled: true`.** The legacy toggle was never read when the log level was worked out, so the plugin's verbose lines disappeared after the rewrite. It now gives `debug`, as `apiLogEnabled` does; an explicit log level still wins.
 - **Upgrading an old config no longer drops the child bridge settings** (`_bridge`: its name, pin and port), which made every accessory need pairing again. The log note about the backup now says it holds your old password.
 - **A failed lookup of a thermostat's room sensors no longer removes them** (and their HomeKit rooms and automations) from HomeKit.
 - **Only one refresh runs at a time,** the refresh loops stop when Homebridge shuts down, and a camera that was removed no longer keeps being polled.
