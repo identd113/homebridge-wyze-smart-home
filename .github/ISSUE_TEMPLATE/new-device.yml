@@ -41,13 +41,16 @@ body:
     attributes:
       label: Device
       description: Pick your device by name; its model code is in brackets. If it is not listed, choose the last option and fill in the next two questions. Starts on the last option, for a device that is not in the list.
-      default: 49
+      default: 53
       options:
         # BEGIN device options (npm run device-options)
+        - "Doorbells - Battery Video Doorbell (ME_DB1)"
         - "Doorbells - Video Doorbell Pro 2 (AN_RDB1)"
+        - "Doorbells - Duo Cam Doorbell (GW_DBD)"
         - "Doorbells - Video Doorbell v2 (HL_DB2)"
         - "Doorbells - Video Doorbell Pro (GW_BE1)"
         - "Doorbells - Video Doorbell (WYZEDB3)"
+        - "Cameras - Window Cam (GW_WC)"
         - "Cameras - Cam Pan v4 (HL_PAN4)"
         - "Cameras - Bulb Cam (HL_BC)"
         - "Cameras - Cam v4 (HL_CAM4)"
@@ -63,6 +66,7 @@ body:
         - "Cameras - Cam Pan (WYZECP1_JEF)"
         - "Cameras - Cam v2 (WYZEC1-JZ)"
         - "Cameras - Cam v1 (WYZEC1)"
+        - "Battery cameras - Solar Cam Pan (ME_WCO3)"
         - "Battery cameras - Battery Cam Pro (AN_RSCW)"
         - "Battery cameras - Cam Outdoor v2 (HL_WCO2)"
         - "Battery cameras - Cam Outdoor (WVOD1)"

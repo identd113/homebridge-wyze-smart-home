@@ -32,6 +32,11 @@ const PLANNED_DEVICES = {
     source: "SecKatie/ha-wyzeapi issue 973",
     note: "ha-wyzeapi finds its Motion Detection, Notifications, Power and Siren controls but the camera stays unavailable. Nothing has been tried on hardware here.",
   },
+  ME_WCO3: {
+    name: "Wyze Solar Cam Pan",
+    source: "SecKatie/wyzeapy pull request 336 and mrlt8/docker-wyze-bridge issues 1525 and 1545",
+    note: "wyzeapy's open pull request reads and controls it through the devicemgmt API, like the Battery Cam Pro. Its live view uses Agora, not the WebRTC stream the plugin uses, so there would be no live view yet. Nothing has been tried on hardware here.",
+  },
   MR_BVD: {
     name: "Wyze Battery Video Doorbell (a second model code reported for it)",
     source: "a comment on mrlt8/docker-wyze-bridge issue 1516",

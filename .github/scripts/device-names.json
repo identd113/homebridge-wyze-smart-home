@@ -67,6 +67,12 @@
     "section": "Doorbells",
     "released": "2021-10"
   },
+  "GW_DBD": {
+    "name": "Duo Cam Doorbell",
+    "section": "Doorbells",
+    "released": "2024-11",
+    "estimated": true
+  },
   "GW_GC1": {
     "name": "Cam OG",
     "section": "Cameras",
@@ -76,6 +82,12 @@
     "name": "Cam OG Telephoto 3x",
     "section": "Cameras",
     "released": "2023-01"
+  },
+  "GW_WC": {
+    "name": "Window Cam",
+    "section": "Cameras",
+    "released": "2025-12",
+    "estimated": true
   },
   "HL_A19C2": {
     "name": "Color Bulb A19 v2",
@@ -170,6 +182,17 @@
     "name": "Wall Switch",
     "section": "Plugs and switches",
     "released": "2021-10"
+  },
+  "ME_DB1": {
+    "name": "Battery Video Doorbell",
+    "section": "Doorbells",
+    "released": "2026-10",
+    "estimated": true
+  },
+  "ME_WCO3": {
+    "name": "Solar Cam Pan",
+    "section": "Battery cameras",
+    "released": "2025-10"
   },
   "PIR2U": {
     "name": "Motion Sensor v1",

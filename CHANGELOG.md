@@ -33,7 +33,7 @@ Everything since the last published beta, **2.0.0-beta.3**. A `2.0.0-beta.4` was
 - **A camera switched off with its Privacy switch shows a black picture with a crossed-out red dot** in the Home app, instead of its last picture (which looked live).
 - **The Advanced options are on the settings screen:** Picture Refresh, Refresh the Picture on Motion, Sensor Stays On, Quick Live View and the Camera Test Page Port. The number options are plain number inputs, not sliders.
 - **Fewer requests to Wyze.** The properties of all cameras and lights are read in one request per refresh, not one request each. A device that cannot be served that way reads its own, and the log says so once.
-- **Unsupported devices are named in the log** when the model is known: the Duo Cam Doorbell, Window Cam and Battery Video Doorbell, with a link for helping to get them supported.
+- **Unsupported devices are named in the log** when the model is known: the Duo Cam Doorbell, Window Cam, Battery Video Doorbell and Solar Cam Pan (`ME_WCO3`), with a link for helping to get them supported. All four are also in the new-device form's list, and the README's "Not Yet Supported" table adds the Solar Cam Pan and notes that the October 2026 Solar Cam has no model code yet.
 - **Better GitHub forms.** The device form takes reports that a device works, partly works or does not work, lets you pick the device by name, and starts on "It is not supported yet". The bug form asks for the `wyze-api` version and points to the camera test page for one camera that will not connect. Pasted logs and configs are checked for credentials.
 
 **Fixed**
