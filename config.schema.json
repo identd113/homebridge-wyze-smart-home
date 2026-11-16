@@ -46,13 +46,13 @@
           "mfaCode": {
             "title": "2FA/MFA Code",
             "type": "string",
-            "description": "Only required if your Wyze account has 2-factor authentication enabled. Enter the current code from your authenticator app."
+            "description": "Only needed if Wyze asks for a 2-factor code at login. Enter the current 6-digit code from your authenticator app; it works once."
           },
           "totpSecret": {
-            "title": "Authenticator-app 2FA Secret",
+            "title": "Authenticator-app 2FA Secret (deprecated)",
             "type": "string",
             "x-schema-form": { "type": "password" },
-            "description": "Recommended if your Wyze account uses an authenticator app for 2-factor auth. Enter the base32 key shown next to the QR code during 2FA setup (spaces and dashes are fine); a fresh code is generated at every login. Takes precedence over the 2FA/MFA Code. Treat it like your password."
+            "description": "Deprecated and no longer used: the API key above is enough for most accounts. A value already here is kept and ignored, and the log says so. You can clear it."
           },
           "secretsFile": {
             "title": "Secrets File (optional)",

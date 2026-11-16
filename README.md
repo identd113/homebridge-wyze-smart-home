@@ -246,7 +246,7 @@ Four fields are **required**. With only these, the plugin finds your Wyze device
 }
 ```
 
-If your Wyze account uses an authenticator app for 2-factor authentication, also add `"totpSecret": "YOUR_2FA_KEY"` inside `auth` (see below).
+The API key is all most accounts need, including accounts with an authenticator app for 2-factor authentication. If Wyze does ask for a code, add the current 6-digit code as `"mfaCode"` inside `auth` (see below). `totpSecret` is deprecated and no longer used.
 
 ### Required fields
 
@@ -284,7 +284,7 @@ What most people want: the credentials kept out of `config.json`, the extra swit
 }
 ```
 
-`wyze-secrets.json` is a private file (mode 600) holding `username`, `password`, `keyId`, `apiKey` and, with 2-factor authentication, `totpSecret`. See `auth.secretsFile` below.
+`wyze-secrets.json` is a private file (mode 600) holding `username`, `password`, `keyId`, `apiKey`. See `auth.secretsFile` below.
 
 ### Maximum config
 
@@ -300,8 +300,7 @@ Every setting a person normally changes, set to a value that differs from its de
         "username": "YOUR_EMAIL",
         "password": "YOUR_PASSWORD",
         "keyId": "YOUR_KEY_ID",
-        "apiKey": "YOUR_API_KEY",
-        "totpSecret": "YOUR_2FA_KEY"
+        "apiKey": "YOUR_API_KEY"
       },
       "polling": {
         "refreshInterval": 60000,
@@ -360,7 +359,7 @@ Do not use `"logging": { "level": "debug" }` all the time: the logs are long.
 | Camera live view, pictures every 30 s, Privacy switch | yes | yes | yes |
 | Motion, Sound and AI sensors, added automatically when the camera's events show them | yes | yes | yes (set by hand per camera) |
 | Credentials | in `config.json` | in a private file | in `config.json` |
-| 2-factor authentication | only with `totpSecret` or `mfaCode` added | in the secrets file | `totpSecret` |
+| 2-factor authentication | only if Wyze asks for a code: `mfaCode` | not needed | `mfaCode` |
 | Garage, light, siren, notification and motion-detection switches on a camera | no | the ones you list | all of them |
 | Face sensor and a fixed list of AI sensors | no | no | yes |
 | Quick Live View (`warmLiveView`) | no | yes | yes |
@@ -380,8 +379,8 @@ The Optional fields tables below list every setting with its default.
 
 | Field | Default | What it does |
 |---|---|---|
-| `auth.totpSecret` | none | Recommended if your account uses an authenticator app for 2-factor authentication. Enter the base32 key Wyze shows next to the QR code ("can't scan? enter this key"). The plugin generates the codes itself, so you enter it once. |
-| `auth.mfaCode` | none | An alternative to `totpSecret`: the current 6-digit code from your authenticator app, needed once at login. It rotates every 30 seconds, so it must be current when Homebridge starts. |
+| `auth.totpSecret` | none | **Deprecated and ignored.** It used to generate 2-factor codes from the authenticator secret. A value in an existing config is still accepted and the log says it is not used. You can remove it. |
+| `auth.mfaCode` | none | The current 6-digit code from your authenticator app, for when Wyze asks for one at login. It rotates every 30 seconds, so it must be current when Homebridge starts, and it works once. |
 | `auth.secretsFile` | none | Path to a private JSON file (mode 600) holding any of the credentials above, to keep them out of `config.json`. Values in the file override the config. The `WYZE_*` environment variables (for example `WYZE_USERNAME` and `WYZE_PASSWORD`) work too. |
 
 **Polling**
