@@ -31,6 +31,12 @@ How a release gets to npm, and the order to do things in. This plugin depends on
 3. Approve the staged publish on npmjs.com.
 4. Check the tags: `npm view homebridge-wyze-smart-home dist-tags`. For a beta, `beta` points at the new version and `latest` is unchanged.
 
+## Getting the release into the upstream repository
+
+The same steps as in `wyze-api`'s `docs/releasing.md` ("Getting the release into the upstream repository"), and `wyze-api` goes first. In short: cut `release/<version>` from `2.x`, open the pull request to upstream `2.0.0`, merge it with a merge commit (never a squash or rebase, which rewrite the commits and strand the tags), then `git fetch upstream` and `git merge --ff-only upstream/2.0.0` on `2.x`.
+
+Tags are not copied by a push or a merge, and are never deleted by them. Push our `v2.0.0-beta.3` to upstream with `git push upstream <tag>` after the merge, and bring upstream's missing tags over with `git fetch upstream --tags` (this fork lacks `v0.5.46`, `v0.5.47`, `v0.5.54`, `v0.5.56`, `v0.5.61`, `v2.0.0-beta.1` and `v2.0.0-beta.2`).
+
 ## After
 
 - Install both packages from the registry into a scratch Homebridge, start it, and check the log for errors. Open the plugin's settings page and look at the Detected sensors panel; set `advanced.webServerPort` and check its "Open" link works.
