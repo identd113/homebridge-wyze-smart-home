@@ -19,6 +19,7 @@ Everything since the last published beta, **2.0.0-beta.3**. An earlier `2.0.0-be
 - **New HomeKit tiles appear by themselves.** A camera whose recent events show motion gets a Motion Sensor, one that shows sound gets a Sound Sensor, and one on a Wyze plan with AI detection gets Person, Vehicle, Pet and Package sensors. You can switch any of them off (see "A card for each camera" below).
 - **Camera options moved.** The Cameras section is no longer in the settings form. Each camera's options (the extra switches and the sensors) are on that camera's card, under the form, and are saved with the card's own button. Your existing config keeps working and nothing in it changes.
 - **The settings form is now plain sections** that open and close, with Account open, instead of a strip of tabs.
+- **Homebridge 1.x must be 1.8.5 or newer.** `engines.homebridge` is now `^1.8.5 || ^2.0.0` (it said `^1.6.0`). This plugin needs Node 22, and Homebridge 1.x supports Node 22 only from 1.8.5 (Node 24 from 1.11.1; no 1.x supports Node 26). On an older Homebridge 1.x, update Homebridge first.
 - **Rolling back:** `npm install homebridge-wyze-smart-home@2.0.0-beta.3`. Your config keeps working and the new settings are ignored. Cameras then have the old Privacy direction again.
 
 **New**

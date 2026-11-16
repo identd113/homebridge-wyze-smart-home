@@ -41,7 +41,7 @@
     "url": "https://github.com/identd113/homebridge-wyze-smart-home/issues"
   },
   "engines": {
-    "homebridge": "^1.6.0 || ^2.0.0",
+    "homebridge": "^1.8.5 || ^2.0.0",
     "node": "^22.0.0 || ^24 || ^26"
   },
   "dependencies": {
