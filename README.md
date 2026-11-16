@@ -13,7 +13,7 @@
 
 > **Coming soon:** gun safe support.
 
-## What's new in 2.1.0-beta.1
+## What's new in 2.0.0-beta.4
 
 > [!WARNING]
 > **Breaking change: the Privacy switch is now on when the camera is off.** It used to be on when the camera was on, the opposite of its name. Turning Privacy **on** now powers the camera **off**, and turning it off powers it on. There is no setting to keep the old direction. **Any scene, automation or Siri phrase that uses a camera's Privacy switch now does the opposite.** Check each one after you update: where it turned Privacy on to switch the camera on, it must turn Privacy off, and the other way round.
@@ -34,7 +34,7 @@
 - **Example configs:** the [minimum, recommended and maximum configs](#configuration) below show what to write and what each one adds, and the [advanced settings](#advanced-settings-and-when-to-use-them) say when each is worth changing.
 - **Safer, tidier package:** the published package holds only what it needs (it no longer carries unused libraries), and the project is tested and linted on every change.
 
-Needs `wyze-api` 2.1.0-beta.1, which installs with the plugin. Everything since the last published beta, 2.0.0-beta.3, is in this release (a 2.0.0-beta.4 was prepared but never published). The full list is in the [change log](CHANGELOG.md), and the notes for maintainers are in [docs/releases/2.1.0-beta.1.md](docs/releases/2.1.0-beta.1.md). Going back: `npm install homebridge-wyze-smart-home@2.0.0-beta.3` (the Privacy switch then has its old direction again).
+Needs `wyze-api` 2.0.0-beta.4, which installs with the plugin. Everything since the last published beta, 2.0.0-beta.3, is in this release (an earlier 2.0.0-beta.4 was prepared but never published; its number is reused here). The full list is in the [change log](CHANGELOG.md), and the notes for maintainers are in [docs/releases/2.0.0-beta.4.md](docs/releases/2.0.0-beta.4.md). Going back: `npm install homebridge-wyze-smart-home@2.0.0-beta.3` (the Privacy switch then has its old direction again).
 
 ## Support
 

@@ -10,9 +10,9 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 This plugin is built on the [wyze-api](https://github.com/identd113/wyze-api) library. For API-level changes (login, 2FA, device commands), see the [wyze-api changelog](https://github.com/identd113/wyze-api/blob/2.x/CHANGELOG.md).
 
-### v2.1.0-beta.1
+### v2.0.0-beta.4
 
-Everything since the last published beta, **2.0.0-beta.3**. A `2.0.0-beta.4` was prepared but never published; its changes are in this release. It pairs with `wyze-api` 2.1.0-beta.1, which npm installs for you. With an older `wyze-api` the features that need it switch themselves off, and the log says so.
+Everything since the last published beta, **2.0.0-beta.3**. An earlier `2.0.0-beta.4` was prepared but never published to npm; its number is reused for this release and its changes are in it. It pairs with `wyze-api` 2.0.0-beta.4, which npm installs for you. With an older `wyze-api` the features that need it switch themselves off, and the log says so.
 
 **Before you upgrade**
 - **Breaking: the Privacy switch is now on when the camera is off.** It used to be on when the camera was on, the opposite of its name. Turning Privacy on now powers the camera off, and turning it off powers it on. There is no setting to keep the old direction. Any scene, automation or Siri phrase that uses a camera's Privacy switch now does the opposite and needs to be changed: where it turned Privacy on to switch the camera on, it must turn Privacy off, and the other way round. After upgrading, check each such automation.
