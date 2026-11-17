@@ -78,7 +78,7 @@ Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/identd
 - **Wyze Cam Doorbell v2 (`HL_DB2`)** as a HomeKit doorbell: a button press rings the Home app (read from Wyze's cloud event list every 5 seconds, one ring per press), plus snapshots and live video with audio (its stream is 640x480 at 15 fps, so it is advertised as 4:3 and the Home app no longer letterboxes it). It has no Privacy switch, because Wyze ignores power-off for this model. The doorbell-press event and the power and siren controls are not verified yet.
 - **Wyze Cam Pan v4 (`HL_PAN4`)** and **Bulb Cam (`HL_BC`) light control**: power, siren, spotlight, notifications and state go through the right Wyze API for these models (ported from SecKatie/wyzeapy, via wyze-api). Not yet verified on real hardware.
 - **Cameras on the newer devicemgmt API** (Floodlight Pro, Battery Cam Pro, OG, Pan v4) now report their light, siren, motion and power state, and Pan v4 and similar cameras with only the privacy switch configured read their power state from that API.
-- **Floodlight v2 (`HL_CFL2`)** is recognized without a `deviceTypeOverrides` entry. Its light toggle (#264) is still unresolved.
+- **Floodlight v2 (`HL_CFL2`)** is recognized without a `deviceTypeOverrides` entry. Its light toggle ([#264](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/264)) is still unresolved.
 
 **Camera switches and tiles**
 - **A Floodlight switch appears by itself** on a camera with a Wyze floodlight accessory (a Cam v3 with the floodlight). No entry under `cameras` is needed. The `spotlight` and `floodlight` switches both follow the camera's light, including changes made in the Wyze app.
