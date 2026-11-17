@@ -38,3 +38,11 @@ test('an explicit log level still wins over the legacy toggles', () => {
   assert.strictEqual(normalize({ ...flat, pluginLoggingEnabled: true, logLevel: 'warn' }).logging.level, 'warn')
   assert.strictEqual(normalize({ ...flat, apiLogEnabled: true, logging: { level: 'error' } }).logging.level, 'error')
 })
+
+test('ADVANCED_DEFAULT_ON is exactly the advanced booleans that default to true in the schema', () => {
+  const { ADVANCED_DEFAULT_ON, ADVANCED_KEYS } = require('../src/configMigrator')
+  const schema = require('../config.schema.json')
+  const props = schema.schema.properties.advanced.properties
+  const onByDefault = ADVANCED_KEYS.filter((k) => props[k] && props[k].type === 'boolean' && props[k].default === true)
+  assert.deepStrictEqual([...ADVANCED_DEFAULT_ON].sort(), onByDefault.sort())
+})

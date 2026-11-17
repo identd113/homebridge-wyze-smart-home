@@ -493,6 +493,8 @@ function rewriteHomebridgeConfigOnDisk({ configPath, platformAlias, log }) {
 }
 
 module.exports = {
+  ADVANCED_DEFAULT_ON,
+  ADVANCED_KEYS,
   normalize,
   toCanonical2x,
   isAlready2x,
