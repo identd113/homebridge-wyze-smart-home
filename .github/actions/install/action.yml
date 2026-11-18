@@ -1,0 +1,71 @@
+# Installs the plugin's dependencies.
+#
+# Normally that is a plain `npm install`. While the `wyze-api` version this plugin needs
+# (`dependencies.wyze-api` in package.json) is not on npm yet, as before a paired release, the install would
+# fail, so `wyze-api` is taken from its repository instead: the same owner as this run (the fork a pull request
+# comes from), on the branch with the same name as this one, else `2.x`. Once the version is published the
+# plain install is used again, with no change here.
+#
+# The lockfile is not committed (it is in .gitignore), so this installs from package.json.
+
+name: Install dependencies
+description: npm install, with wyze-api from its repository while the version the plugin needs is not on npm
+
+runs:
+  using: composite
+  steps:
+    - name: Is the wyze-api version this plugin needs on npm?
+      id: npm
+      shell: bash
+      run: |
+        RANGE=$(node -p "require('./package.json').dependencies['wyze-api']")
+        if npm view "wyze-api@$RANGE" version >/dev/null 2>&1; then
+          echo "published=true" >> "$GITHUB_OUTPUT"
+          echo "wyze-api $RANGE is on npm: installing it from there."
+        else
+          echo "published=false" >> "$GITHUB_OUTPUT"
+          echo "wyze-api $RANGE is not on npm yet: installing it from its repository."
+        fi
+
+    - name: Pick the wyze-api branch
+      id: ref
+      if: steps.npm.outputs.published != 'true'
+      shell: bash
+      env:
+        OWNER: ${{ github.event.pull_request.head.repo.owner.login || github.repository_owner }}
+        BRANCH: ${{ github.head_ref || github.ref_name }}
+      run: |
+        for ref in "$BRANCH" 2.x; do
+          if git ls-remote --exit-code "https://github.com/$OWNER/wyze-api.git" "refs/heads/$ref" >/dev/null 2>&1; then
+            echo "repository=$OWNER/wyze-api" >> "$GITHUB_OUTPUT"
+            echo "ref=$ref" >> "$GITHUB_OUTPUT"
+            echo "Using $OWNER/wyze-api at $ref."
+            exit 0
+          fi
+        done
+        echo "No wyze-api branch '$BRANCH' or '2.x' under $OWNER, and the version is not on npm." >&2
+        exit 1
+
+    - name: Check out wyze-api
+      if: steps.npm.outputs.published != 'true'
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ steps.ref.outputs.repository }}
+        ref: ${{ steps.ref.outputs.ref }}
+        path: .wyze-api
+
+    - name: npm install
+      shell: bash
+      run: |
+        if [ "${{ steps.npm.outputs.published }}" == "true" ]; then
+          npm install --no-audit --no-fund
+          exit 0
+        fi
+        # The plugin reads the range in package.json at start-up and its tests check it, so package.json stays as
+        # it is in the end. Install everything without the unpublished dependency, then add the checked-out copy
+        # (installed as a copy, so its own dependencies come with it) and restore package.json.
+        cp package.json "$RUNNER_TEMP/package.json.orig"
+        npm pkg delete dependencies.wyze-api
+        npm install --no-audit --no-fund
+        npm install --no-save --no-audit --no-fund --install-links ./.wyze-api
+        cp "$RUNNER_TEMP/package.json.orig" package.json

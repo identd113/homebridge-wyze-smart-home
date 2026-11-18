@@ -10,6 +10,7 @@ How a release gets to npm, and the order to do things in. This plugin depends on
   - Either workflow can also be started by hand (`workflow_dispatch`).
 - The version in `package.json` must not already be on npm.
 - The workflow also checks that a published `wyze-api` satisfies the range in `dependencies.wyze-api`, and stops if not. That range is the one place the minimum `wyze-api` version is declared. The plugin checks the installed `wyze-api` against it again at startup.
+- CI installs `wyze-api` from npm when the version in `dependencies.wyze-api` is published. Until then (before a paired release) the install step (`.github/actions/install`) takes `wyze-api` from its repository instead: the same owner as the run, on the branch with the same name, else `2.x`. So the plugin's CI can pass on a release branch before `wyze-api` is on npm, and switches to npm by itself afterwards.
 - Publishing is **staged**: the workflow runs `npm stage publish` with a stage-only token, so nothing goes live until you approve it on npmjs.com (with 2FA) or with `npm stage approve <id>`.
 - Until 2.0 is stable, `latest` stays on the old line (`0.5.61` at the time of writing), so a plain `npm install homebridge-wyze-smart-home` does not move anyone to 2.x.
 
