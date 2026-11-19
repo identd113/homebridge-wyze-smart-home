@@ -387,7 +387,7 @@ test('every issue form assigns the maintainers, and the intake assigns them when
 test('CI skips changes that only touch Markdown, so the README pull requests from verify need no run', () => {
   const ci = fs.readFileSync(path.join(__dirname, '../.github/workflows/ci.yml'), 'utf8')
   assert.match(ci, /pull_request:\n    paths-ignore: \["\*\*\.md"\]/)
-  assert.match(ci, /branches: \[2\.x\]\n    paths-ignore: \["\*\*\.md"\]/)
+  assert.match(ci, /branches: \[2\.x, 2\.0\.0\]\n    paths-ignore: \["\*\*\.md"\]/)
 })
 
 test('pasted credentials are found by name, never by value, and removed ones are not', () => {
