@@ -64,7 +64,7 @@ Thank you to everyone who tested a device and told us it works. Each name was ad
 <!-- /confirmed-by -->
 
 ## Requirements
-- Node.js 22 or newer (2.0.0-beta.3 and later). Homebridge 2.x already requires it; on Homebridge 1.x, update Node first.
+- Node.js 22, 24 or 26 (2.0.0-beta.3 and later). Homebridge 2.x already requires it; on Homebridge 1.x, update Node first.
 - Homebridge 1.8.5 or newer on the 1.x line, or Homebridge 2.x. Homebridge 1.x supports Node 22 only from 1.8.5 (and Node 24 from 1.11.1, and no 1.x release supports Node 26), so an older 1.x cannot run this plugin's Node 22 requirement.
 - The plugin installs the matching `wyze-api` automatically and checks its version at startup. If the version is wrong, or no Wyze `username` is configured, the log shows a `[FATAL]` message and the plugin stays idle without removing your cached accessories.
 
@@ -289,7 +289,7 @@ What most people want: the credentials kept out of `config.json`, the extra swit
 
 ### Maximum config
 
-Every setting a person normally changes, set to a value that differs from its default (or, for the on/off ones, switched on). It is a reference for what exists, not something to copy as it is: several lines add tiles and cost extra requests. `deviceTypeOverrides` and the custom base URLs are left out on purpose, as they are for troubleshooting only.
+Every setting a person normally changes, set to a value that differs from its default (or, for the on/off ones, switched on). Two are shown at their defaults on purpose: `snapshotOnMotion` is on by default, and `disableRedaction` stays off because switching it on puts personal details in the log. It is a reference for what exists, not something to copy as it is: several lines add tiles and cost extra requests. `deviceTypeOverrides` and the custom base URLs are left out on purpose, as they are for troubleshooting only.
 
 ```json
 {

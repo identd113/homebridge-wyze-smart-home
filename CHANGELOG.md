@@ -65,6 +65,22 @@ Everything since the last published beta, **2.0.0-beta.3**. An earlier `2.0.0-be
 **Documentation**
 - The README shows a minimum, a recommended and a maximum config, with a table of what each adds, and says when each advanced setting is worth changing.
 
+**Fixed after review (for the merge into upstream `2.0.0`)**
+- **The settings rewrite never deletes a setting.** Unknown keys, a camera row with no `mac`, and an exclude list kept while its switch was off are carried over (the list is parked in `_disabledExcludeMacs` / `_disabledExcludeTypes`). Every migration keeps a backup: the first is `config.json.pre-2.0.bak`, a later one gets a timestamp. A symlinked `config.json` stays a symlink and keeps its mode.
+- **An old `wyze-api` gets the message that says what to install,** not a stack trace: the check runs before anything requires it.
+- **The plugin no longer catches uncaught exceptions for the whole Homebridge process.** A real fatal error stops it, so that it restarts.
+- **"Exclude by Device Type: Vacuum" works.** The vacuum's product type is its model code, so the entry matched nothing.
+- **A poll with no `switch_state` is not Off** for plugs, lights and mesh lights. A mesh bulb's brightness sent as text no longer reads as 1%.
+- **Cameras:** a camera that hangs or throws no longer stops the others (the picture queue gives up on a job after 90 s, the motion check after 60 s); nothing runs on a camera after it is stopped; night vision is not read from a camera that is offline, switched off or on a battery.
+- **Vacuum:** a start or dock shows at once and is not flipped back by the next poll; a failed room list is asked for again after 5 minutes. **Sprinkler:** the countdown stops at shutdown; a zone that is not a whole number from 1 runs zone 1; zones are set on the settings screen (`irrigation.zones`).
+- **Test page** started after shutdown leaves no link (#18); room sensors do not outlive their thermostat (#17).
+- **Issue scripts:** secrets named `WYZE_PASSWORD=` and the like are found, `--password value` too, and a quoted password is removed whole; the title is scanned; headings are read in linear time; a maintainer's own labels are kept on an edit.
+
+**Not changed, on purpose**
+- The cloud picture is tried first for the Home app's snapshot (a choice made in 0a96e61).
+- A camera test page link is only written while Homebridge is running.
+- Comments on an issue are not scanned for credentials: that needs the workflows to run on `issue_comment`, a decision for the maintainers.
+
 ### v2.0.0-beta.3
 
 Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/wyze-smart-home/wyze-api/blob/2.x/CHANGELOG.md)). Requires Node.js 22 or newer.

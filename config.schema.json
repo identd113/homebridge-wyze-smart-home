@@ -265,6 +265,7 @@
           "snapshotRefreshSeconds": {
             "title": "Camera Picture Refresh (seconds)",
             "type": "integer",
+            "default": 30,
             "placeholder": "30",
             "minimum": 0,
             "maximum": 3600,
@@ -279,6 +280,7 @@
           "sensorHoldSeconds": {
             "title": "Sensor Stays On (seconds)",
             "type": "integer",
+            "default": 120,
             "placeholder": "120",
             "minimum": 5,
             "maximum": 3600,

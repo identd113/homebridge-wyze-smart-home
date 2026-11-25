@@ -130,7 +130,7 @@ body:
     attributes:
       label: Plugin version
       description: For a device the plugin already handles. Shown in the Homebridge UI and at startup.
-      placeholder: "2.0.0-beta.3"
+      placeholder: "2.0.0-beta.4"
 
   - type: textarea
     id: details

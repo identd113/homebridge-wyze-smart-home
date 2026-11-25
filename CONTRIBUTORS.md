@@ -21,5 +21,5 @@ Thanks to everyone who has contributed to this project.
 
 ## Original Project (homebridge-wyze-connected-home)
 
-This project is a fork of [misenhower/homebridge-wyze-connected-home](https://github.com/misenhower/homebridge-wyze-connected-home).
+This project grew out of a copy of the code of [misenhower/homebridge-wyze-connected-home](https://github.com/misenhower/homebridge-wyze-connected-home). It is a fork in that sense (see the README history), not a GitHub fork.
 Thanks to [misenhower](https://github.com/misenhower) and all contributors and developers from that project.
