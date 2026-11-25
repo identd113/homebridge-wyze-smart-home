@@ -365,6 +365,56 @@ function toCanonical2x(normalized, platformMeta) {
   return out;
 }
 
+
+// Top-level keys that normalize() reads and toCanonical2x() writes in their nested place (or deliberately drops, like
+// the settings screen's `showAdvancedOptions` toggle). Every other key in the user's entry is kept as it was.
+const CONSUMED_KEYS = new Set([
+  "username", "password", "keyId", "apiKey", "secretsFile", "mfaCode", "totpSecret",
+  "refreshInterval", "lowBatteryPercentage",
+  ...CAMERA_FEATURE_KEYS.map(([, legacy]) => legacy),
+  ...CAMERA_SENSOR_KEYS.flatMap(([, on, off]) => [on, off]),
+  "enableThermostatRoomSensors", "thermostatMode", "vacuumPerRoomSwitches",
+  "excludeMacAddress", "filterByMacAddressList", "excludedeviceType", "filterDeviceTypeList",
+  "logLevel", "apiLogEnabled", "pluginLoggingEnabled", "disableLogRedaction", "showAdvancedOptions",
+  ...ADVANCED_KEYS,
+]);
+
+// Copy what the user had that the canonical shape has no place for, so rewriting the file never deletes a setting:
+// unknown top-level keys, unknown keys inside the nested blocks, and camera rows without a `mac` or with extra keys.
+function carryUnknown(original, canonical) {
+  for (const key of Object.keys(original)) {
+    if (CONSUMED_KEYS.has(key)) continue;
+    if (!(key in canonical)) {
+      canonical[key] = original[key];
+    } else if (isPlainObject(original[key]) && isPlainObject(canonical[key])) {
+      for (const sub of Object.keys(original[key])) {
+        if (!(sub in canonical[key])) canonical[key][sub] = original[key][sub];
+      }
+    }
+  }
+  if (Array.isArray(original.cameras) && Array.isArray(canonical.cameras)) {
+    const rows = new Map(canonical.cameras.map((row) => [row.mac, row]));
+    for (const cam of original.cameras) {
+      if (!isPlainObject(cam)) continue;
+      const row = cam.mac ? rows.get(cam.mac) : null;
+      if (!row) {
+        canonical.cameras.push({ ...cam });
+        continue;
+      }
+      for (const sub of Object.keys(cam)) if (!(sub in row)) row[sub] = cam[sub];
+    }
+  }
+  // An exclude list kept while its switch was off is not active, so it must not become one. Park it where the
+  // plugin does not read it.
+  if (original.excludeMacAddress === false && Array.isArray(original.filterByMacAddressList) && original.filterByMacAddressList.length) {
+    canonical._disabledExcludeMacs = original.filterByMacAddressList;
+  }
+  if (original.excludedeviceType === false && Array.isArray(original.filterDeviceTypeList) && original.filterDeviceTypeList.length) {
+    canonical._disabledExcludeTypes = original.filterDeviceTypeList;
+  }
+  return canonical;
+}
+
 // ---- isAlready2x ----------------------------------------------------------
 
 /**
@@ -425,7 +475,7 @@ function rewriteHomebridgeConfigOnDisk({ configPath, platformAlias, log }) {
   // platforms (rare but legal — different accounts), migrate each.
   const indices = [];
   parsed.platforms.forEach((p, i) => {
-    if (p && (p.platform === platformAlias || p.platform === "WyzeSmartHome")) indices.push(i);
+    if (p && (p.platform === platformAlias || p.platform === "WyzeSmartHome" || /\.WyzeSmartHome$/.test(String(p.platform)))) indices.push(i);
   });
   if (indices.length === 0) return "skipped:plugin-not-in-config";
 
@@ -440,10 +490,8 @@ function rewriteHomebridgeConfigOnDisk({ configPath, platformAlias, log }) {
     });
     // Keys Homebridge itself owns (`_bridge`: the child bridge's name, pin and port) are not plugin settings, so the
     // rebuilt entry would silently lose them: the plugin would fall back to the main bridge and every accessory would
-    // have to be paired again.
-    for (const key of Object.keys(original)) {
-      if (key.startsWith("_") && !(key in canonical)) canonical[key] = original[key];
-    }
+    // have to be paired again. Any other key the plugin has no place for is kept too.
+    carryUnknown(original, canonical);
     parsed.platforms[i] = canonical;
     migratedAny = true;
   }
@@ -461,11 +509,25 @@ function rewriteHomebridgeConfigOnDisk({ configPath, platformAlias, log }) {
     return "skipped:roundtrip-failed";
   }
 
-  // Write a .bak alongside the original so a worried user can roll back.
-  const backupPath = `${configPath}.pre-2.0.bak`;
+  // Write the real file, not a symlink to it, and keep its mode. Resolve the path first so the temp file and the
+  // rename are on the same file system as the target.
+  let target = configPath;
+  let mode = 0o600;
   try {
-    if (!fs.existsSync(backupPath)) {
-      fs.writeFileSync(backupPath, raw, { mode: 0o600 });
+    target = fs.realpathSync(configPath);
+    mode = fs.statSync(target).mode & 0o777;
+  } catch (_) {}
+
+  // A backup of this run's file, never overwriting an earlier one: the first goes to `.pre-2.0.bak`, later ones
+  // (a restored old config migrated again) get a timestamp, so a stale backup is never all that is left.
+  let backupPath = `${target}.pre-2.0.bak`;
+  try {
+    try {
+      fs.writeFileSync(backupPath, raw, { mode: 0o600, flag: "wx" });
+    } catch (e) {
+      if (e.code !== "EEXIST") throw e;
+      backupPath = `${target}.pre-2.0.${new Date().toISOString().replace(/[:.]/g, "-")}.bak`;
+      fs.writeFileSync(backupPath, raw, { mode: 0o600, flag: "wx" });
     }
   } catch (e) {
     log?.warn?.(`[config] could not write backup ${backupPath}; aborting auto-migration: ${e.message}`);
@@ -473,10 +535,10 @@ function rewriteHomebridgeConfigOnDisk({ configPath, platformAlias, log }) {
   }
 
   // Atomic write via temp + rename (same dir so it's always same fs).
-  const tmpPath = path.join(path.dirname(configPath), `.${path.basename(configPath)}.wyze-migrate.tmp`);
+  const tmpPath = path.join(path.dirname(target), `.${path.basename(target)}.wyze-migrate.tmp`);
   try {
-    fs.writeFileSync(tmpPath, newJson, { mode: 0o600 });
-    fs.renameSync(tmpPath, configPath);
+    fs.writeFileSync(tmpPath, newJson, { mode });
+    fs.renameSync(tmpPath, target);
   } catch (e) {
     log?.error?.(`[config] failed to write migrated config: ${e.message}`);
     try { fs.unlinkSync(tmpPath); } catch (_) {}
