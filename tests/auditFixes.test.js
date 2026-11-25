@@ -61,12 +61,23 @@ test('a custom base URL without the explicit opt-in is ignored, and the platform
   assert.strictEqual(platform.config.authBaseUrl, 'https://auth-prod.api.wyze.com')
 })
 
-test('process-wide error handlers are installed once, however many Wyze platforms there are', () => {
-  const before = process.listenerCount('uncaughtException')
+test('the process-wide rejection handler is installed once, however many Wyze platforms there are, and there is no handler for uncaught exceptions', () => {
+  const rejections = process.listenerCount('unhandledRejection')
+  const exceptions = process.listenerCount('uncaughtException')
   make()
   make()
   make()
-  assert.ok(process.listenerCount('uncaughtException') - before <= 1)
+  assert.ok(process.listenerCount('unhandledRejection') - rejections <= 1)
+  assert.strictEqual(process.listenerCount('uncaughtException'), exceptions, 'a fatal error must still stop Homebridge')
+})
+
+test('"Exclude by Device Type: Vacuum" excludes the robot vacuum, whose product type is its model code', () => {
+  const { platform } = make({ excludes: { types: ['Vacuum'] } })
+  assert.strictEqual(platform.isExcludedType({ product_type: 'JA_RO2', product_model: 'JA_RO2' }), true)
+  assert.strictEqual(platform.isExcludedType({ product_type: 'Plug', product_model: 'WLPP1' }), false)
+  const { platform: plugs } = make({ excludes: { types: ['Plug'] } })
+  assert.strictEqual(plugs.isExcludedType({ product_type: 'Plug', product_model: 'WLPP1' }), true)
+  assert.strictEqual(plugs.isExcludedType({ product_type: 'JA_RO2', product_model: 'JA_RO2' }), false)
 })
 
 test('room sensors of a thermostat whose lookup failed stay registered, as last seen; a thermostat that answered replaces them', async () => {

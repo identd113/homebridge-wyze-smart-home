@@ -61,7 +61,9 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-// The process-wide handlers below are installed once, however many Wyze platform entries there are.
+// The process-wide handler below is installed once, however many Wyze platform entries there are. It only logs rejected
+// promises nobody awaited. There is none for uncaught exceptions: that would be for the whole Homebridge process, and
+// a real fatal error has to stop it so that it restarts.
 let processHandlersInstalled = false
 
 module.exports = class WyzeSmartHome {
@@ -174,9 +176,6 @@ module.exports = class WyzeSmartHome {
       processHandlersInstalled = true
       process.on('unhandledRejection', (reason) => {
         this.log.error(`Unhandled promise rejection: ${reason?.stack ?? reason}`)
-      })
-      process.on('uncaughtException', (err) => {
-        this.log.error(`Uncaught exception: ${err.stack ?? err}`)
       })
     }
 
@@ -625,6 +624,15 @@ module.exports = class WyzeSmartHome {
     this.accessories = foundAccessories
   }
 
+  // The "Exclude by Device Type" list holds category names. The robot vacuum's product type is its model code
+  // ("JA_RO2"), not "Vacuum", so that category is matched on the model.
+  isExcludedType(device) {
+    const types = this.config.filterDeviceTypeList
+    if (!Array.isArray(types) || !types.length) return false
+    return types.includes(device.product_type) ||
+      (types.includes('Vacuum') && Object.values(VacuumModels).includes(device.product_model))
+  }
+
   async loadDevice(device, timestamp) {
     const safeName = sanitizeDeviceName(device.nickname)
     const accessoryClass = this.getAccessoryClass(device.product_type, device.product_model, device.mac, device.nickname)
@@ -635,7 +643,7 @@ module.exports = class WyzeSmartHome {
       }
       return
     }
-    else if (this.config.filterByMacAddressList?.find(d => d === device.mac) || this.config.filterDeviceTypeList?.find(d => d === device.product_type)) {
+    else if (this.config.filterByMacAddressList?.find(d => d === device.mac) || this.isExcludedType(device)) {
       if (this.config.pluginLoggingEnabled) this.log(`[${device.product_type}] Ignoring (${safeName}) (MAC: ${device.mac}) because it is in the Ignore Device list`)
       return
     }
