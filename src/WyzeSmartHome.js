@@ -267,6 +267,13 @@ module.exports = class WyzeSmartHome {
       if (!check.enabled) return
       this.webServer = lib.createCameraTestServer({ client: this.client, port: check.port, log: this.log, issueForm: this.issueFormForTestPage(), settings: this.webSettings(), sensors: this.webSensors(), ...this.otherDevicesForTestPage() })
       const { urls } = await this.webServer.start()
+      // Homebridge may have been shut down while the server was starting. The link was cleared then, so writing it now
+      // would leave the settings screen's Open button pointing at a server that is gone.
+      if (this._stopped) {
+        await this.webServer.stop().catch(() => {})
+        this.webServer = undefined
+        return
+      }
       this.log.info?.(`[Web] Camera test page is on port ${check.port}. Open one of these from a computer on the same network (the token changes at every restart, and anyone with the link can test your cameras and change night vision):`)
       for (const url of urls) this.log.info?.(`[Web]   ${url}`)
       webPageLink.write(this.api?.user?.storagePath?.() || '', { port: check.port, urls })
@@ -478,10 +485,12 @@ module.exports = class WyzeSmartHome {
     const thermostats = devices.filter(
       (d) => d.product_type === 'Thermostat' && Object.values(ThermostatModels).includes(d.product_model)
     )
+    // Reset before the early return: a thermostat that failed once and was then removed from the account must not keep
+    // its old room sensors alive until Homebridge restarts.
+    this._roomSensorLookupFailed = new Set() // thermostats whose lookup failed in this pass
     if (thermostats.length === 0) return []
 
     if (!this._roomSensorRawLogged) this._roomSensorRawLogged = new Set()
-    this._roomSensorLookupFailed = new Set() // thermostats whose lookup failed in this pass
     const out = []
 
     for (const t of thermostats) {
