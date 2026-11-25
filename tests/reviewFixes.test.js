@@ -47,7 +47,6 @@ function makePlatform (extra = {}) {
 
 test('a flat config keeps the lock, thermostat and irrigation options when it is rewritten', () => {
   const kept = {
-    irrigationZone: { AABBCCDDEEFF: 3 },
     fordAppKey: 'fk',
     fordAppSecret: 'fs',
     oliveSigningSecret: 'os',
@@ -56,6 +55,16 @@ test('a flat config keeps the lock, thermostat and irrigation options when it is
   }
   const out = toCanonical2x(normalize({ ...flat, ...kept }), { name: 'Wyze', platform: 'WyzeSmartHome' })
   for (const [k, v] of Object.entries(kept)) assert.deepStrictEqual(out[k], v, k)
+})
+
+test('the old irrigationZone map becomes rows on the settings screen, and rows read back as the map the accessory uses', () => {
+  const out = toCanonical2x(normalize({ ...flat, irrigationZone: { AABBCCDDEEFF: 3 } }), { name: 'Wyze', platform: 'WyzeSmartHome' })
+  assert.deepStrictEqual(out.irrigation, { zones: [{ mac: 'AABBCCDDEEFF', zone: 3 }] })
+  assert.strictEqual(out.irrigationZone, undefined, 'the map is not written next to the rows')
+  const back = normalize(out)
+  assert.deepStrictEqual(back.irrigationZone, { AABBCCDDEEFF: 3 })
+  assert.deepStrictEqual(normalize({ ...flat }).irrigation, { zones: [] })
+  assert.strictEqual(toCanonical2x(normalize({ ...flat }), { name: 'Wyze' }).irrigation, undefined, 'nothing written when there are no zones')
 })
 
 test('hms.enabled still lets the S1 Gateway through after secrets are resolved', async () => {

@@ -333,6 +333,7 @@ Every setting a person normally changes, set to a value that differs from its de
       ],
       "thermostat": { "exposeRoomSensors": true, "mode": "heat-only" },
       "vacuum": { "perRoomSwitches": true },
+      "irrigation": { "zones": [{ "mac": "MAC_ADDRESS_OF_THE_SPRINKLER_CONTROLLER", "zone": 2 }] },
       "hms": { "enabled": true },
       "excludes": {
         "macs": ["MAC_ADDRESS_OF_A_DEVICE_YOU_DO_NOT_WANT"],
@@ -403,6 +404,7 @@ The Optional fields tables below list every setting with its default.
 | `thermostat.exposeRoomSensors` | `false` | Also add the thermostat's room sensors. Costs one extra request per thermostat on each refresh. |
 | `thermostat.mode` | `auto` | `heat-only` or `cool-only` hides the modes your system doesn't have. |
 | `vacuum.perRoomSwitches` | `false` | One HomeKit switch per room, for voice commands like "vacuum the kitchen". |
+| `irrigation.zones` | none (zone 1) | Which zone of a sprinkler controller its HomeKit valve runs: a list of `{ "mac", "zone" }`. The old `irrigationZone: { "<mac>": <zone> }` map still works and is rewritten to this. |
 
 **Logging**
 

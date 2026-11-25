@@ -189,6 +189,7 @@ module.exports = class WyzeSmartHome {
     this._stopped = true // the refresh loops and anything still waiting on Wyze stop acting
     for (const accessory of this.accessories ?? []) {
       try { accessory.stopStreams?.() } catch (_) { /* best effort */ }
+      try { accessory.stop?.() } catch (_) { /* best effort */ }
     }
     this.webServer?.stop().catch(() => {})
     if (this.webServer) webPageLink.clear(this.api?.user?.storagePath?.() || '')

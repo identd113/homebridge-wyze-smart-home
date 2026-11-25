@@ -10,7 +10,11 @@ module.exports = class WyzeIrrigation extends WyzeAccessory {
 
     // Zone number from plugin config; each MAC can have one zone configured.
     // config.irrigationZone: { [mac]: zoneNumber } — defaults to zone 1.
-    this.zoneNumber = this.plugin.config.irrigationZone?.[this.mac] ?? 1;
+    const wanted = this.plugin.config.irrigationZone?.[this.mac];
+    this.zoneNumber = Number.isInteger(Number(wanted)) && Number(wanted) >= 1 ? Number(wanted) : 1;
+    if (wanted != null && this.zoneNumber !== Number(wanted)) {
+      this.plugin.log.warn?.(`[Irrigation] ${this.display_name}: zone ${JSON.stringify(wanted)} is not a whole number from 1, using zone 1`);
+    }
     // Restore the user's last-set duration across reboots so they don't
     // have to re-set it every restart. Active / InUse / RemainingDuration
     // are intentionally NOT persisted — a homebridge restart shouldn't
@@ -153,6 +157,12 @@ module.exports = class WyzeIrrigation extends WyzeAccessory {
           .updateValue(Characteristic.InUse.NOT_IN_USE);
       }
     }, 1000);
+    this._remainingTimer.unref?.();
+  }
+
+  // Homebridge is shutting down: the countdown must not keep ticking, or touch a valve that is going away.
+  stop() {
+    this._clearCountdown();
   }
 
   _clearCountdown() {

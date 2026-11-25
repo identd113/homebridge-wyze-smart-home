@@ -166,6 +166,27 @@
         }
       },
 
+      "irrigation": {
+        "type": "object",
+        "title": "Sprinkler Controller",
+        "properties": {
+          "zones": {
+            "title": "Zone per controller",
+            "type": "array",
+            "default": [],
+            "description": "Which zone of a sprinkler controller each HomeKit valve runs. A controller that is not listed runs zone 1.",
+            "items": {
+              "type": "object",
+              "required": ["mac", "zone"],
+              "properties": {
+                "mac": { "title": "Controller MAC address", "type": "string", "description": "The device's MAC address, as in the Homebridge log." },
+                "zone": { "title": "Zone number", "type": "integer", "minimum": 1, "default": 1 }
+              }
+            }
+          }
+        }
+      },
+
       "hms": {
         "type": "object",
         "title": "Home Monitoring System (HMS)",

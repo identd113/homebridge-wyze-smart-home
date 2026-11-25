@@ -109,8 +109,7 @@ const PASSTHROUGH_KEYS = [
   "userAgent",
   "sc",
   "sv",
-  // Read by WyzeSmartHome (locks, thermostat) and WyzeIrrigation.
-  "irrigationZone",
+  // Read by WyzeSmartHome (locks, thermostat).
   "fordAppKey",
   "fordAppSecret",
   "oliveSigningSecret",
@@ -245,6 +244,17 @@ function normalize(input) {
   };
   c.vacuumPerRoomSwitches = c.vacuum.perRoomSwitches;
 
+  // --- Irrigation ---
+  // The zone each sprinkler controller runs, as rows in the settings screen ({ mac, zone }) or as the older
+  // `irrigationZone: { mac: zone }` map. Code reads the map.
+  const irrigation = isPlainObject(c.irrigation) ? c.irrigation : {};
+  const zones = isPlainObject(c.irrigationZone) ? { ...c.irrigationZone } : {};
+  for (const row of Array.isArray(irrigation.zones) ? irrigation.zones : []) {
+    if (isPlainObject(row) && row.mac) zones[String(row.mac)] = row.zone;
+  }
+  c.irrigationZone = zones;
+  c.irrigation = { zones: Object.entries(zones).map(([mac, zone]) => ({ mac, zone })) };
+
   // --- HMS ---
   const hmsBlock = isPlainObject(c.hms) ? c.hms : null;
   const hmsEnabled = hmsBlock ? !!hmsBlock.enabled : !!c.hms;
@@ -332,6 +342,7 @@ function toCanonical2x(normalized, platformMeta) {
       mode: normalized.thermostat.mode || 'auto',
     },
     vacuum: { perRoomSwitches: normalized.vacuum.perRoomSwitches },
+    ...(normalized.irrigation.zones.length ? { irrigation: { zones: normalized.irrigation.zones } } : {}),
     hms: { enabled: normalized.hms.enabled },
     excludes: { macs: normalized.excludes.macs, types: normalized.excludes.types },
     logging: {
@@ -373,7 +384,7 @@ const CONSUMED_KEYS = new Set([
   "refreshInterval", "lowBatteryPercentage",
   ...CAMERA_FEATURE_KEYS.map(([, legacy]) => legacy),
   ...CAMERA_SENSOR_KEYS.flatMap(([, on, off]) => [on, off]),
-  "enableThermostatRoomSensors", "thermostatMode", "vacuumPerRoomSwitches",
+  "enableThermostatRoomSensors", "thermostatMode", "vacuumPerRoomSwitches", "irrigationZone",
   "excludeMacAddress", "filterByMacAddressList", "excludedeviceType", "filterDeviceTypeList",
   "logLevel", "apiLogEnabled", "pluginLoggingEnabled", "disableLogRedaction", "showAdvancedOptions",
   ...ADVANCED_KEYS,

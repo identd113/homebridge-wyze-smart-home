@@ -2,6 +2,11 @@ const { Service, Characteristic } = require("../types");
 const WyzeAccessory = require("./WyzeAccessory");
 const { markServiceOnline } = require("./offlineIndicator");
 
+// How long after a start or dock command the poll is not allowed to change whether the vacuum is cleaning.
+const VACUUM_COMMAND_GRACE_MS = 20_000;
+// How long before the room list is asked for again after it failed or came back empty.
+const ROOMS_RETRY_MS = 5 * 60_000;
+
 module.exports = class WyzeVacuum extends WyzeAccessory {
   constructor(plugin, homeKitAccessory) {
     super(plugin, homeKitAccessory);
@@ -78,24 +83,28 @@ module.exports = class WyzeVacuum extends WyzeAccessory {
    */
   async _ensureRoomServices() {
     if (this._roomsLoaded || !this.roomSwitchesEnabled) return;
-    this._roomsLoaded = true; // set early so a failure doesn't retry every refresh
+    // A failed or empty answer is tried again, but not at every refresh: one transient failure must not take the
+    // switches away until the next restart.
+    if (Date.now() < (this._roomsRetryAt || 0)) return;
+    this._roomsRetryAt = Date.now() + ROOMS_RETRY_MS;
     let rooms = [];
     try {
       rooms = await this.plugin.client.getVacuumRooms(this.mac);
     } catch (e) {
       this.plugin.log.warn?.(
         `[Vacuum] Could not load room list for "${this.display_name}": ${e.message || e}. ` +
-        `Per-room switches will not be available until the next restart.`
+        `Per-room switches are tried again in ${ROOMS_RETRY_MS / 60000} minutes.`
       );
       return;
     }
     if (rooms.length === 0) {
       this.plugin.log.info?.(
         `[Vacuum] "${this.display_name}" has no rooms in its current map. ` +
-        `Per-room switches skipped until a map exists.`
+        `Per-room switches are tried again in ${ROOMS_RETRY_MS / 60000} minutes.`
       );
       return;
     }
+    this._roomsLoaded = true;
     for (const room of rooms) {
       const subtype = `vacuum-room-${room.id}`;
       // Use just the room name as the tile label — HomeKit already
@@ -239,7 +248,8 @@ module.exports = class WyzeVacuum extends WyzeAccessory {
     this.batteryLevel = battery;
     this.suctionLevel = suction;
     this.isCharging = charging;
-    this.isCleaning = this.plugin.client.wyzeVacuumModeIsCleaning(modeName);
+    // While a command's grace period runs the poll may still show the old mode: keep what the command set.
+    if (!this.inCommandGrace()) this.isCleaning = this.plugin.client.wyzeVacuumModeIsCleaning(modeName);
 
     this.fanService.getCharacteristic(Characteristic.On).updateValue(this.isCleaning);
     this.fanService
@@ -322,11 +332,18 @@ module.exports = class WyzeVacuum extends WyzeAccessory {
   async setIsActive(value) {
     if (this.plugin.config.pluginLoggingEnabled)
       this.plugin.log(`[Vacuum] ${value ? "Cleaning" : "Docking"} "${this.display_name}"`);
+    // Show the change at once and ignore polls until Wyze has caught up, as the plugs, lights and locks do: waiting for
+    // the answer leaves the tile "waiting", and a poll that lands first would flip it back.
+    const was = this.isCleaning;
+    this.isCleaning = !!value;
+    this.armCommandGrace(VACUUM_COMMAND_GRACE_MS);
     try {
       if (value) await this.plugin.client.vacuumClean(this.mac);
       else await this.plugin.client.vacuumDock(this.mac);
-      this.isCleaning = !!value;
     } catch (e) {
+      this.isCleaning = was;
+      this.clearCommandGrace();
+      this.fanService.getCharacteristic(Characteristic.On).updateValue(was);
       this.plugin.log.error(
         `[Vacuum] ${value ? "Clean" : "Dock"} failed for "${this.display_name}": ${e.message || e}`
       );
