@@ -118,7 +118,7 @@ test('two motion refreshes for different cameras keep their order', async () => 
 
 test('a failed refresh never throws', async () => {
   const d = makeDelegate('A', async () => { throw new Error('boom') })
-  await d.refreshSnapshot('timer')
+  await assert.doesNotReject(() => d.refreshSnapshot('timer'))
 })
 
 function makeCamera (config, model = 'WYZE_CAKP2JFUS') {
@@ -159,13 +159,24 @@ test('cameras without a doorbell join one shared motion poll; snapshotOnMotion: 
   assert.strictEqual(off.acc.plugin._motionPoller, undefined)
 })
 
-test('a camera without a doorbell never rings on a motion event', () => {
+test('a camera without a doorbell never rings on a motion event, and a doorbell rings once for a new press', () => {
   const { acc } = makeCamera({})
-  acc._cameraController = { ringDoorbell: () => { throw new Error('should not ring') } }
+  let rings = 0
+  acc._cameraController = { ringDoorbell: () => { rings += 1 } }
   acc._startEventWatch(false)
   acc._onEvents([{ id: 'e', type: 'DOORBELL_RANG' }])
   acc._onEvents([{ id: 'e2', type: 'DOORBELL_RANG' }])
   acc.stopStreams()
+  assert.strictEqual(rings, 0)
+
+  // The same events on a doorbell: the first list is history, the new press rings once.
+  const bell = makeCamera({}, 'HL_DB2')
+  let bellRings = 0
+  bell.acc._cameraController = { ringDoorbell: () => { bellRings += 1 } }
+  bell.acc._checkRings([{ id: 'old', type: 'DOORBELL_RANG' }])
+  bell.acc._checkRings([{ id: 'old', type: 'DOORBELL_RANG' }, { id: 'new', type: 'DOORBELL_RANG' }])
+  bell.acc._checkRings([{ id: 'old', type: 'DOORBELL_RANG' }, { id: 'new', type: 'DOORBELL_RANG' }])
+  assert.strictEqual(bellRings, 1, 'the control: the same events do ring a doorbell')
 })
 
 test('cameras join one shared scheduler (default 30 s), can opt out, and leave on shutdown', () => {
