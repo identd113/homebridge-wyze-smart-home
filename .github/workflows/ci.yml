@@ -1,4 +1,4 @@
-# Runs the test suite on every pull request and on pushes to 2.x (our fork) and 2.0.0 (upstream).
+# Runs the test suite on every pull request and on pushes to 2.0.0.
 #
 # Uses the plain `pull_request` trigger on purpose: a pull request from a fork runs with a
 # read-only token and no secrets (so no NPM_TOKEN). Do not switch this to `pull_request_target`.
@@ -13,7 +13,7 @@ on:
   pull_request:
     paths-ignore: ["**.md"]
   push:
-    branches: [2.x, 2.0.0]
+    branches: [2.0.0]
     paths-ignore: ["**.md"]
 
 permissions:

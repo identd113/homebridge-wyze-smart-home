@@ -4,7 +4,7 @@
 [![npm](https://img.shields.io/npm/dt/homebridge-wyze-smart-home)](https://www.npmjs.com/package/homebridge-wyze-smart-home)
 [![npm](https://img.shields.io/npm/v/homebridge-wyze-smart-home.svg?style=flat-square)](https://www.npmjs.com/package/homebridge-wyze-smart-home)
 [![GitHub last commit](https://img.shields.io/github/last-commit/wyze-smart-home/homebridge-wyze-smart-home)](https://github.com/wyze-smart-home/homebridge-wyze-smart-home)
-[![CI](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/actions/workflows/ci.yml/badge.svg?branch=2.x)](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/actions/workflows/ci.yml)
+[![CI](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/actions/workflows/ci.yml/badge.svg?branch=2.0.0)](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/actions/workflows/ci.yml)
 [![Chat](https://img.shields.io/discord/1134601590762913863)](https://discord.gg/Mjkpq2x9)
 
 [![homebridge-wyze-smart-home: Wyze Connected Home plugin for Homebridge](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/blob/main/logo.png?raw=true)](https://github.com/wyze-smart-home/homebridge-wyze-smart-home)

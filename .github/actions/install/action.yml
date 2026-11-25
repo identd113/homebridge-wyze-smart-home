@@ -3,7 +3,7 @@
 # Normally that is a plain `npm install`. While the `wyze-api` version this plugin needs
 # (`dependencies.wyze-api` in package.json) is not on npm yet, as before a paired release, the install would
 # fail, so `wyze-api` is taken from its repository instead: the same owner as this run (the fork a pull request
-# comes from), on the branch with the same name as this one, else `2.x` (our fork) or `2.0.0` (upstream). Once the version is published the
+# comes from), on the branch with the same name as this one, else `2.0.0`. Once the version is published the
 # plain install is used again, with no change here.
 #
 # The lockfile is not committed (it is in .gitignore), so this installs from package.json.
@@ -35,7 +35,7 @@ runs:
         OWNER: ${{ github.event.pull_request.head.repo.owner.login || github.repository_owner }}
         BRANCH: ${{ github.head_ref || github.ref_name }}
       run: |
-        for ref in "$BRANCH" 2.x 2.0.0; do
+        for ref in "$BRANCH" 2.0.0; do
           if git ls-remote --exit-code "https://github.com/$OWNER/wyze-api.git" "refs/heads/$ref" >/dev/null 2>&1; then
             echo "repository=$OWNER/wyze-api" >> "$GITHUB_OUTPUT"
             echo "ref=$ref" >> "$GITHUB_OUTPUT"
@@ -43,7 +43,7 @@ runs:
             exit 0
           fi
         done
-        echo "No wyze-api branch '$BRANCH', '2.x' or '2.0.0' under $OWNER, and the version is not on npm." >&2
+        echo "No wyze-api branch '$BRANCH' or '2.0.0' under $OWNER, and the version is not on npm." >&2
         exit 1
 
     - name: Check out wyze-api
