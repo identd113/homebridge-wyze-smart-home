@@ -53,10 +53,10 @@ function raiseToUser(readme, code) {
   const row = rowFor(readme, code);
   const token = "`" + code + "`";
   const upgraded = status.shared
-    ? row.replace(new RegExp(escapeRegex(token) + " (?=\\[report\\])"), token + " " + LEVELS[USER].symbol + " ")
-    : row.replace(/ (🟡|🟢) \|\s*$/, " " + LEVELS[USER].symbol + " |");
+    ? row.replace(new RegExp(escapeRegex(token) + " (?=\\[report\\])"), () => token + " " + LEVELS[USER].symbol + " ")
+    : row.replace(/ (🟡|🟢) \|\s*$/, () => " " + LEVELS[USER].symbol + " |");
   if (upgraded === row) return null;
-  return { text: readme.replace(row, upgraded), changed: true };
+  return { text: readme.replace(row, () => upgraded), changed: true };
 }
 
 /** The sentence for a report that cannot move the device up. */

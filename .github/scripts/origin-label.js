@@ -14,6 +14,8 @@
 
 const { assignIfUnassigned } = require("./maintainers.js");
 const { credentialKeysIn, personalKeysIn, redactAll } = require("./credentials.js");
+const { sections } = require("./forms.js");
+const { ensureLabel } = require("./labels.js");
 
 const CREDENTIAL_MARKER = "<!-- wyze-credentials -->";
 const CREDENTIAL_LABEL = "credentials-exposed";
@@ -23,11 +25,9 @@ const ORIGIN = /^[a-z0-9][a-z0-9._-]{0,30}$/;
 
 /** "from:wyze-api" for an answer such as "wyze-api", or null when there is none worth a label. */
 function originLabel(body) {
-  const text = String(body || "").replace(/\r\n/g, "\n");
-  const parts = text.split(/^### +(.+?) *$/m);
-  for (let i = 1; i < parts.length; i += 2) {
-    if (parts[i].trim() !== HEADING) continue;
-    const value = parts[i + 1].trim().toLowerCase();
+  for (const section of sections(body)) {
+    if (section.heading !== HEADING) continue;
+    const value = section.value.toLowerCase();
     return ORIGIN.test(value) ? `from:${value}` : null;
   }
   return null;
@@ -63,12 +63,19 @@ function credentialComment(keys, redacted, personal = []) {
 }
 
 async function handleCredentials({ github, core, owner, repo, issue, labels }) {
-  const keys = credentialKeysIn(issue.body);
-  const personal = personalKeysIn(issue.body);
+  // The title is read like the body: people paste a log line or a command into it too.
+  const title = issue.title || "";
+  const text = `${title}\n${issue.body || ""}`;
+  const keys = credentialKeysIn(text);
+  const personal = personalKeysIn(text);
   if (!keys.length && !personal.length) return keys; // nothing found: leave any earlier label and comment alone
   let redacted = false;
   try {
-    await github.rest.issues.update({ owner, repo, issue_number: issue.number, body: redactAll(issue.body) });
+    const cleanTitle = redactAll(title);
+    await github.rest.issues.update({
+      owner, repo, issue_number: issue.number, body: redactAll(issue.body),
+      ...(cleanTitle !== title ? { title: cleanTitle } : {}),
+    });
     redacted = true;
   } catch (err) {
     core.warning(`#${issue.number}: could not redact the issue text: ${err.message}`);
@@ -107,12 +114,7 @@ async function run({ github, context, core }) {
     await github.rest.issues.removeLabel({ owner, repo, issue_number: issue.number, name });
   }
   if (!label || current.includes(label)) return;
-  try {
-    await github.rest.issues.getLabel({ owner, repo, name: label });
-  } catch (err) {
-    if (err.status !== 404) throw err;
-    await github.rest.issues.createLabel({ owner, repo, name: label, color: "c2e0c6" });
-  }
+  if (!(await ensureLabel(github, owner, repo, label, "c2e0c6", core))) return;
   await github.rest.issues.addLabels({ owner, repo, issue_number: issue.number, labels: [label] });
   core.info(`#${issue.number}: ${label}`);
 }

@@ -36,8 +36,27 @@ const PERSONAL_KEYS = [
 const NEEDS_ADDRESS_LIKE = new Set(["username", "user_name", "email"]);
 const EMAIL_OR_MAC = /@|^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$|^[0-9A-Fa-f]{12}$/;
 
-// Matches only the secret names themselves, so a word before one ("log: totpSecret = x") cannot hide it.
-const KEY_VALUE = () => new RegExp("\\b(" + SECRET_KEYS.join("|") + ")(\\s*[:=]\\s*)([^\\s\"',}\\]]+)", "gi");
+// Matches only the secret names themselves, so a word before one ("log: totpSecret = x") cannot hide it. A name that
+// follows an underscore counts (WYZE_PASSWORD=, WYZE_API_KEY=, which the README documents), a letter or digit before it
+// does not (mypassword).
+const NAMES = SECRET_KEYS.join("|");
+const BEFORE_NAME = "(?<![A-Za-z0-9])";
+// A value is quoted (with escapes, so "p\"ass" is one value) or runs to the end of the line, so a password with spaces
+// in it is removed whole and not just its first word.
+const VALUE = "\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\\\n])*'|[^\"',}\\]\\n]*[^\\s\"',}\\]]";
+// A password a person chose can have spaces in it, so it is taken to the end of the line. A key or token cannot, so only
+// its first word is the value and the words after it are left alone.
+const SPACED_SECRETS = new Set(["password", "passwd", "secret", "pin"]);
+function splitValue(key, value) {
+  if (SPACED_SECRETS.has(key.toLowerCase()) || /^["']/.test(value)) return { secret: value, rest: "" };
+  const token = value.split(/\s/)[0];
+  return { secret: token, rest: value.slice(token.length) };
+}
+const KEY_VALUE = () => new RegExp(`${BEFORE_NAME}(${NAMES})(\\s*[:=]\\s*)(${VALUE})`, "gi");
+// Command-line form: --password value
+const FLAG_VALUE = () => new RegExp(`(--)(${NAMES})(\\s+)(\\S+)`, "gi");
+// JSON: "password": "value", with escapes in the value.
+const JSON_PAIR = () => /["']([A-Za-z_]+)["']\s*:\s*(["'])((?:\\.|(?!\2)[^\\\n])*)\2/g;
 
 const isRemoved = (value) => {
   const v = String(value).trim().replace(/^["'`]+|["'`,]+$/g, "");
@@ -50,14 +69,16 @@ function credentialKeysIn(text) {
   const source = String(text || "");
   // "password": "value" (JSON) and password: value / password=value / --password value (logs, shells)
   const patterns = [
-    [/["']([A-Za-z_]+)["']\s*:\s*["']([^"'\n]*)["']/g, 2],
+    [JSON_PAIR(), 3],
     [KEY_VALUE(), 3],
+    [FLAG_VALUE(), 4],
   ];
   for (const [pattern, valueGroup] of patterns) {
     let m;
     while ((m = pattern.exec(source))) {
-      const key = m[1].toLowerCase();
-      const ok = valueGroup === 2 ? isSecretJson(key, m[valueGroup]) : SECRET_KEYS.includes(key) && !isRemoved(m[valueGroup]);
+      const key = (valueGroup === 4 ? m[2] : m[1]).toLowerCase();
+      const json = pattern.source === JSON_PAIR().source;
+      const ok = json ? isSecretJson(key, m[valueGroup]) : SECRET_KEYS.includes(key) && !isRemoved(valueGroup === 3 ? splitValue(key, m[valueGroup]).secret : m[valueGroup]);
       if (ok) found.add(key);
     }
   }
@@ -69,11 +90,15 @@ function credentialKeysIn(text) {
 /** `text` with the value of every secret setting replaced by REDACTED. Removed values stay as they are. */
 function redactCredentials(text) {
   const source = String(text || "");
-  const quoted = /(["'])([A-Za-z_]+)\1(\s*:\s*)(["'])([^"'\n]*)\4/g;
+  const quoted = /(["'])([A-Za-z_]+)\1(\s*:\s*)(["'])((?:\\.|(?!\4)[^\\\n])*)\4/g;
   return source
     .replace(quoted, (whole, q, key, colon, vq, value) =>
       isSecretJson(key, value) ? `${q}${key}${q}${colon}${vq}REDACTED${vq}` : whole)
-    .replace(KEY_VALUE(), (whole, key, sep, value) => (isRemoved(value) ? whole : `${key}${sep}REDACTED`))
+    .replace(KEY_VALUE(), (whole, key, sep, value) => {
+      const { secret, rest } = splitValue(key, value);
+      return isRemoved(secret) ? whole : `${key}${sep}REDACTED${rest}`;
+    })
+    .replace(FLAG_VALUE(), (whole, dashes, key, space, value) => (isRemoved(value) ? whole : `${dashes}${key}${space}REDACTED`))
     .replace(/\bBearer\s+[A-Za-z0-9._-]{20,}/g, "Bearer REDACTED");
 }
 

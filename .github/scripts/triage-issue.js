@@ -38,6 +38,9 @@ const NOT_APPLICABLE = {
   JA_HP: "headphones",
 };
 
+const { sections } = require("./forms.js");
+const { ensureLabel: ensureLabelWithin, labelsSetByBot } = require("./labels.js");
+
 const KIND_LABELS = {
   "Camera or doorbell": "kind:camera",
   "Light, bulb or light strip": "kind:light",
@@ -101,13 +104,11 @@ const SENSITIVE_KEYS = new Set([
 
 function parseForm(body) {
   const fields = {};
-  const text = String(body || "").replace(/\r\n/g, "\n");
-  const parts = text.split(/^### +(.+?) *$/m);
-  for (let i = 1; i < parts.length; i += 2) {
-    let value = parts[i + 1].trim();
+  for (const section of sections(body)) {
+    let value = section.value;
     value = value.replace(/^```[A-Za-z]*\n?/, "").replace(/\n?```$/, "").trim();
     if (value === "_No response_") value = "";
-    fields[parts[i].trim()] = value;
+    fields[section.heading] = value;
   }
   return fields;
 }
@@ -178,7 +179,7 @@ function triage(body, known) {
   const notApplicable = known.notApplicable || NOT_APPLICABLE;
   const fields = parseForm(body);
   const model = modelFrom(fields);
-  const kind = KIND_LABELS[fields[FIELD.kind]] || kindFromModel(model);
+  const kind = (has(KIND_LABELS, fields[FIELD.kind]) ? KIND_LABELS[fields[FIELD.kind]] : null) || kindFromModel(model);
   const reportLabel = has(REPORT_LABELS, fields[FIELD.report]) ? REPORT_LABELS[fields[FIELD.report]] : null;
   const leaks = sensitiveKeysIn(Object.values(fields).join("\n"));
 
@@ -316,14 +317,9 @@ function buildComment(result, known, others = [], listed = null, waiting = []) {
 const managedLabel = (name) =>
   STATUS_LABELS.includes(name) || ["model:", "kind:", "report:"].some((prefix) => name.startsWith(prefix));
 
-async function ensureLabel(github, owner, repo, name) {
-  try {
-    await github.rest.issues.getLabel({ owner, repo, name });
-  } catch (err) {
-    if (err.status !== 404) throw err;
-    const color = LABEL_COLORS[name] || LABEL_COLORS[name.split(":")[0]] || "ededed";
-    await github.rest.issues.createLabel({ owner, repo, name, color });
-  }
+function ensureLabel(github, owner, repo, name, core) {
+  const color = LABEL_COLORS[name] || LABEL_COLORS[name.split(":")[0]] || "ededed";
+  return ensureLabelWithin(github, owner, repo, name, color, core);
 }
 
 async function run({ github, context, core }) {
@@ -359,10 +355,14 @@ async function run({ github, context, core }) {
 
   // Labels: add what applies now, drop managed labels that no longer apply (after an edit).
   const current = (issue.labels || []).map((l) => (typeof l === "string" ? l : l.name));
-  for (const name of result.labels) await ensureLabel(github, owner, repo, name);
-  const toAdd = result.labels.filter((name) => !current.includes(name));
+  // A label is only added if it exists or could be created (see labels.js), so an odd model code cannot fill the list.
+  const usable = [];
+  for (const name of result.labels) if (await ensureLabel(github, owner, repo, name, core)) usable.push(name);
+  const toAdd = usable.filter((name) => !current.includes(name));
   if (toAdd.length) await github.rest.issues.addLabels({ owner, repo, issue_number: issue.number, labels: toAdd });
-  for (const name of current.filter((n) => managedLabel(n) && !result.labels.includes(n))) {
+  // Only labels this script put there are taken off: a maintainer's own kind:, model: or report: label stays.
+  const botLabels = await labelsSetByBot(github, owner, repo, issue.number);
+  for (const name of current.filter((n) => managedLabel(n) && botLabels.has(n) && !result.labels.includes(n))) {
     await github.rest.issues.removeLabel({ owner, repo, issue_number: issue.number, name });
   }
 
