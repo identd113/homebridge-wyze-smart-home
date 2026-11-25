@@ -121,7 +121,12 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
     // Wyze sometimes reports placeholder/garbage values when a bulb hasn't
     // synced yet. "undefi" is a truncated "undefined" string we've seen in
     // the wild. Treat both as missing rather than blowing away cached state.
-    if (property.value != null && property.value !== "0" && property.value !== "undefi") {
+    // Brightness and colour temperature are numbers (Wyze may send them as text); the colour is a hex string.
+    const numeric = property.pid !== PIDs.COLOR;
+    if (
+      property.value != null && property.value !== "0" && property.value !== "undefi" &&
+      (!numeric || Number.isFinite(Number(property.value)))
+    ) {
       return true;
     }
     if (this.plugin.config.pluginLoggingEnabled)
@@ -131,13 +136,13 @@ module.exports = class WyzeMeshLight extends WyzeAccessory {
 
   updateBrightness(value) {
     this.getCharacteristic(Characteristic.Brightness).updateValue(
-      this.plugin.client.checkBrightnessValue(value)
+      this.plugin.client.checkBrightnessValue(Number(value))
     );
   }
 
   updateColorTemp(value) {
     this.getCharacteristic(Characteristic.ColorTemperature).updateValue(
-      this.plugin.client.checkColorTemp(this.plugin.client.kelvinToMired(value))
+      this.plugin.client.checkColorTemp(this.plugin.client.kelvinToMired(Number(value)))
     );
   }
 

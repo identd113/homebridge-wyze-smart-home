@@ -224,6 +224,18 @@ test('a mesh light colour is not sent before both hue and saturation are known',
   assert.strictEqual(called, 0)
 })
 
+test('a mesh light brightness sent as text is read as that number, not 1%, and a non-number is skipped', () => {
+  const { propertyIds: PIDs } = require('wyze-api')
+  const { acc } = meshLight({ checkBrightnessValue: (v) => (typeof v !== 'number' || Number.isNaN(v) ? 1 : v) })
+  let shown
+  acc.getCharacteristic = () => ({ updateValue: (v) => { shown = v } })
+  acc.updateBrightness('70')
+  assert.strictEqual(shown, 70)
+  assert.strictEqual(acc.isValidProperty({ pid: PIDs.BRIGHTNESS, value: '70' }), true)
+  assert.strictEqual(acc.isValidProperty({ pid: PIDs.BRIGHTNESS, value: 'abc' }), false)
+  assert.strictEqual(acc.isValidProperty({ pid: PIDs.COLOR, value: 'FF00AA' }), true, 'a hex colour is not a number')
+})
+
 test('a failed light, plug or lock command is logged as an error whatever the log level', async () => {
   const { acc, errors } = meshLight({ lightMeshPower: async () => { throw new Error('Wyze said no') } })
   acc.armCommandGrace = () => {}
