@@ -11,7 +11,7 @@ How a release gets to npm, and the order to do things in. This plugin depends on
 - The version in `package.json` must not already be on npm.
 - The workflow also checks that a published `wyze-api` satisfies the range in `dependencies.wyze-api`, and stops if not. That range is the one place the minimum `wyze-api` version is declared. The plugin checks the installed `wyze-api` against it again at startup.
 - CI installs `wyze-api` from npm when the version in `dependencies.wyze-api` is published. Until then (before a paired release) the install step (`.github/actions/install`) takes `wyze-api` from its repository instead: the same owner as the run, on the branch with the same name, else `2.0.0`. So the plugin's CI can pass on a release branch before `wyze-api` is on npm, and switches to npm by itself afterwards.
-- Publishing is **staged**: the workflow runs `npm stage publish` with a stage-only token, so nothing goes live until you approve it on npmjs.com (with 2FA) or with `npm stage approve <id>`.
+- Publishing is a plain `npm publish` with the repository's `NPM_TOKEN` (a granular token that bypasses 2FA), the same workflows upstream uses (`npm_publish.yml`, `npm-publish-beta.yml`, `npm-publish-stable.yml`). Publishing a GitHub Release is what publishes to npm, so check the version and the target branch before you click Publish.
 - Until 2.0 is stable, `latest` stays on the old line (`0.5.61` at the time of writing), so a plain `npm install homebridge-wyze-smart-home` does not move anyone to 2.x.
 
 ## Before the release
@@ -29,7 +29,7 @@ How a release gets to npm, and the order to do things in. This plugin depends on
 
 1. Make sure `release/<version>` is level with the commit you mean to ship, and pushed (`git branch -f release/<version> 2.0.0`, then `git push origin release/<version>`). Push `2.0.0` too, so the two match.
 2. Make the GitHub Release (`v<version>`, **target `release/<version>`, not `2.0.0`**, pre-release ticked for a beta). The tag then sits on the release branch, so a later commit on `2.0.0` cannot slip into it.
-3. Approve the staged publish on npmjs.com.
+3. Watch the publish workflow run on the Actions tab. It stops by itself if the version is already on npm.
 4. Check the tags: `npm view homebridge-wyze-smart-home dist-tags`. For a beta, `beta` points at the new version and `latest` is unchanged.
 
 ## Getting the release into the upstream repository
