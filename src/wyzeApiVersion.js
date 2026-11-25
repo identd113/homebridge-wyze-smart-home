@@ -11,6 +11,10 @@ function check (required, installed) {
   if (!required || !installed) {
     return { ok: false, required, installed, message: `Could not determine wyze-api version (required: ${required}, installed: ${installed}).` }
   }
+  // A range that is not semver (a `file:` or git link) cannot be compared with a version, so it is not checked.
+  if (!semver.validRange(required)) {
+    return { ok: true, required, installed, message: `wyze-api ${installed} is not checked against ${required}` }
+  }
   // includePrerelease: a beta range like ^2.0.0-beta.3 must accept 2.0.0-beta.4.
   const ok = semver.satisfies(installed, required, { includePrerelease: true })
   return {
