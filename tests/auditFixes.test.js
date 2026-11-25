@@ -266,3 +266,36 @@ test('an unread Lock Bolt v2 reads as unknown, not secured', async () => {
   acc.isLocked = false
   assert.strictEqual(await acc.getLockCurrentState(), 0)
 })
+
+// ---- a poll without switch_state is not "off" ----
+
+function offered (name) {
+  const Accessory = require(`../src/accessories/${name}`)
+  const acc = Object.create(Accessory.prototype)
+  const pushed = []
+  const characteristic = { updateValue: (v) => pushed.push(v) }
+  const sink = { updateValue () {} } // the service's own characteristics (StatusActive, OutletInUse): not what is under test
+  const service = { getCharacteristic: () => sink, testCharacteristic: () => true, addCharacteristic () {}, setCharacteristic () {}, updateCharacteristic () {} }
+  acc.homeKitAccessory = { context: { mac: 'AA', product_model: 'X' }, displayName: 'D' }
+  acc.plugin = { config: {}, log: Object.assign(() => {}, { debug () {}, info () {}, warn () {}, error () {} }), client: {} }
+  acc.cache = {}
+  acc.inCommandGrace = () => false
+  acc.persistState = () => {}
+  acc.getCharacteristic = () => characteristic
+  acc.getService = () => service
+  acc.getOutletService = () => service
+  acc.getOnCharacteristic = () => characteristic
+  acc._readPropertyList = async () => ({ data: { property_list: [] } })
+  return { acc, pushed }
+}
+
+test('a poll with no switch_state does not push Off to a plug, a light or a mesh light', async () => {
+  for (const name of ['WyzePlug', 'WyzeLight', 'WyzeMeshLight']) {
+    const { acc, pushed } = offered(name)
+    acc._switchState = 1 // it was on
+    await acc.updateCharacteristics({ conn_state: 1, device_params: {} })
+    assert.deepStrictEqual(pushed, [], `${name} pushed ${JSON.stringify(pushed)}`)
+    await acc.updateCharacteristics({ conn_state: 1, device_params: { switch_state: 0 } })
+    assert.strictEqual(pushed[0], false, `${name} still follows a real switch_state`)
+  }
+})

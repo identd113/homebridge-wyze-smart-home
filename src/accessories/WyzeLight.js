@@ -65,7 +65,8 @@ module.exports = class WyzeLight extends WyzeAccessory {
     // reverting the optimistic UI update before Wyze's API propagates it.
     const switchState = device.device_params.switch_state;
     const isOn = switchState === 1;
-    if (switchState !== this._switchState && !this.inCommandGrace()) {
+    // A poll that carries no switch_state says nothing about the light, so it must not read as Off.
+    if (switchState != null && switchState !== this._switchState && !this.inCommandGrace()) {
       this._switchState = switchState;
       this.getCharacteristic(Characteristic.On).updateValue(isOn);
     }

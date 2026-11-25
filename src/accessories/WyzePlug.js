@@ -81,7 +81,8 @@ module.exports = class WyzePlug extends WyzeAccessory {
     // UI update before Wyze's API has propagated the change, and avoids
     // redundant pushes/log lines every poll.
     const switchState = device.device_params.switch_state;
-    if (switchState === this._switchState || this.inCommandGrace()) return;
+    // A poll that carries no switch_state says nothing about the outlet, so it must not read as Off.
+    if (switchState == null || switchState === this._switchState || this.inCommandGrace()) return;
     this._switchState = switchState;
 
     const isOn = switchState === 1;
