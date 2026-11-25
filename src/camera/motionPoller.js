@@ -1,6 +1,10 @@
 "use strict";
 
+const { withTimeout } = require("./withTimeout");
+
 const MOTION_POLL_MS = 10_000;
+// One request for the events that never answers must not stop every camera from being checked again.
+const READ_TIMEOUT_MS = 60_000;
 const LOOK_BACK_MS = 5 * 60 * 1000;
 const MAX_BACKOFF_TICKS = 12; // 1 to 2 minutes between tries while Wyze keeps failing
 const EVENTS_PER_REQUEST = 20; // the most events one request returns, across all the cameras it names
@@ -81,13 +85,18 @@ class MotionPoller {
     if (this.skip > 0) { this.skip -= 1; return; } // backing off after errors
     const online = [];
     for (const member of this.members) {
-      if (member.online()) online.push(member);
-      else member.reset?.();
+      // One camera that throws here must not stop the others from being checked.
+      try {
+        if (member.online()) online.push(member);
+        else member.reset?.();
+      } catch (err) {
+        this.log?.debug?.(`[Camera] could not tell whether ${member.mac} is online: ${err.message}`);
+      }
     }
     if (online.length === 0) return;
     this.busy = true;
     try {
-      const byMac = await this._readEvents(online.map((m) => m.mac));
+      const byMac = await withTimeout(this._readEvents(online.map((m) => m.mac)), READ_TIMEOUT_MS, "reading camera events");
       for (const member of online) {
         // One camera's handler failing must not stop the others from being given their events, nor count as a failed poll.
         try { member.onEvents(byMac[member.mac] ?? []); } catch (err) { this.log?.debug?.(`[Camera] events for ${member.mac} not handled: ${err.message}`); }

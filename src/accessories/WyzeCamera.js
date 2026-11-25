@@ -610,6 +610,8 @@ module.exports = class WyzeCamera extends WyzeAccessory {
     this._soundTimer = null;
     clearTimeout(this._nightVisionFirst);
     clearInterval(this._nightVisionTimer);
+    clearTimeout(this._prefetchTimer);
+    this._prefetchTimer = null;
     this.detections.stop();
     if (this._motionMember) this.plugin._motionPoller?.remove(this._motionMember);
     this._motionMember = null;
@@ -708,8 +710,10 @@ module.exports = class WyzeCamera extends WyzeAccessory {
         this._setupCameraController();
         // Have a picture ready for the first time the Home app asks. Delayed a few
         // seconds so the first poll has settled the camera's online and power state.
-        const prefetch = setTimeout(() => this._streamingDelegate?.prefetchSnapshot?.(), 5000);
-        prefetch.unref?.();
+        this._prefetchTimer = setTimeout(() => {
+          if (!this._stopped) this._streamingDelegate?.prefetchSnapshot?.();
+        }, 5000);
+        this._prefetchTimer.unref?.();
       } catch (err) {
         this.plugin.log.error(
           `[Camera] _setupCameraController failed for ${this.display_name}: ${err.message}\n${err.stack}`
@@ -1088,6 +1092,9 @@ module.exports = class WyzeCamera extends WyzeAccessory {
   }
 
   async _readNightVision() {
+    // Reading it is a conversation with the camera, which wakes a battery camera, and a camera that is offline or
+    // switched off cannot answer. The next read is in half an hour.
+    if (this._stopped || this.cameraOnline === false || this.power_switch === 0 || this.power_switch === "0" || isBatteryCamera(this.product_model)) return;
     const client = this.plugin.client;
     if (typeof client?.getCameraNightVision !== "function") {
       if (!this._nightVisionWarned) this.plugin.log.warn?.(`[Camera] ${this.display_name}: night vision needs a newer wyze-api; update it and restart.`);

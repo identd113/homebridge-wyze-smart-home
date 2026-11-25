@@ -5,6 +5,7 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 const { isBatteryCamera } = require("./batteryModels");
+const { withTimeout } = require("./withTimeout");
 
 const SNAPSHOT_CACHE_MS = 10_000;
 // A picture fetched at startup stays "fresh" this long, so the first time the Home app
@@ -14,13 +15,15 @@ const SNAPSHOT_PREFETCH_MS = 60_000;
 // motion refreshes first (oldest first), then regular refreshes and startup pictures.
 const pictureQueue = [];
 let pictureRunning = false;
+// One picture that never finishes must not hold up every other camera's picture for ever.
+const PICTURE_JOB_TIMEOUT_MS = 90_000;
 
 function pumpPictureQueue() {
   if (pictureRunning) return;
   const job = pictureQueue.shift();
   if (!job) return;
   pictureRunning = true;
-  job.run()
+  withTimeout(job.run(), PICTURE_JOB_TIMEOUT_MS, "taking a picture")
     .catch(() => {})
     .finally(() => {
       pictureRunning = false;
@@ -80,6 +83,11 @@ class WyzeCameraStreamingDelegate {
 
   // Stop every live stream (Homebridge is shutting down).
   stopAll() {
+    // Pictures this camera has waiting must not run after it is stopped (a job would open a new session on it).
+    for (const job of pictureQueue.filter((j) => j.delegate === this)) {
+      pictureQueue.splice(pictureQueue.indexOf(job), 1);
+      job.resolve();
+    }
     try { this.camera.plugin.client?.cameraWarmDown?.(this.camera.mac); } catch (_) { /* shutting down */ }
     for (const session of this._sessions.values()) {
       try { session.streamHandle?.stop(); } catch (_) { /* already stopped */ }
@@ -234,7 +242,12 @@ class WyzeCameraStreamingDelegate {
 
     // The Home app asks for a picture while a camera tile is on screen: with Quick Live View
     // on, that is the moment to open the connection a live view would need.
-    this._noteViewer();
+    try {
+      this._noteViewer();
+    } catch (err) {
+      // Opening a connection ahead is an extra: if it throws, the picture is still served.
+      this.camera.plugin.log.debug?.(`[Camera] [Warm] ${this.camera.display_name}: could not note the viewer: ${err.message}`);
+    }
 
     // Serve from cache when fresh — HomeKit polls snapshots aggressively
     // (every few seconds when the camera tile is visible). While a connection is open
