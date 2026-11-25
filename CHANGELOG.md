@@ -8,7 +8,7 @@ After you have done that if you feel like my work has been valuable to you I wel
 
 ## Releases
 
-This plugin is built on the [wyze-api](https://github.com/identd113/wyze-api) library. For API-level changes (login, 2FA, device commands), see the [wyze-api changelog](https://github.com/identd113/wyze-api/blob/2.x/CHANGELOG.md).
+This plugin is built on the [wyze-api](https://github.com/wyze-smart-home/wyze-api) library. For API-level changes (login, 2FA, device commands), see the [wyze-api changelog](https://github.com/wyze-smart-home/wyze-api/blob/2.x/CHANGELOG.md).
 
 ### v2.0.0-beta.4
 
@@ -67,7 +67,7 @@ Everything since the last published beta, **2.0.0-beta.3**. An earlier `2.0.0-be
 
 ### v2.0.0-beta.3
 
-Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/identd113/wyze-api/blob/2.x/CHANGELOG.md)). Requires Node.js 22 or newer.
+Pairs with `wyze-api@2.0.0-beta.3` ([wyze-api changes](https://github.com/wyze-smart-home/wyze-api/blob/2.x/CHANGELOG.md)). Requires Node.js 22 or newer.
 
 **Before you update**
 - **Node.js 22 or newer is required** (`engines.node` is now `^22 || ^24 || ^26`; Node 18 and 20 are no longer supported). The upgraded `werift` (`^0.25.1`) needs it and fixes the known `ip`/`uuid` vulnerabilities. Homebridge 2.x already requires Node 22+; Homebridge 1.x users must be on Node 22 or newer.

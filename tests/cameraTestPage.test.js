@@ -148,7 +148,7 @@ test('the form the page opens exists, and its values are ones the form and the t
   const { p } = platformWith({})
   const form = p.issueFormForTestPage()
   const template = fs.readFileSync(path.join(__dirname, '../.github/ISSUE_TEMPLATE', form.template), 'utf8')
-  assert.match(form.url, /^https:\/\/github\.com\/identd113\/homebridge-wyze-smart-home\/issues\/new$/)
+  assert.match(form.url, /^https:\/\/github\.com\/wyze-smart-home\/homebridge-wyze-smart-home\/issues\/new$/)
   assert.ok(new RegExp(`^ +- "?${form.kind}"?$`, 'm').test(template), 'the kind is an option of the form')
   assert.match(form.origin, /^[a-z0-9][a-z0-9._-]{0,30}$/, 'the origin label rule in .github/scripts/origin-label.js')
   assert.ok(form.plugin.startsWith(require('../package.json').version))

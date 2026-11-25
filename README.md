@@ -3,11 +3,11 @@
 [![certified-hoobs-plugin](https://badgen.net/badge/HOOBS/certified/yellow)](https://plugins.hoobs.org/plugin/homebridge-wyze-smart-home)
 [![npm](https://img.shields.io/npm/dt/homebridge-wyze-smart-home)](https://www.npmjs.com/package/homebridge-wyze-smart-home)
 [![npm](https://img.shields.io/npm/v/homebridge-wyze-smart-home.svg?style=flat-square)](https://www.npmjs.com/package/homebridge-wyze-smart-home)
-[![GitHub last commit](https://img.shields.io/github/last-commit/identd113/homebridge-wyze-smart-home)](https://github.com/identd113/homebridge-wyze-smart-home)
-[![CI](https://github.com/identd113/homebridge-wyze-smart-home/actions/workflows/ci.yml/badge.svg?branch=2.x)](https://github.com/identd113/homebridge-wyze-smart-home/actions/workflows/ci.yml)
+[![GitHub last commit](https://img.shields.io/github/last-commit/wyze-smart-home/homebridge-wyze-smart-home)](https://github.com/wyze-smart-home/homebridge-wyze-smart-home)
+[![CI](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/actions/workflows/ci.yml/badge.svg?branch=2.x)](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/actions/workflows/ci.yml)
 [![Chat](https://img.shields.io/discord/1134601590762913863)](https://discord.gg/Mjkpq2x9)
 
-[![homebridge-wyze-smart-home: Wyze Connected Home plugin for Homebridge](https://github.com/identd113/homebridge-wyze-smart-home/blob/main/logo.png?raw=true)](https://github.com/identd113/homebridge-wyze-smart-home)
+[![homebridge-wyze-smart-home: Wyze Connected Home plugin for Homebridge](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/blob/main/logo.png?raw=true)](https://github.com/wyze-smart-home/homebridge-wyze-smart-home)
 
 **[Project history](#history)** and **[timeline](#timeline)**: from misenhower's 2020 plugin to the current release.
 
@@ -40,14 +40,14 @@ Needs `wyze-api` 2.0.0-beta.4, which installs with the plugin. Everything since 
 
 If this plugin is useful to you, please look into supporting [Homebridge](https://github.com/sponsors/homebridge) first. None of this could happen without them.
 
-Questions and bug reports: [open an issue](https://github.com/identd113/homebridge-wyze-smart-home/issues).
+Questions and bug reports: [open an issue](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues).
 
 ## Thanks
 
 This plugin stands on other people's work:
 
 - [misenhower](https://github.com/misenhower) wrote the original [homebridge-wyze-connected-home](https://github.com/misenhower/homebridge-wyze-connected-home) plugin in 2020, where all of this started.
-- [jfarmer08](https://github.com/jfarmer08) built this plugin and its [wyze-api](https://github.com/identd113/wyze-api) library from 2022 and maintained them for years.
+- [jfarmer08](https://github.com/jfarmer08) built this plugin and its [wyze-api](https://github.com/wyze-smart-home/wyze-api) library from 2022 and maintained them for years.
 - [SecKatie](https://github.com/SecKatie) maintains [wyzeapy](https://github.com/SecKatie/wyzeapy), the source of the newer camera calls (Pan v4, Floodlight Pro, Battery Cam Pro, OG).
 - [mrlt8](https://github.com/mrlt8) maintains [docker-wyze-bridge](https://github.com/mrlt8/docker-wyze-bridge), whose camera model research we compare against.
 - [shauntarves](https://github.com/shauntarves) wrote [wyze-sdk](https://github.com/shauntarves/wyze-sdk), a Python SDK we used for reference.
@@ -81,24 +81,24 @@ Open a group to see its models. Each **report** link opens the device report for
 
 | Camera | Model code | Controls in HomeKit | Live view / snapshots | Status |
 |---|---|---|---|---|
-| Cam v1 | `WYZEC1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v1%20%28WYZEC1%29&origin=readme) | Privacy, plus Siren / Floodlight / Garage switches per camera in config | WebRTC | 🟢 |
-| Cam v2 | `WYZEC1-JZ` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v2%20%28WYZEC1-JZ%29&origin=readme) | Privacy, plus the same optional switches | WebRTC | 🟢 |
-| Cam v3 (and Floodlight Cam) | `WYZE_CAKP2JFUS` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v3%20%2F%20Floodlight%20Cam%20%28WYZE_CAKP2JFUS%29&origin=readme) | Privacy, plus the same optional switches | WebRTC, snapshots and audio (if the camera's microphone is on) | ✅ |
-| Cam v3 Pro | `HL_CAM3P` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v3%20Pro%20%28HL_CAM3P%29&origin=readme) | Privacy, plus the same optional switches | WebRTC | 🟢 |
-| Cam v4 | `HL_CAM4` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v4%20%28HL_CAM4%29&origin=readme) | Privacy, plus the same optional switches | WebRTC | 🟢 |
-| Cam Pan | `WYZECP1_JEF` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20%28WYZECP1_JEF%29&origin=readme) | Privacy, Siren | WebRTC | 🟢 |
-| Cam Pan v2 | `HL_PAN2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20v2%20%28HL_PAN2%29&origin=readme) | Privacy, Siren | WebRTC | 🟢 |
-| Cam Pan v3 | `HL_PAN3` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20v3%20%28HL_PAN3%29&origin=readme) | Privacy, Siren | WebRTC | 🟢 |
-| Cam Pan v4 | `HL_PAN4` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20v4%20%28HL_PAN4%29&origin=readme) | Privacy, Siren, Spotlight | WebRTC | 🟡 |
-| Cam Pan Pro | `HL_PANP` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20Pro%20%28HL_PANP%29&origin=readme) | Appears as a camera | WebRTC | 🟡 |
-| Bulb Cam | `HL_BC` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Bulb%20Cam%20%28HL_BC%29&origin=readme) | Light | WebRTC | 🟡 |
-| Cam Outdoor | `WVOD1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Battery%20cameras%20-%20Cam%20Outdoor%20%28WVOD1%29&origin=readme) | Privacy | WebRTC | 🟢 |
-| Cam Outdoor v2 | `HL_WCO2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Battery%20cameras%20-%20Cam%20Outdoor%20v2%20%28HL_WCO2%29&origin=readme) | Privacy | WebRTC | 🟢 |
-| Cam Floodlight Pro | `LD_CFP` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Floodlight%20Pro%20%28LD_CFP%29&origin=readme) | Appears as a camera (Privacy; light and siren expected) | WebRTC | 🟡 |
-| Cam Floodlight v2 | `HL_CFL2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Floodlight%20v2%20%28HL_CFL2%29&origin=readme) | Appears as a camera | WebRTC | 🟡 |
-| Battery Cam Pro | `AN_RSCW` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Battery%20cameras%20-%20Battery%20Cam%20Pro%20%28AN_RSCW%29&origin=readme) | Appears as a camera (spotlight and siren expected) | WebRTC | 🟡 |
-| Cam OG | `GW_GC1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20OG%20%28GW_GC1%29&origin=readme) | Appears as a camera | WebRTC | 🟡 |
-| Cam OG Telephoto 3x | `GW_GC2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20OG%20Telephoto%203x%20%28GW_GC2%29&origin=readme) | Appears as a camera | WebRTC | 🟡 |
+| Cam v1 | `WYZEC1` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v1%20%28WYZEC1%29&origin=readme) | Privacy, plus Siren / Floodlight / Garage switches per camera in config | WebRTC | 🟢 |
+| Cam v2 | `WYZEC1-JZ` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v2%20%28WYZEC1-JZ%29&origin=readme) | Privacy, plus the same optional switches | WebRTC | 🟢 |
+| Cam v3 (and Floodlight Cam) | `WYZE_CAKP2JFUS` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v3%20%2F%20Floodlight%20Cam%20%28WYZE_CAKP2JFUS%29&origin=readme) | Privacy, plus the same optional switches | WebRTC, snapshots and audio (if the camera's microphone is on) | ✅ |
+| Cam v3 Pro | `HL_CAM3P` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v3%20Pro%20%28HL_CAM3P%29&origin=readme) | Privacy, plus the same optional switches | WebRTC | 🟢 |
+| Cam v4 | `HL_CAM4` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20v4%20%28HL_CAM4%29&origin=readme) | Privacy, plus the same optional switches | WebRTC | 🟢 |
+| Cam Pan | `WYZECP1_JEF` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20%28WYZECP1_JEF%29&origin=readme) | Privacy, Siren | WebRTC | 🟢 |
+| Cam Pan v2 | `HL_PAN2` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20v2%20%28HL_PAN2%29&origin=readme) | Privacy, Siren | WebRTC | 🟢 |
+| Cam Pan v3 | `HL_PAN3` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20v3%20%28HL_PAN3%29&origin=readme) | Privacy, Siren | WebRTC | 🟢 |
+| Cam Pan v4 | `HL_PAN4` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20v4%20%28HL_PAN4%29&origin=readme) | Privacy, Siren, Spotlight | WebRTC | 🟡 |
+| Cam Pan Pro | `HL_PANP` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Pan%20Pro%20%28HL_PANP%29&origin=readme) | Appears as a camera | WebRTC | 🟡 |
+| Bulb Cam | `HL_BC` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Bulb%20Cam%20%28HL_BC%29&origin=readme) | Light | WebRTC | 🟡 |
+| Cam Outdoor | `WVOD1` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Battery%20cameras%20-%20Cam%20Outdoor%20%28WVOD1%29&origin=readme) | Privacy | WebRTC | 🟢 |
+| Cam Outdoor v2 | `HL_WCO2` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Battery%20cameras%20-%20Cam%20Outdoor%20v2%20%28HL_WCO2%29&origin=readme) | Privacy | WebRTC | 🟢 |
+| Cam Floodlight Pro | `LD_CFP` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Floodlight%20Pro%20%28LD_CFP%29&origin=readme) | Appears as a camera (Privacy; light and siren expected) | WebRTC | 🟡 |
+| Cam Floodlight v2 | `HL_CFL2` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20Floodlight%20v2%20%28HL_CFL2%29&origin=readme) | Appears as a camera | WebRTC | 🟡 |
+| Battery Cam Pro | `AN_RSCW` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Battery%20cameras%20-%20Battery%20Cam%20Pro%20%28AN_RSCW%29&origin=readme) | Appears as a camera (spotlight and siren expected) | WebRTC | 🟡 |
+| Cam OG | `GW_GC1` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20OG%20%28GW_GC1%29&origin=readme) | Appears as a camera | WebRTC | 🟡 |
+| Cam OG Telephoto 3x | `GW_GC2` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Cameras%20-%20Cam%20OG%20Telephoto%203x%20%28GW_GC2%29&origin=readme) | Appears as a camera | WebRTC | 🟡 |
 
 Notes on cameras:
 - Wyze cameras serve **one live viewer at a time**. The plugin closes each stream cleanly and shows the last snapshot while a stream is open.
@@ -119,10 +119,10 @@ Notes on cameras:
 
 | Camera | Model code | Controls in HomeKit | Live view / snapshots | Status |
 |---|---|---|---|---|
-| Video Doorbell v2 | `HL_DB2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Doorbells%20-%20Video%20Doorbell%20v2%20%28HL_DB2%29&origin=readme) | HomeKit doorbell: press notification. No Privacy switch (Wyze does not let it be powered off) | WebRTC at 640x480, with audio | ✅ |
-| Video Doorbell | `WYZEDB3` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Doorbells%20-%20Video%20Doorbell%20%28WYZEDB3%29&origin=readme) | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
-| Video Doorbell Pro | `GW_BE1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Doorbells%20-%20Video%20Doorbell%20Pro%20%28GW_BE1%29&origin=readme) | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
-| Video Doorbell Pro 2 | `AN_RDB1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Doorbells%20-%20Video%20Doorbell%20Pro%202%20%28AN_RDB1%29&origin=readme) | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
+| Video Doorbell v2 | `HL_DB2` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Doorbells%20-%20Video%20Doorbell%20v2%20%28HL_DB2%29&origin=readme) | HomeKit doorbell: press notification. No Privacy switch (Wyze does not let it be powered off) | WebRTC at 640x480, with audio | ✅ |
+| Video Doorbell | `WYZEDB3` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Doorbells%20-%20Video%20Doorbell%20%28WYZEDB3%29&origin=readme) | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
+| Video Doorbell Pro | `GW_BE1` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Doorbells%20-%20Video%20Doorbell%20Pro%20%28GW_BE1%29&origin=readme) | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
+| Video Doorbell Pro 2 | `AN_RDB1` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Doorbells%20-%20Video%20Doorbell%20Pro%202%20%28AN_RDB1%29&origin=readme) | Appears as a camera only; no ring notification yet | WebRTC | 🟡 |
 
 </details>
 
@@ -131,9 +131,9 @@ Notes on cameras:
 
 | Device | Model code | Controls in HomeKit | Status |
 |---|---|---|---|
-| Lock | `YD.LO1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Locks%20-%20Lock%20%28YD.LO1%29&origin=readme) | Lock/unlock, door status, battery | 🟢 |
-| Lock Bolt v2 | `DX_LB2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Locks%20-%20Lock%20Bolt%20v2%20%28DX_LB2%29&origin=readme) | Lock/unlock, door status, battery | 🟢 |
-| Palm Lock | `DX_PVLOC` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Locks%20-%20Palm%20Lock%20%28DX_PVLOC%29&origin=readme) | Lock/unlock, door status, battery (status refreshed every 10 s) | ✅ |
+| Lock | `YD.LO1` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Locks%20-%20Lock%20%28YD.LO1%29&origin=readme) | Lock/unlock, door status, battery | 🟢 |
+| Lock Bolt v2 | `DX_LB2` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Locks%20-%20Lock%20Bolt%20v2%20%28DX_LB2%29&origin=readme) | Lock/unlock, door status, battery | 🟢 |
+| Palm Lock | `DX_PVLOC` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Locks%20-%20Palm%20Lock%20%28DX_PVLOC%29&origin=readme) | Lock/unlock, door status, battery (status refreshed every 10 s) | ✅ |
 
 </details>
 
@@ -142,9 +142,9 @@ Notes on cameras:
 
 | Device | Model code | Controls in HomeKit | Status |
 |---|---|---|---|
-| Light Bulb (White, White v2) | `WLPA19` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Bulb%20White%20%28WLPA19%29&origin=readme), `HL_HWB2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Bulb%20White%20v2%20%28HL_HWB2%29&origin=readme) | On/off, brightness, colour temperature | 🟢 |
-| Mesh / Color Bulb (A19, BR30, A19 v2) | `WLPA19C` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Color%20Bulb%20A19%20%28WLPA19C%29&origin=readme), `HL_BR30C` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Color%20Bulb%20BR30%20%28HL_BR30C%29&origin=readme), `HL_A19C2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Color%20Bulb%20A19%20v2%20%28HL_A19C2%29&origin=readme) | On/off, brightness, colour, colour temperature | 🟢 |
-| Light Strip, Light Strip Pro | `HL_LSL` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Light%20Strip%20%28HL_LSL%29&origin=readme), `HL_LSLP` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Light%20Strip%20Pro%20%28HL_LSLP%29&origin=readme) | On/off, brightness, colour | 🟢 |
+| Light Bulb (White, White v2) | `WLPA19` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Bulb%20White%20%28WLPA19%29&origin=readme), `HL_HWB2` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Bulb%20White%20v2%20%28HL_HWB2%29&origin=readme) | On/off, brightness, colour temperature | 🟢 |
+| Mesh / Color Bulb (A19, BR30, A19 v2) | `WLPA19C` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Color%20Bulb%20A19%20%28WLPA19C%29&origin=readme), `HL_BR30C` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Color%20Bulb%20BR30%20%28HL_BR30C%29&origin=readme), `HL_A19C2` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Color%20Bulb%20A19%20v2%20%28HL_A19C2%29&origin=readme) | On/off, brightness, colour, colour temperature | 🟢 |
+| Light Strip, Light Strip Pro | `HL_LSL` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Light%20Strip%20%28HL_LSL%29&origin=readme), `HL_LSLP` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Lights%20-%20Light%20Strip%20Pro%20%28HL_LSLP%29&origin=readme) | On/off, brightness, colour | 🟢 |
 
 </details>
 
@@ -153,9 +153,9 @@ Notes on cameras:
 
 | Device | Model code | Controls in HomeKit | Status |
 |---|---|---|---|
-| Plug | `WLPP1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Plugs%20and%20switches%20-%20Plug%20%28WLPP1%29&origin=readme), `WLPP1CFH` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Plugs%20and%20switches%20-%20Plug%20%28alternate%20model%29%20%28WLPP1CFH%29&origin=readme) | On/off | 🟢 |
-| Outdoor Plug | `WLPPO-SUB` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Plugs%20and%20switches%20-%20Outdoor%20Plug%20%28WLPPO-SUB%29&origin=readme) | On/off | 🟢 |
-| Wall Switch | `LD_SS1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Plugs%20and%20switches%20-%20Wall%20Switch%20%28LD_SS1%29&origin=readme) | On/off | 🟢 |
+| Plug | `WLPP1` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Plugs%20and%20switches%20-%20Plug%20%28WLPP1%29&origin=readme), `WLPP1CFH` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Plugs%20and%20switches%20-%20Plug%20%28alternate%20model%29%20%28WLPP1CFH%29&origin=readme) | On/off | 🟢 |
+| Outdoor Plug | `WLPPO-SUB` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Plugs%20and%20switches%20-%20Outdoor%20Plug%20%28WLPPO-SUB%29&origin=readme) | On/off | 🟢 |
+| Wall Switch | `LD_SS1` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Plugs%20and%20switches%20-%20Wall%20Switch%20%28LD_SS1%29&origin=readme) | On/off | 🟢 |
 
 </details>
 
@@ -164,10 +164,10 @@ Notes on cameras:
 
 | Device | Model code | Controls in HomeKit | Status |
 |---|---|---|---|
-| Contact Sensor v1, v2 | `DWS2U` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Contact%20Sensor%20v1%20%28DWS2U%29&origin=readme), `DWS3U` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Contact%20Sensor%20v2%20%28DWS3U%29&origin=readme) | Open/closed, battery | 🟢 |
-| Motion Sensor v1, v2 | `PIR2U` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Motion%20Sensor%20v1%20%28PIR2U%29&origin=readme), `PIR3U` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Motion%20Sensor%20v2%20%28PIR3U%29&origin=readme) | Motion, battery | 🟢 |
-| Temperature & Humidity Sensor | `TH3U` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Temperature%20%26%20Humidity%20Sensor%20%28TH3U%29&origin=readme) | Temperature, humidity, battery | 🟢 |
-| Leak Sensor | `WS3U` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Leak%20Sensor%20%28WS3U%29&origin=readme) | Leak, battery | 🟢 |
+| Contact Sensor v1, v2 | `DWS2U` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Contact%20Sensor%20v1%20%28DWS2U%29&origin=readme), `DWS3U` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Contact%20Sensor%20v2%20%28DWS3U%29&origin=readme) | Open/closed, battery | 🟢 |
+| Motion Sensor v1, v2 | `PIR2U` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Motion%20Sensor%20v1%20%28PIR2U%29&origin=readme), `PIR3U` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Motion%20Sensor%20v2%20%28PIR3U%29&origin=readme) | Motion, battery | 🟢 |
+| Temperature & Humidity Sensor | `TH3U` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Temperature%20%26%20Humidity%20Sensor%20%28TH3U%29&origin=readme) | Temperature, humidity, battery | 🟢 |
+| Leak Sensor | `WS3U` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Leak%20Sensor%20%28WS3U%29&origin=readme) | Leak, battery | 🟢 |
 
 </details>
 
@@ -176,9 +176,9 @@ Notes on cameras:
 
 | Device | Model code | Controls in HomeKit | Status |
 |---|---|---|---|
-| Home Monitoring System | `GW3U` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Home%20Monitoring%20System%20%28GW3U%29&origin=readme) | Arm/disarm | 🟢 |
-| Thermostat | `CO_EA1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Climate%20-%20Thermostat%20%28CO_EA1%29&origin=readme) | Mode, target / heat / cool temperatures, current temperature and humidity | 🟢 |
-| Thermostat Room Sensor | `CO_TH1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Climate%20-%20Thermostat%20Room%20Sensor%20%28CO_TH1%29&origin=readme) | Temperature, humidity, battery | 🟢 |
+| Home Monitoring System | `GW3U` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Sensors%20-%20Home%20Monitoring%20System%20%28GW3U%29&origin=readme) | Arm/disarm | 🟢 |
+| Thermostat | `CO_EA1` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Climate%20-%20Thermostat%20%28CO_EA1%29&origin=readme) | Mode, target / heat / cool temperatures, current temperature and humidity | 🟢 |
+| Thermostat Room Sensor | `CO_TH1` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Climate%20-%20Thermostat%20Room%20Sensor%20%28CO_TH1%29&origin=readme) | Temperature, humidity, battery | 🟢 |
 
 </details>
 
@@ -187,14 +187,14 @@ Notes on cameras:
 
 | Device | Model code | Controls in HomeKit | Status |
 |---|---|---|---|
-| Robot Vacuum | `JA_RO2` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Appliances%20-%20Robot%20Vacuum%20%28JA_RO2%29&origin=readme) | Start/stop, fan speed, battery and charging state, fault codes, per-room switches | 🟢 |
-| Sprinkler Controller | `BS_WK1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Appliances%20-%20Sprinkler%20Controller%20%28BS_WK1%29&origin=readme) | Zone valves: start/stop, duration, remaining time | 🟢 |
+| Robot Vacuum | `JA_RO2` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Appliances%20-%20Robot%20Vacuum%20%28JA_RO2%29&origin=readme) | Start/stop, fan speed, battery and charging state, fault codes, per-room switches | 🟢 |
+| Sprinkler Controller | `BS_WK1` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Appliances%20-%20Sprinkler%20Controller%20%28BS_WK1%29&origin=readme) | Zone valves: start/stop, duration, remaining time | 🟢 |
 
 </details>
 
 ## Not Yet Supported
 
-Have a Wyze device that is not on either list? [Tell us about it](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml). The form asks what the device is and for the information the plugin has about it, which is usually enough to add support.
+Have a Wyze device that is not on either list? [Tell us about it](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml). The form asks what the device is and for the information the plugin has about it, which is usually enough to add support.
 
 **Effort** is our rough estimate. **Easy** means another open-source Wyze project already handles the device, so we can port from it; **Hard** means it needs a different protocol; **Unknown** means we found no reference implementation.
 
@@ -203,7 +203,7 @@ Have a Wyze device that is not on either list? [Tell us about it](https://github
 
 | Device | Model code | Why it isn't supported | Effort |
 |---|---|---|---|
-| Air Purifier | `CO_AP1` [report](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Appliances%20-%20Air%20Purifier%20%28CO_AP1%29&origin=readme) | No accessory class. [wyzeapy](https://github.com/SecKatie/wyzeapy) reads on/off, fan mode and air quality, and HomeKit has matching services | Medium |
+| Air Purifier | `CO_AP1` [report](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml&device=Appliances%20-%20Air%20Purifier%20%28CO_AP1%29&origin=readme) | No accessory class. [wyzeapy](https://github.com/SecKatie/wyzeapy) reads on/off, fan mode and air quality, and HomeKit has matching services | Medium |
 | Keypad | — | It is an accessory of the lock and HomeKit has no keypad service. [wyze-sdk](https://github.com/shauntarves/wyze-sdk) reads its enable setting and events | Unknown |
 | Lamp Socket / Lamp Socket v2 | — | No model code yet | Easy |
 | Lock Bolt (original, Bluetooth only) | — | Bluetooth only, no cloud control | Hard |
@@ -441,7 +441,7 @@ Everything under `advanced` works at its default. Change one only for the reason
 | `sensorHoldSeconds` | A Motion, Sound or AI tile switches off too soon or lingers too long for your automations. Raise it for cameras without a Wyze plan, which report only about one event every 5 minutes, so the tile stays on between events. Lower it if you want a quick "motion stopped" signal. | Counted from the time of the event on Wyze's clock, between 5 and 3600 seconds. A newer event extends it. |
 | `warmLiveView` | Live view takes several seconds to start. | The plugin opens a connection to a camera ahead of time while the Home app is looking at it, and keeps it about 45 seconds. While it is open the Wyze app cannot watch that camera, and every camera on screen is connected at once. |
 | `webServerPort` | You want to see what a camera answers over your home network, or to change a camera's night vision, from a browser. | Off by default. When on, Homebridge also listens on that port (1024 or higher), serving a page that needs the token printed in the log. Local network only, plain HTTP. |
-| `deviceTypeOverrides` | Wyze has a new product code the plugin does not know yet, and you want to try it as an existing kind of device before official support. | Troubleshooting only. A wrong override can show a device as the wrong kind. Please also [report the new model](https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml). |
+| `deviceTypeOverrides` | Wyze has a new product code the plugin does not know yet, and you want to try it as an existing kind of device before official support. | Troubleshooting only. A wrong override can show a device as the wrong kind. Please also [report the new model](https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml). |
 | `dangerouslyAllowCustomBaseUrls`, `authBaseUrl`, `apiBaseUrl` | You send Wyze traffic through your own proxy or test server. | Off by default, because the plugin otherwise accepts only Wyze's own hosts: your login and token go wherever these point. Do not set them unless you control that server. |
 
 ### Older configs
@@ -467,7 +467,7 @@ The older flat format (`username`, `password`, `keyId`, `apiKey`, `filterByMacAd
 ## Development
 
 ```
-git clone https://github.com/identd113/homebridge-wyze-smart-home.git
+git clone https://github.com/wyze-smart-home/homebridge-wyze-smart-home.git
 cd homebridge-wyze-smart-home
 npm install
 npm test
@@ -475,7 +475,7 @@ npm run lint
 ```
 
 - **Tests** are in [`tests/`](tests/). They use stubs for Homebridge and Wyze, so they need no Homebridge install, no network and no Wyze account. CI runs them, and `npm run lint`, on every pull request.
-- **Against a local `wyze-api`:** the plugin depends on the published [wyze-api](https://github.com/identd113/wyze-api). A change that needs an unreleased `wyze-api` fails against the registry copy until it is published. To work on both together, clone `wyze-api` next to this folder and run `npm run dev-link`. A later `npm install` can replace the link, so run it again if the tests start failing on a missing method.
+- **Against a local `wyze-api`:** the plugin depends on the published [wyze-api](https://github.com/wyze-smart-home/wyze-api). A change that needs an unreleased `wyze-api` fails against the registry copy until it is published. To work on both together, clone `wyze-api` next to this folder and run `npm run dev-link`. A later `npm install` can replace the link, so run it again if the tests start failing on a missing method.
 - **Documentation** for contributors is indexed in [`docs/`](docs/README.md): the design notes, release notes, and archived branches.
 - **Run it in Homebridge:** `npm run start` starts Homebridge from the parent folder with this plugin loaded.
 

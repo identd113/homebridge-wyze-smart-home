@@ -238,7 +238,7 @@ module.exports = class WyzeSmartHome {
     let apiVersion
     try { apiVersion = require('wyze-api/package.json').version } catch (_) { /* unknown */ }
     return {
-      url: 'https://github.com/identd113/homebridge-wyze-smart-home/issues/new',
+      url: 'https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new',
       template: 'new-device.yml',
       origin: 'camera-test-page',
       kind: 'Camera or doorbell',

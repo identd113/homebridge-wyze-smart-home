@@ -4,7 +4,7 @@
 // creates anything in HomeKit: the entry only lets the startup log say what the device is
 // and what is missing, instead of a bare "Unsupported device type". Keep this in step with
 // the README's "Not Yet Supported" table.
-const NEW_DEVICE_FORM = "https://github.com/identd113/homebridge-wyze-smart-home/issues/new?template=new-device.yml";
+const NEW_DEVICE_FORM = "https://github.com/wyze-smart-home/homebridge-wyze-smart-home/issues/new?template=new-device.yml";
 
 const PLANNED_DEVICES = {
   CO_AP1: {

@@ -1,6 +1,6 @@
 # Releasing the plugin
 
-How a release gets to npm, and the order to do things in. This plugin depends on [wyze-api](https://github.com/identd113/wyze-api), so **`wyze-api` always goes first**.
+How a release gets to npm, and the order to do things in. This plugin depends on [wyze-api](https://github.com/wyze-smart-home/wyze-api), so **`wyze-api` always goes first**.
 
 ## How publishing works
 
