@@ -22,7 +22,8 @@ test('schema uses required arrays, not draft-3 per-property booleans', () => {
   walk(schema.schema, (n) => {
     if (n.properties) for (const [k, v] of Object.entries(n.properties)) assert.notStrictEqual(typeof v.required, 'boolean', `${k} has a boolean "required"`)
   })
-  assert.deepStrictEqual(schema.schema.properties.auth.required, ['username', 'password', 'keyId', 'apiKey'])
+  // The four credentials are not required by the form: a secretsFile or WYZE_* variable can supply them, and the plugin checks them at startup.
+  assert.strictEqual(schema.schema.properties.auth.required, undefined)
 })
 
 test('secret fields are masked in the settings UI', () => {

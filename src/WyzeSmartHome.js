@@ -152,11 +152,12 @@ module.exports = class WyzeSmartHome {
     if (apiCheck.installed) {
       this.log.info?.(`[Wyze] homebridge-wyze-smart-home ${require('../package.json').version}, wyze-api ${apiCheck.installed} (needs ${apiCheck.required})`)
     }
-    const username = typeof this.config.username === 'string' ? this.config.username.trim() : ''
+    // The settings form does not require these (a secretsFile or WYZE_* variable can supply them), so check here, after they are merged.
+    const missing = ['username', 'password', 'keyId', 'apiKey'].filter((k) => typeof this.config[k] !== 'string' || !this.config[k].trim())
     const fatal = !apiCheck.ok
       ? apiCheck.message
-      : !username
-          ? 'Cannot log in to Wyze: no username specified. Add your Wyze account email to the plugin config ("username") and restart Homebridge.'
+      : missing.length
+          ? `Cannot log in to Wyze: missing ${missing.join(', ')}. Add ${missing.length === 1 ? 'it' : 'them'} to the plugin config, to the secretsFile, or to the WYZE_* environment variables, and restart Homebridge.`
           : null
     if (fatal) {
       this.log.error(`[FATAL] ${fatal}`)

@@ -18,30 +18,29 @@
       "auth": {
         "type": "object",
         "title": "Account",
-        "required": ["username", "password", "keyId", "apiKey"],
         "properties": {
           "username": {
             "title": "Email Address",
             "type": "string",
             "format": "email",
-            "description": "The email address used for your Wyze account."
+            "description": "The email address used for your Wyze account. Needed unless the Secrets File or a WYZE_* environment variable provides it."
           },
           "password": {
             "title": "Password",
             "type": "string",
             "x-schema-form": { "type": "password" },
-            "description": "Your Wyze account password."
+            "description": "Your Wyze account password. Needed unless the Secrets File or a WYZE_* environment variable provides it."
           },
           "keyId": {
             "title": "Key ID",
             "type": "string",
-            "description": "API Key ID from the official Wyze portal: https://developer-api-console.wyze.com"
+            "description": "API Key ID from the official Wyze portal: https://developer-api-console.wyze.com Needed unless the Secrets File or a WYZE_* environment variable provides it."
           },
           "apiKey": {
             "title": "API Key",
             "type": "string",
             "x-schema-form": { "type": "password" },
-            "description": "API Key from the official Wyze portal."
+            "description": "API Key from the official Wyze portal. Needed unless the Secrets File or a WYZE_* environment variable provides it."
           },
           "mfaCode": {
             "title": "2FA/MFA Code",
@@ -57,7 +56,7 @@
           "secretsFile": {
             "title": "Secrets File (optional)",
             "type": "string",
-            "description": "Path to a mode-600 JSON file containing any of the credentials above. If set, values from this file override the fields above. Useful for keeping credentials out of homebridge config.json."
+            "description": "Path to a mode-600 JSON file containing any of the credentials above. The path is relative to the folder Homebridge runs from; an absolute path is refused. If set, values from this file override the fields above. Useful for keeping credentials out of homebridge config.json."
           }
         }
       },

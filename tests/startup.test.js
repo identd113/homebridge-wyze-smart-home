@@ -44,7 +44,7 @@ test('empty username logs a [FATAL] error and disables the platform', () => {
     platform = new WyzeSmartHome(log, { platform: 'WyzeSmartHome', name: 'Wyze', username: '', password: 'p', keyId: 'k', apiKey: 'a' }, api)
   })
 
-  const fatal = out.split('\n').filter((l) => /\[ERROR\].*\[FATAL\].*no username specified/.test(l))
+  const fatal = out.split('\n').filter((l) => /\[ERROR\].*\[FATAL\].*missing username/.test(l))
   assert.strictEqual(fatal.length, 1)
   assert.strictEqual(platform.disabled, true)
   assert.ok(!api.calls.on.includes('didFinishLaunching'), 'must not start discovery')
